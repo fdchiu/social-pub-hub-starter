@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
@@ -156,6 +157,24 @@ Takeaway:
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
                                       ),
+                                      trailing: Wrap(
+                                        spacing: 4,
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Copy',
+                                            onPressed: () =>
+                                                _copyVariantText(variant.body),
+                                            icon: const Icon(Icons.copy),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Confirm posted',
+                                            onPressed: () => _confirmPosted(
+                                                variant.id, variant.platform),
+                                            icon: const Icon(
+                                                Icons.check_circle_outline),
+                                          ),
+                                        ],
+                                      ),
                                     );
                                   },
                                 );
@@ -303,5 +322,85 @@ Takeaway:
         _variantError = 'Variant generation failed: $e';
       });
     }
+  }
+
+  Future<void> _copyVariantText(String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Copied variant text')),
+    );
+  }
+
+  Future<void> _confirmPosted(String variantId, String platform) async {
+    try {
+      final externalUrl = await _promptExternalUrl();
+      final baseUrl = ref.read(apiBaseUrlProvider);
+      final response = await ref.read(httpClientProvider).post(
+            Uri.parse('$baseUrl/publish/confirm'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({
+              'variant_id': variantId,
+              if (externalUrl != null && externalUrl.isNotEmpty)
+                'external_post_url': externalUrl,
+            }),
+          );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Publish confirm failed: ${response.statusCode}');
+      }
+      final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+      final loggedUrl = (parsed['external_post_url'] as String?) ?? externalUrl;
+
+      await ref.read(publishLogRepoProvider).createPublishLog(
+            variantId: variantId,
+            platform: platform,
+            mode: 'assisted',
+            status: 'posted',
+            externalUrl: loggedUrl,
+            postedAt: DateTime.now().toUtc(),
+          );
+
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Publish confirmed and logged')),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Confirm failed: $e')),
+      );
+    }
+  }
+
+  Future<String?> _promptExternalUrl() async {
+    final controller = TextEditingController();
+    final value = await showDialog<String?>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('External post URL (optional)'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'https://...'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('Skip'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return value?.isEmpty ?? true ? null : value;
   }
 }

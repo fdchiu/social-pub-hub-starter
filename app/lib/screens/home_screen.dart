@@ -19,6 +19,10 @@ class HomeScreen extends StatelessWidget {
             child: const Text("Compose"),
           ),
           ElevatedButton(
+            onPressed: () => context.go('/history'),
+            child: const Text("History"),
+          ),
+          ElevatedButton(
             onPressed: () => context.go('/settings'),
             child: const Text("Settings"),
           ),
