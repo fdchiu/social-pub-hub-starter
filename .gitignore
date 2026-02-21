@@ -1,3 +1,9 @@
 .DS_Store
 ._*
+**/._*
 **/.venv/
+backend/*.db
+!app/lib/data/
+!app/lib/data/**
+app/lib/data/._*
+app/lib/data/**/._*
