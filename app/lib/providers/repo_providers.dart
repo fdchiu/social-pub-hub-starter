@@ -35,3 +35,8 @@ final sourceItemsStreamProvider = StreamProvider<List<SourceItem>>((ref) {
 final publishLogsStreamProvider = StreamProvider<List<PublishLog>>((ref) {
   return ref.watch(publishLogRepoProvider).watchPublishLogs();
 });
+
+final draftVariantsStreamProvider =
+    StreamProvider.family<List<Variant>, String>((ref, draftId) {
+  return ref.watch(variantRepoProvider).watchVariantsForDraft(draftId);
+});

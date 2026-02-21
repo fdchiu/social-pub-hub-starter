@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/repo_providers.dart';
+import '../providers/sync_providers.dart';
 
 class ComposeScreen extends ConsumerStatefulWidget {
   const ComposeScreen({super.key});
@@ -30,6 +32,8 @@ Takeaway:
   bool _loading = true;
   bool _hydratingEditor = false;
   String? _saveError;
+  String? _variantError;
+  bool _generatingVariants = false;
 
   @override
   void initState() {
@@ -48,10 +52,27 @@ Takeaway:
 
   @override
   Widget build(BuildContext context) {
+    final variantsAsync = _draftId == null
+        ? null
+        : ref.watch(draftVariantsStreamProvider(_draftId!));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Compose'),
         actions: [
+          IconButton(
+            onPressed: (_draftId == null || _generatingVariants)
+                ? null
+                : _generateVariants,
+            tooltip: 'Generate variants',
+            icon: _generatingVariants
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome),
+          ),
           if (_saveError != null)
             Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -76,16 +97,78 @@ Takeaway:
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _controller,
-                minLines: null,
-                maxLines: null,
-                expands: true,
-                textAlignVertical: TextAlignVertical.top,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Write canonical markdown draft...',
-                ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      minLines: null,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: 'Write canonical markdown draft...',
+                      ),
+                    ),
+                  ),
+                  if (_variantError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _variantError!,
+                          style: const TextStyle(color: Colors.orange),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white24),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: variantsAsync == null
+                          ? const SizedBox.shrink()
+                          : variantsAsync.when(
+                              data: (variants) {
+                                if (variants.isEmpty) {
+                                  return const Center(
+                                    child: Text(
+                                      'No variants yet. Tap sparkle to generate.',
+                                    ),
+                                  );
+                                }
+                                return ListView.separated(
+                                  itemCount: variants.length,
+                                  separatorBuilder: (_, __) =>
+                                      const Divider(height: 1),
+                                  itemBuilder: (context, index) {
+                                    final variant = variants[index];
+                                    return ListTile(
+                                      title: Text(
+                                        variant.platform.toUpperCase(),
+                                      ),
+                                      subtitle: Text(
+                                        variant.body,
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                              loading: () => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                              error: (error, _) =>
+                                  Center(child: Text('Variant error: $error')),
+                            ),
+                    ),
+                  ),
+                ],
               ),
             ),
     );
@@ -145,5 +228,80 @@ Takeaway:
         });
       }
     });
+  }
+
+  Future<void> _generateVariants() async {
+    final draftId = _draftId;
+    if (draftId == null) {
+      return;
+    }
+
+    setState(() {
+      _generatingVariants = true;
+      _variantError = null;
+    });
+
+    try {
+      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
+            draftId: draftId,
+            canonicalMarkdown: _controller.text,
+          );
+
+      final baseUrl = ref.read(apiBaseUrlProvider);
+      final response = await ref.read(httpClientProvider).post(
+            Uri.parse('$baseUrl/drafts/$draftId/variants'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({
+              'platforms': const [
+                'x',
+                'linkedin',
+                'reddit',
+                'facebook',
+                'youtube',
+              ],
+            }),
+          );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Generate failed: ${response.statusCode}');
+      }
+
+      final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+      final variantsRaw = parsed['variants'];
+      final variants = variantsRaw is List
+          ? variantsRaw.whereType<Map>().map((e) => e.cast<String, dynamic>())
+          : const Iterable<Map<String, dynamic>>.empty();
+
+      final repo = ref.read(variantRepoProvider);
+      await repo.deleteVariantsForDraft(draftId);
+
+      for (final variant in variants) {
+        await repo.createVariant(
+          id: variant['id'] as String?,
+          draftId: draftId,
+          platform: (variant['platform'] as String?) ?? 'x',
+          body: (variant['text'] as String?) ?? '',
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _generatingVariants = false;
+        _variantError = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Generated ${variants.length} variants')),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _generatingVariants = false;
+        _variantError = 'Variant generation failed: $e';
+      });
+    }
   }
 }

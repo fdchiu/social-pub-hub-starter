@@ -72,3 +72,28 @@ class SyncDeletes(BaseModel):
 class SyncPushRequest(BaseModel):
     upserts: SyncUpserts = Field(default_factory=SyncUpserts)
     deletes: SyncDeletes = Field(default_factory=SyncDeletes)
+
+
+class DraftFromSourcesRequest(BaseModel):
+    source_ids: list[str] = Field(default_factory=list)
+    intent: str = "how_to"
+    tone: float = 0.6
+    punchiness: float = 0.7
+    audience: str = "engineers"
+    length_target: str = "short"
+
+
+class DraftVariantsRequest(BaseModel):
+    platforms: list[str] = Field(default_factory=lambda: ["x", "linkedin"])
+    style_profile_id: str | None = None
+
+
+class VariantHumanizeRequest(BaseModel):
+    style_profile_id: str | None = None
+    strictness: float = 0.7
+
+
+class PublishConfirmRequest(BaseModel):
+    variant_id: str
+    external_post_url: str | None = None
+    posted_at: datetime | None = None

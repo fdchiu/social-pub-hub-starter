@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,10 +19,14 @@ from .models import (
     utc_now,
 )
 from .schemas import (
+    DraftFromSourcesRequest,
+    DraftVariantsRequest,
     DraftSyncItem,
+    PublishConfirmRequest,
     PublishLogSyncItem,
     StyleProfileSyncItem,
     SyncPushRequest,
+    VariantHumanizeRequest,
     VariantSyncItem,
 )
 
@@ -118,6 +123,10 @@ def _serialize(name: str, item: Any) -> dict[str, Any]:
     if name == "style_profiles":
         return _serialize_style_profile(item)
     raise ValueError(f"Unknown sync table: {name}")
+
+
+def _new_id(prefix: str) -> str:
+    return f"{prefix}_{uuid4().hex}"
 
 
 def _apply_draft_upsert(db: Session, payload: DraftSyncItem) -> None:
@@ -231,6 +240,61 @@ def _soft_delete(db: Session, model: Any, entity_id: str) -> None:
     item.sync_cursor = _next_cursor(db)
 
 
+def _canonical_template(intent: str, source_ids: list[str], audience: str) -> str:
+    source_hint = ", ".join(source_ids[:3]) if source_ids else "recent captures"
+    return (
+        "# Draft\n\n"
+        f"Hook: My latest {intent.replace('_', ' ')} for {audience} came from {source_hint}.\n\n"
+        "- What changed\n"
+        "- Why it matters now\n"
+        "- One tradeoff I would watch\n\n"
+        "Takeaway: Keep it simple, then iterate from feedback.\n\n"
+        "Question: What would you test first?"
+    )
+
+
+def _variant_template(platform: str, canonical: str) -> str:
+    first_line = canonical.splitlines()[2] if len(canonical.splitlines()) > 2 else "Quick take:"
+    bullet = "•"
+
+    if platform == "x":
+        return f"{first_line}\n\n{bullet} One key detail\n{bullet} One tradeoff\n\nWhat would you add?"
+    if platform == "linkedin":
+        return (
+            f"{first_line}\n\n"
+            f"{bullet} Context\n{bullet} Tactic\n{bullet} Result to watch\n\n"
+            "Curious how others handle this."
+        )
+    if platform == "reddit":
+        return (
+            f"Context: {first_line}\n\n"
+            "I tried a lightweight approach and saw mixed results.\n"
+            "What would you change first?"
+        )
+    if platform == "facebook":
+        return f"{first_line}\n\nShort version: tested a practical flow, learned a lot.\nWhat do you think?"
+    if platform == "youtube":
+        return (
+            "Title: A practical take on this week’s build decision\n\n"
+            "Description:\n"
+            "- Context\n- What changed\n- Tradeoff\n\n"
+            "Pinned comment: What should I test next?"
+        )
+    return f"{first_line}\n\nShared summary for {platform}."
+
+
+def _humanize_text(text: str, strictness: float, banned: list[str]) -> str:
+    result = text
+    for phrase in banned:
+        if phrase:
+            result = result.replace(phrase, "")
+    if strictness >= 0.6:
+        result = result.replace("very ", "").replace("really ", "")
+    result = "\n".join(line.rstrip() for line in result.splitlines())
+    result = "\n".join(line for line in result.splitlines() if line.strip())
+    return result.strip()
+
+
 @app.on_event("startup")
 def startup() -> None:
     Base.metadata.create_all(bind=engine)
@@ -324,3 +388,121 @@ def sync_push(payload: SyncPushRequest, db: Session = Depends(get_db)) -> dict[s
     db.commit()
     cursor = _ensure_sync_counter(db).value
     return {"cursor": cursor, "status": "ok"}
+
+
+@app.post("/drafts/from_sources")
+def drafts_from_sources(
+    payload: DraftFromSourcesRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    draft_id = _new_id("draft")
+    now = utc_now()
+    canonical = _canonical_template(payload.intent, payload.source_ids, payload.audience)
+    draft = Draft(
+        id=draft_id,
+        canonical_markdown=canonical,
+        intent=payload.intent,
+        tone=payload.tone,
+        punchiness=payload.punchiness,
+        audience=payload.audience,
+        created_at=now,
+        updated_at=now,
+        sync_cursor=_next_cursor(db),
+    )
+    db.add(draft)
+    db.commit()
+    return {"draft_id": draft_id, "canonical_markdown": canonical}
+
+
+@app.post("/drafts/{draft_id}/variants")
+def draft_variants(
+    draft_id: str,
+    payload: DraftVariantsRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    draft = db.get(Draft, draft_id)
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+    platforms = payload.platforms or ["x", "linkedin"]
+    variants: list[dict[str, Any]] = []
+
+    for platform in platforms:
+        variant_text = _variant_template(platform, draft.canonical_markdown)
+        variant = Variant(
+            id=_new_id("variant"),
+            draft_id=draft_id,
+            platform=platform,
+            text=variant_text,
+            created_at=utc_now(),
+            updated_at=utc_now(),
+            sync_cursor=_next_cursor(db),
+        )
+        db.add(variant)
+        variants.append(
+            {
+                "id": variant.id,
+                "platform": variant.platform,
+                "text": variant.text,
+            }
+        )
+
+    db.commit()
+    return {"variants": variants}
+
+
+@app.post("/variants/{variant_id}/humanize")
+def variant_humanize(
+    variant_id: str,
+    payload: VariantHumanizeRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    variant = db.get(Variant, variant_id)
+    if variant is None:
+        raise HTTPException(status_code=404, detail="Variant not found")
+
+    banned = ["delve", "unlock", "leverage", "game-changer", "seamlessly"]
+    if payload.style_profile_id:
+        style = db.get(StyleProfile, payload.style_profile_id)
+        if style is not None:
+            banned = style.banned_phrases
+
+    variant.text = _humanize_text(variant.text, payload.strictness, banned)
+    variant.updated_at = utc_now()
+    variant.sync_cursor = _next_cursor(db)
+    db.commit()
+
+    return {"id": variant.id, "platform": variant.platform, "text": variant.text}
+
+
+@app.post("/publish/confirm")
+def publish_confirm(
+    payload: PublishConfirmRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    variant = db.get(Variant, payload.variant_id)
+    if variant is None:
+        raise HTTPException(status_code=404, detail="Variant not found")
+
+    now = utc_now()
+    publish_log = PublishLog(
+        id=_new_id("publish"),
+        variant_id=variant.id,
+        platform=variant.platform,
+        mode="assisted",
+        status="posted",
+        external_url=payload.external_post_url,
+        posted_at=_to_utc(payload.posted_at) if payload.posted_at else now,
+        created_at=now,
+        updated_at=now,
+        sync_cursor=_next_cursor(db),
+    )
+    db.add(publish_log)
+    db.commit()
+
+    return {
+        "id": publish_log.id,
+        "status": publish_log.status,
+        "platform": publish_log.platform,
+        "external_post_url": publish_log.external_url,
+    }

@@ -10,29 +10,37 @@ class VariantRepo {
 
   Stream<List<Variant>> watchVariantsForDraft(String draftId) {
     final query = _db.select(_db.variants)
-      ..where((t) => t.draftId.equals(draftId));
+      ..where((t) => t.draftId.equals(draftId))
+      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
     return query.watch();
   }
 
   Future<String> createVariant({
+    String? id,
     required String draftId,
     required String platform,
     required String body,
   }) async {
-    final id = generateEntityId();
+    final entityId = id ?? generateEntityId();
     final now = DateTime.now().toUtc();
 
     await _db.into(_db.variants).insert(
           VariantsCompanion.insert(
-            id: id,
+            id: entityId,
             draftId: draftId,
             platform: platform,
             body: body,
             createdAt: Value(now),
             updatedAt: Value(now),
           ),
+          mode: InsertMode.insertOrReplace,
         );
 
-    return id;
+    return entityId;
+  }
+
+  Future<void> deleteVariantsForDraft(String draftId) async {
+    await (_db.delete(_db.variants)..where((t) => t.draftId.equals(draftId)))
+        .go();
   }
 }
