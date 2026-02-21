@@ -9,7 +9,8 @@ class StyleProfileRepo {
   final AppDatabase _db;
 
   Future<StyleProfile> getOrCreateDefault() async {
-    final first = await (_db.select(_db.styleProfiles)..limit(1)).getSingleOrNull();
+    final first =
+        await (_db.select(_db.styleProfiles)..limit(1)).getSingleOrNull();
     if (first != null) {
       return first;
     }

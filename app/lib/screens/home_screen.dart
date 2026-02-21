@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,6 +17,10 @@ class HomeScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () => context.go('/compose'),
             child: const Text("Compose"),
+          ),
+          ElevatedButton(
+            onPressed: () => context.go('/settings'),
+            child: const Text("Settings"),
           ),
         ],
       ),

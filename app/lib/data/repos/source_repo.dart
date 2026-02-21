@@ -32,8 +32,8 @@ class SourceRepo {
             type: type,
             url: Value(url?.trim().isEmpty ?? true ? null : url?.trim()),
             title: Value(title?.trim().isEmpty ?? true ? null : title?.trim()),
-            userNote:
-                Value(userNote?.trim().isEmpty ?? true ? null : userNote?.trim()),
+            userNote: Value(
+                userNote?.trim().isEmpty ?? true ? null : userNote?.trim()),
             tags: Value(normalizedTags),
             createdAt: Value(now),
             updatedAt: Value(now),

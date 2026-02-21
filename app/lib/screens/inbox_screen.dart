@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -71,7 +70,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Failed loading inbox: $error')),
+        error: (error, _) =>
+            Center(child: Text('Failed loading inbox: $error')),
       ),
     );
   }
@@ -118,7 +118,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           decoration: const InputDecoration(labelText: 'Type'),
                           items: const [
                             DropdownMenuItem(value: 'url', child: Text('URL')),
-                            DropdownMenuItem(value: 'note', child: Text('Note')),
+                            DropdownMenuItem(
+                                value: 'note', child: Text('Note')),
                             DropdownMenuItem(
                               value: 'snippet',
                               child: Text('Snippet'),
@@ -209,6 +210,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final message = count == 0
         ? 'Select source items first.'
         : 'Draft creation from $count selected items is stubbed next.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }

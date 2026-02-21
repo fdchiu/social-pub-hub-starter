@@ -13,14 +13,13 @@ class SourceItems extends Table {
 
   TextColumn get userNote => text().nullable()();
 
-  TextColumn get tags =>
-      text().map(const StringListConverter()).withDefault(const Constant('[]'))();
+  TextColumn get tags => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
 
-  DateTimeColumn get createdAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
-  DateTimeColumn get updatedAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

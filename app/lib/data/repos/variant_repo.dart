@@ -9,7 +9,8 @@ class VariantRepo {
   final AppDatabase _db;
 
   Stream<List<Variant>> watchVariantsForDraft(String draftId) {
-    final query = _db.select(_db.variants)..where((t) => t.draftId.equals(draftId));
+    final query = _db.select(_db.variants)
+      ..where((t) => t.draftId.equals(draftId));
     return query.watch();
   }
 

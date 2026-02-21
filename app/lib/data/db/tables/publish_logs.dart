@@ -17,8 +17,7 @@ class PublishLogs extends Table {
 
   DateTimeColumn get postedAt => dateTime().nullable()();
 
-  DateTimeColumn get createdAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

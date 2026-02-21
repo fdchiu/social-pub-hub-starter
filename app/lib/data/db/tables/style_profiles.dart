@@ -13,14 +13,13 @@ class StyleProfiles extends Table {
 
   TextColumn get emojiLevel => text().withDefault(const Constant('light'))();
 
-  TextColumn get bannedPhrases =>
-      text().map(const StringListConverter()).withDefault(const Constant('[]'))();
+  TextColumn get bannedPhrases => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
 
-  DateTimeColumn get createdAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
-  DateTimeColumn get updatedAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
