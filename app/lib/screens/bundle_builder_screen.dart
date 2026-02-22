@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
@@ -34,7 +35,16 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
     final sourceItemsAsync = ref.watch(sourceItemsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Bundle Builder')),
+      appBar: AppBar(
+        title: const Text('Bundle Builder'),
+        actions: [
+          IconButton(
+            tooltip: 'Bundle checklist',
+            onPressed: () => context.go('/bundle-checklist'),
+            icon: const Icon(Icons.checklist),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
