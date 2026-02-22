@@ -47,6 +47,7 @@ Takeaway:
   bool _generatingVariants = false;
   final Set<String> _humanizingVariantIds = <String>{};
   double _humanizeStrictness = 0.7;
+  String _variantPlatformFilter = 'all';
 
   @override
   void initState() {
@@ -177,85 +178,153 @@ Takeaway:
                                     ),
                                   );
                                 }
-                                return ListView.separated(
-                                  itemCount: variants.length,
-                                  separatorBuilder: (_, __) =>
-                                      const Divider(height: 1),
-                                  itemBuilder: (context, index) {
-                                    final variant = variants[index];
-                                    final humanizing = _humanizingVariantIds
-                                        .contains(variant.id);
-                                    return ListTile(
-                                      title: Text(
-                                        variant.platform.toUpperCase(),
-                                      ),
-                                      subtitle: Text(
-                                        variant.body,
-                                        maxLines: 3,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      trailing: Wrap(
-                                        spacing: 4,
-                                        children: [
-                                          IconButton(
-                                            tooltip: 'Copy',
-                                            onPressed: () =>
-                                                _copyVariantText(variant.body),
-                                            icon: const Icon(Icons.copy),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Open composer',
-                                            onPressed: () =>
-                                                _openComposerForVariant(
-                                              platform: variant.platform,
-                                              text: variant.body,
+                                final platforms = variants
+                                    .map((v) => v.platform)
+                                    .toSet()
+                                    .toList(growable: false)
+                                  ..sort();
+                                final filterOptions = <String>[
+                                  'all',
+                                  ...platforms,
+                                ];
+                                final selectedFilter = filterOptions
+                                        .contains(_variantPlatformFilter)
+                                    ? _variantPlatformFilter
+                                    : 'all';
+                                final filtered = selectedFilter == 'all'
+                                    ? variants
+                                    : variants
+                                        .where(
+                                          (variant) =>
+                                              variant.platform ==
+                                              selectedFilter,
+                                        )
+                                        .toList(growable: false);
+
+                                return Column(
+                                  children: [
+                                    SizedBox(
+                                      height: 42,
+                                      child: ListView.separated(
+                                        scrollDirection: Axis.horizontal,
+                                        itemCount: filterOptions.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(width: 8),
+                                        itemBuilder: (context, index) {
+                                          final filter = filterOptions[index];
+                                          return ChoiceChip(
+                                            label: Text(
+                                              filter == 'all'
+                                                  ? 'ALL'
+                                                  : filter.toUpperCase(),
                                             ),
-                                            icon: const Icon(Icons.open_in_new),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Confirm posted',
-                                            onPressed: () => _confirmPosted(
-                                                variant.id, variant.platform),
-                                            icon: const Icon(
-                                                Icons.check_circle_outline),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Queue',
-                                            onPressed: () =>
-                                                queueVariantFromCompose(
-                                              context: context,
-                                              ref: ref,
-                                              variantId: variant.id,
-                                              platform: variant.platform,
-                                              body: variant.body,
+                                            selected: filter == selectedFilter,
+                                            onSelected: (selected) {
+                                              if (!selected) {
+                                                return;
+                                              }
+                                              setState(() {
+                                                _variantPlatformFilter = filter;
+                                              });
+                                            },
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Expanded(
+                                      child: ListView.separated(
+                                        itemCount: filtered.length,
+                                        separatorBuilder: (_, __) =>
+                                            const Divider(height: 1),
+                                        itemBuilder: (context, index) {
+                                          final variant = filtered[index];
+                                          final humanizing =
+                                              _humanizingVariantIds
+                                                  .contains(variant.id);
+                                          return ListTile(
+                                            title: Text(
+                                              variant.platform.toUpperCase(),
                                             ),
-                                            icon: const Icon(
-                                                Icons.schedule_outlined),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Humanize',
-                                            onPressed: humanizing
-                                                ? null
-                                                : () => _humanizeVariant(
-                                                      variant,
-                                                    ),
-                                            icon: humanizing
-                                                ? const SizedBox(
-                                                    width: 16,
-                                                    height: 16,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                                  )
-                                                : const Icon(
-                                                    Icons.auto_fix_high,
+                                            subtitle: Text(
+                                              variant.body,
+                                              maxLines: 3,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            trailing: Wrap(
+                                              spacing: 4,
+                                              children: [
+                                                IconButton(
+                                                  tooltip: 'Copy',
+                                                  onPressed: () =>
+                                                      _copyVariantText(
+                                                    variant.body,
                                                   ),
-                                          ),
-                                        ],
+                                                  icon: const Icon(Icons.copy),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'Open composer',
+                                                  onPressed: () =>
+                                                      _openComposerForVariant(
+                                                    platform: variant.platform,
+                                                    text: variant.body,
+                                                  ),
+                                                  icon: const Icon(
+                                                    Icons.open_in_new,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'Confirm posted',
+                                                  onPressed: () =>
+                                                      _confirmPosted(
+                                                    variant.id,
+                                                    variant.platform,
+                                                  ),
+                                                  icon: const Icon(
+                                                    Icons.check_circle_outline,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'Queue',
+                                                  onPressed: () =>
+                                                      queueVariantFromCompose(
+                                                    context: context,
+                                                    ref: ref,
+                                                    variantId: variant.id,
+                                                    platform: variant.platform,
+                                                    body: variant.body,
+                                                  ),
+                                                  icon: const Icon(
+                                                    Icons.schedule_outlined,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'Humanize',
+                                                  onPressed: humanizing
+                                                      ? null
+                                                      : () => _humanizeVariant(
+                                                            variant,
+                                                          ),
+                                                  icon: humanizing
+                                                      ? const SizedBox(
+                                                          width: 16,
+                                                          height: 16,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                          ),
+                                                        )
+                                                      : const Icon(
+                                                          Icons.auto_fix_high,
+                                                        ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
                                       ),
-                                    );
-                                  },
+                                    ),
+                                  ],
                                 );
                               },
                               loading: () => const Center(
