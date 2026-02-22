@@ -96,6 +96,11 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                 child: const Text('Open queue'),
               ),
               const SizedBox(width: 8),
+              FilledButton.tonal(
+                onPressed: () => context.go('/analytics'),
+                child: const Text('Analytics'),
+              ),
+              const SizedBox(width: 8),
               FilledButton(
                 onPressed: () => context.go('/compose'),
                 child: const Text('Open compose'),
