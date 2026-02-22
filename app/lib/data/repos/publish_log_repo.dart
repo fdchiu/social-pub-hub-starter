@@ -35,6 +35,8 @@ class PublishLogRepo {
             externalUrl: Value(externalUrl),
             postedAt: Value(postedAt),
             createdAt: Value(now),
+            updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
           ),
         );
 

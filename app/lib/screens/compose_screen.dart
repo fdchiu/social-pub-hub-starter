@@ -292,7 +292,6 @@ Takeaway:
           : const Iterable<Map<String, dynamic>>.empty();
 
       final repo = ref.read(variantRepoProvider);
-      await repo.deleteVariantsForDraft(draftId);
 
       for (final variant in variants) {
         await repo.createVariant(

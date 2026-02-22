@@ -428,17 +428,28 @@ def draft_variants(
     variants: list[dict[str, Any]] = []
 
     for platform in platforms:
+        variant_id = f"{draft_id}_{platform}"
+        now = utc_now()
         variant_text = _variant_template(platform, draft.canonical_markdown)
-        variant = Variant(
-            id=_new_id("variant"),
-            draft_id=draft_id,
-            platform=platform,
-            text=variant_text,
-            created_at=utc_now(),
-            updated_at=utc_now(),
-            sync_cursor=_next_cursor(db),
-        )
-        db.add(variant)
+        variant = db.get(Variant, variant_id)
+        if variant is None:
+            variant = Variant(
+                id=variant_id,
+                draft_id=draft_id,
+                platform=platform,
+                text=variant_text,
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(variant)
+        else:
+            variant.draft_id = draft_id
+            variant.platform = platform
+            variant.text = variant_text
+            variant.updated_at = now
+            variant.deleted_at = None
+
+        variant.sync_cursor = _next_cursor(db)
         variants.append(
             {
                 "id": variant.id,

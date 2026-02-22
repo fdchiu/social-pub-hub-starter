@@ -483,6 +483,14 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('dirty'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -493,7 +501,8 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
         emojiLevel,
         audience,
         createdAt,
-        updatedAt
+        updatedAt,
+        syncStatus
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -548,6 +557,12 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
     return context;
   }
 
@@ -575,6 +590,8 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
     );
   }
 
@@ -594,6 +611,7 @@ class Draft extends DataClass implements Insertable<Draft> {
   final String? audience;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String syncStatus;
   const Draft(
       {required this.id,
       required this.canonicalMarkdown,
@@ -603,7 +621,8 @@ class Draft extends DataClass implements Insertable<Draft> {
       this.emojiLevel,
       this.audience,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      required this.syncStatus});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -626,6 +645,7 @@ class Draft extends DataClass implements Insertable<Draft> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
 
@@ -647,6 +667,7 @@ class Draft extends DataClass implements Insertable<Draft> {
           : Value(audience),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
     );
   }
 
@@ -663,6 +684,7 @@ class Draft extends DataClass implements Insertable<Draft> {
       audience: serializer.fromJson<String?>(json['audience']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
   @override
@@ -678,6 +700,7 @@ class Draft extends DataClass implements Insertable<Draft> {
       'audience': serializer.toJson<String?>(audience),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
 
@@ -690,7 +713,8 @@ class Draft extends DataClass implements Insertable<Draft> {
           Value<String?> emojiLevel = const Value.absent(),
           Value<String?> audience = const Value.absent(),
           DateTime? createdAt,
-          DateTime? updatedAt}) =>
+          DateTime? updatedAt,
+          String? syncStatus}) =>
       Draft(
         id: id ?? this.id,
         canonicalMarkdown: canonicalMarkdown ?? this.canonicalMarkdown,
@@ -701,6 +725,7 @@ class Draft extends DataClass implements Insertable<Draft> {
         audience: audience.present ? audience.value : this.audience,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
       );
   Draft copyWithCompanion(DraftsCompanion data) {
     return Draft(
@@ -717,6 +742,8 @@ class Draft extends DataClass implements Insertable<Draft> {
       audience: data.audience.present ? data.audience.value : this.audience,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
     );
   }
 
@@ -731,14 +758,15 @@ class Draft extends DataClass implements Insertable<Draft> {
           ..write('emojiLevel: $emojiLevel, ')
           ..write('audience: $audience, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, canonicalMarkdown, intent, tone,
-      punchiness, emojiLevel, audience, createdAt, updatedAt);
+      punchiness, emojiLevel, audience, createdAt, updatedAt, syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -751,7 +779,8 @@ class Draft extends DataClass implements Insertable<Draft> {
           other.emojiLevel == this.emojiLevel &&
           other.audience == this.audience &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
 }
 
 class DraftsCompanion extends UpdateCompanion<Draft> {
@@ -764,6 +793,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
   final Value<String?> audience;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
   final Value<int> rowid;
   const DraftsCompanion({
     this.id = const Value.absent(),
@@ -775,6 +805,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     this.audience = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DraftsCompanion.insert({
@@ -787,6 +818,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     this.audience = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id);
   static Insertable<Draft> custom({
@@ -799,6 +831,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     Expression<String>? audience,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -811,6 +844,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
       if (audience != null) 'audience': audience,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -825,6 +859,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
       Value<String?>? audience,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
+      Value<String>? syncStatus,
       Value<int>? rowid}) {
     return DraftsCompanion(
       id: id ?? this.id,
@@ -836,6 +871,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
       audience: audience ?? this.audience,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -870,6 +906,9 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -888,6 +927,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
           ..write('audience: $audience, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -940,9 +980,17 @@ class $VariantsTable extends Variants with TableInfo<$VariantsTable, Variant> {
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('dirty'));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, draftId, platform, body, createdAt, updatedAt];
+      [id, draftId, platform, body, createdAt, updatedAt, syncStatus];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -984,6 +1032,12 @@ class $VariantsTable extends Variants with TableInfo<$VariantsTable, Variant> {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
     return context;
   }
 
@@ -1005,6 +1059,8 @@ class $VariantsTable extends Variants with TableInfo<$VariantsTable, Variant> {
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
     );
   }
 
@@ -1021,13 +1077,15 @@ class Variant extends DataClass implements Insertable<Variant> {
   final String body;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String syncStatus;
   const Variant(
       {required this.id,
       required this.draftId,
       required this.platform,
       required this.body,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      required this.syncStatus});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1037,6 +1095,7 @@ class Variant extends DataClass implements Insertable<Variant> {
     map['text'] = Variable<String>(body);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
 
@@ -1048,6 +1107,7 @@ class Variant extends DataClass implements Insertable<Variant> {
       body: Value(body),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
     );
   }
 
@@ -1061,6 +1121,7 @@ class Variant extends DataClass implements Insertable<Variant> {
       body: serializer.fromJson<String>(json['body']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
   @override
@@ -1073,6 +1134,7 @@ class Variant extends DataClass implements Insertable<Variant> {
       'body': serializer.toJson<String>(body),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
 
@@ -1082,7 +1144,8 @@ class Variant extends DataClass implements Insertable<Variant> {
           String? platform,
           String? body,
           DateTime? createdAt,
-          DateTime? updatedAt}) =>
+          DateTime? updatedAt,
+          String? syncStatus}) =>
       Variant(
         id: id ?? this.id,
         draftId: draftId ?? this.draftId,
@@ -1090,6 +1153,7 @@ class Variant extends DataClass implements Insertable<Variant> {
         body: body ?? this.body,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
       );
   Variant copyWithCompanion(VariantsCompanion data) {
     return Variant(
@@ -1099,6 +1163,8 @@ class Variant extends DataClass implements Insertable<Variant> {
       body: data.body.present ? data.body.value : this.body,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
     );
   }
 
@@ -1110,14 +1176,15 @@ class Variant extends DataClass implements Insertable<Variant> {
           ..write('platform: $platform, ')
           ..write('body: $body, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, draftId, platform, body, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id, draftId, platform, body, createdAt, updatedAt, syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1127,7 +1194,8 @@ class Variant extends DataClass implements Insertable<Variant> {
           other.platform == this.platform &&
           other.body == this.body &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
 }
 
 class VariantsCompanion extends UpdateCompanion<Variant> {
@@ -1137,6 +1205,7 @@ class VariantsCompanion extends UpdateCompanion<Variant> {
   final Value<String> body;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
   final Value<int> rowid;
   const VariantsCompanion({
     this.id = const Value.absent(),
@@ -1145,6 +1214,7 @@ class VariantsCompanion extends UpdateCompanion<Variant> {
     this.body = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   VariantsCompanion.insert({
@@ -1154,6 +1224,7 @@ class VariantsCompanion extends UpdateCompanion<Variant> {
     required String body,
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         draftId = Value(draftId),
@@ -1166,6 +1237,7 @@ class VariantsCompanion extends UpdateCompanion<Variant> {
     Expression<String>? body,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1175,6 +1247,7 @@ class VariantsCompanion extends UpdateCompanion<Variant> {
       if (body != null) 'text': body,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1186,6 +1259,7 @@ class VariantsCompanion extends UpdateCompanion<Variant> {
       Value<String>? body,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
+      Value<String>? syncStatus,
       Value<int>? rowid}) {
     return VariantsCompanion(
       id: id ?? this.id,
@@ -1194,6 +1268,7 @@ class VariantsCompanion extends UpdateCompanion<Variant> {
       body: body ?? this.body,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1219,6 +1294,9 @@ class VariantsCompanion extends UpdateCompanion<Variant> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1234,6 +1312,7 @@ class VariantsCompanion extends UpdateCompanion<Variant> {
           ..write('body: $body, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1298,9 +1377,35 @@ class $PublishLogsTable extends PublishLogs
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, variantId, platform, mode, status, externalUrl, postedAt, createdAt];
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('dirty'));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        variantId,
+        platform,
+        mode,
+        status,
+        externalUrl,
+        postedAt,
+        createdAt,
+        updatedAt,
+        syncStatus
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1350,6 +1455,16 @@ class $PublishLogsTable extends PublishLogs
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
     }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
     return context;
   }
 
@@ -1375,6 +1490,10 @@ class $PublishLogsTable extends PublishLogs
           .read(DriftSqlType.dateTime, data['${effectivePrefix}posted_at']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
     );
   }
 
@@ -1393,6 +1512,8 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
   final String? externalUrl;
   final DateTime? postedAt;
   final DateTime createdAt;
+  final DateTime updatedAt;
+  final String syncStatus;
   const PublishLog(
       {required this.id,
       this.variantId,
@@ -1401,7 +1522,9 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
       required this.status,
       this.externalUrl,
       this.postedAt,
-      required this.createdAt});
+      required this.createdAt,
+      required this.updatedAt,
+      required this.syncStatus});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1419,6 +1542,8 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
       map['posted_at'] = Variable<DateTime>(postedAt);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
 
@@ -1438,6 +1563,8 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
           ? const Value.absent()
           : Value(postedAt),
       createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
     );
   }
 
@@ -1453,6 +1580,8 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
       externalUrl: serializer.fromJson<String?>(json['externalUrl']),
       postedAt: serializer.fromJson<DateTime?>(json['postedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
   @override
@@ -1467,6 +1596,8 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
       'externalUrl': serializer.toJson<String?>(externalUrl),
       'postedAt': serializer.toJson<DateTime?>(postedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
 
@@ -1478,7 +1609,9 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
           String? status,
           Value<String?> externalUrl = const Value.absent(),
           Value<DateTime?> postedAt = const Value.absent(),
-          DateTime? createdAt}) =>
+          DateTime? createdAt,
+          DateTime? updatedAt,
+          String? syncStatus}) =>
       PublishLog(
         id: id ?? this.id,
         variantId: variantId.present ? variantId.value : this.variantId,
@@ -1488,6 +1621,8 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
         externalUrl: externalUrl.present ? externalUrl.value : this.externalUrl,
         postedAt: postedAt.present ? postedAt.value : this.postedAt,
         createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
       );
   PublishLog copyWithCompanion(PublishLogsCompanion data) {
     return PublishLog(
@@ -1500,6 +1635,9 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
           data.externalUrl.present ? data.externalUrl.value : this.externalUrl,
       postedAt: data.postedAt.present ? data.postedAt.value : this.postedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
     );
   }
 
@@ -1513,14 +1651,16 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
           ..write('status: $status, ')
           ..write('externalUrl: $externalUrl, ')
           ..write('postedAt: $postedAt, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, variantId, platform, mode, status, externalUrl, postedAt, createdAt);
+  int get hashCode => Object.hash(id, variantId, platform, mode, status,
+      externalUrl, postedAt, createdAt, updatedAt, syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1532,7 +1672,9 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
           other.status == this.status &&
           other.externalUrl == this.externalUrl &&
           other.postedAt == this.postedAt &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
 }
 
 class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
@@ -1544,6 +1686,8 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
   final Value<String?> externalUrl;
   final Value<DateTime?> postedAt;
   final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
   final Value<int> rowid;
   const PublishLogsCompanion({
     this.id = const Value.absent(),
@@ -1554,6 +1698,8 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
     this.externalUrl = const Value.absent(),
     this.postedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PublishLogsCompanion.insert({
@@ -1565,6 +1711,8 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
     this.externalUrl = const Value.absent(),
     this.postedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         platform = Value(platform),
@@ -1578,6 +1726,8 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
     Expression<String>? externalUrl,
     Expression<DateTime>? postedAt,
     Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1589,6 +1739,8 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
       if (externalUrl != null) 'external_url': externalUrl,
       if (postedAt != null) 'posted_at': postedAt,
       if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1602,6 +1754,8 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
       Value<String?>? externalUrl,
       Value<DateTime?>? postedAt,
       Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<String>? syncStatus,
       Value<int>? rowid}) {
     return PublishLogsCompanion(
       id: id ?? this.id,
@@ -1612,6 +1766,8 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
       externalUrl: externalUrl ?? this.externalUrl,
       postedAt: postedAt ?? this.postedAt,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1643,6 +1799,12 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1660,6 +1822,8 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
           ..write('externalUrl: $externalUrl, ')
           ..write('postedAt: $postedAt, ')
           ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1734,6 +1898,14 @@ class $StyleProfilesTable extends StyleProfiles
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('dirty'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -1743,7 +1915,8 @@ class $StyleProfilesTable extends StyleProfiles
         emojiLevel,
         bannedPhrases,
         createdAt,
-        updatedAt
+        updatedAt,
+        syncStatus
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1790,6 +1963,12 @@ class $StyleProfilesTable extends StyleProfiles
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
     return context;
   }
 
@@ -1816,6 +1995,8 @@ class $StyleProfilesTable extends StyleProfiles
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
     );
   }
 
@@ -1837,6 +2018,7 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
   final List<String> bannedPhrases;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String syncStatus;
   const StyleProfile(
       {required this.id,
       required this.voiceName,
@@ -1845,7 +2027,8 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
       required this.emojiLevel,
       required this.bannedPhrases,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      required this.syncStatus});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1860,6 +2043,7 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
 
@@ -1873,6 +2057,7 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
       bannedPhrases: Value(bannedPhrases),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
     );
   }
 
@@ -1888,6 +2073,7 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
       bannedPhrases: serializer.fromJson<List<String>>(json['bannedPhrases']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
   @override
@@ -1902,6 +2088,7 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
       'bannedPhrases': serializer.toJson<List<String>>(bannedPhrases),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
 
@@ -1913,7 +2100,8 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
           String? emojiLevel,
           List<String>? bannedPhrases,
           DateTime? createdAt,
-          DateTime? updatedAt}) =>
+          DateTime? updatedAt,
+          String? syncStatus}) =>
       StyleProfile(
         id: id ?? this.id,
         voiceName: voiceName ?? this.voiceName,
@@ -1923,6 +2111,7 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
         bannedPhrases: bannedPhrases ?? this.bannedPhrases,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
       );
   StyleProfile copyWithCompanion(StyleProfilesCompanion data) {
     return StyleProfile(
@@ -1940,6 +2129,8 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
           : this.bannedPhrases,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
     );
   }
 
@@ -1953,14 +2144,15 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
           ..write('emojiLevel: $emojiLevel, ')
           ..write('bannedPhrases: $bannedPhrases, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, voiceName, casualFormal, punchiness,
-      emojiLevel, bannedPhrases, createdAt, updatedAt);
+      emojiLevel, bannedPhrases, createdAt, updatedAt, syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1972,7 +2164,8 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
           other.emojiLevel == this.emojiLevel &&
           other.bannedPhrases == this.bannedPhrases &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
 }
 
 class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
@@ -1984,6 +2177,7 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
   final Value<List<String>> bannedPhrases;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
   final Value<int> rowid;
   const StyleProfilesCompanion({
     this.id = const Value.absent(),
@@ -1994,6 +2188,7 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
     this.bannedPhrases = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   StyleProfilesCompanion.insert({
@@ -2005,6 +2200,7 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
     this.bannedPhrases = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id);
   static Insertable<StyleProfile> custom({
@@ -2016,6 +2212,7 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
     Expression<String>? bannedPhrases,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2027,6 +2224,7 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
       if (bannedPhrases != null) 'banned_phrases': bannedPhrases,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2040,6 +2238,7 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
       Value<List<String>>? bannedPhrases,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
+      Value<String>? syncStatus,
       Value<int>? rowid}) {
     return StyleProfilesCompanion(
       id: id ?? this.id,
@@ -2050,6 +2249,7 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
       bannedPhrases: bannedPhrases ?? this.bannedPhrases,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2083,6 +2283,9 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2100,6 +2303,7 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
           ..write('bannedPhrases: $bannedPhrases, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2346,6 +2550,7 @@ typedef $$DraftsTableCreateCompanionBuilder = DraftsCompanion Function({
   Value<String?> audience,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 typedef $$DraftsTableUpdateCompanionBuilder = DraftsCompanion Function({
@@ -2358,6 +2563,7 @@ typedef $$DraftsTableUpdateCompanionBuilder = DraftsCompanion Function({
   Value<String?> audience,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 
@@ -2417,6 +2623,9 @@ class $$DraftsTableFilterComposer
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
   Expression<bool> variantsRefs(
       Expression<bool> Function($$VariantsTableFilterComposer f) f) {
     final $$VariantsTableFilterComposer composer = $composerBuilder(
@@ -2475,6 +2684,9 @@ class $$DraftsTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
 }
 
 class $$DraftsTableAnnotationComposer
@@ -2512,6 +2724,9 @@ class $$DraftsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
 
   Expression<T> variantsRefs<T extends Object>(
       Expression<T> Function($$VariantsTableAnnotationComposer a) f) {
@@ -2567,6 +2782,7 @@ class $$DraftsTableTableManager extends RootTableManager<
             Value<String?> audience = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               DraftsCompanion(
@@ -2579,6 +2795,7 @@ class $$DraftsTableTableManager extends RootTableManager<
             audience: audience,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -2591,6 +2808,7 @@ class $$DraftsTableTableManager extends RootTableManager<
             Value<String?> audience = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               DraftsCompanion.insert(
@@ -2603,6 +2821,7 @@ class $$DraftsTableTableManager extends RootTableManager<
             audience: audience,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -2653,6 +2872,7 @@ typedef $$VariantsTableCreateCompanionBuilder = VariantsCompanion Function({
   required String body,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 typedef $$VariantsTableUpdateCompanionBuilder = VariantsCompanion Function({
@@ -2662,6 +2882,7 @@ typedef $$VariantsTableUpdateCompanionBuilder = VariantsCompanion Function({
   Value<String> body,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 
@@ -2722,6 +2943,9 @@ class $$VariantsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
 
   $$DraftsTableFilterComposer get draftId {
     final $$DraftsTableFilterComposer composer = $composerBuilder(
@@ -2789,6 +3013,9 @@ class $$VariantsTableOrderingComposer
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
   $$DraftsTableOrderingComposer get draftId {
     final $$DraftsTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -2833,6 +3060,9 @@ class $$VariantsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
 
   $$DraftsTableAnnotationComposer get draftId {
     final $$DraftsTableAnnotationComposer composer = $composerBuilder(
@@ -2905,6 +3135,7 @@ class $$VariantsTableTableManager extends RootTableManager<
             Value<String> body = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               VariantsCompanion(
@@ -2914,6 +3145,7 @@ class $$VariantsTableTableManager extends RootTableManager<
             body: body,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -2923,6 +3155,7 @@ class $$VariantsTableTableManager extends RootTableManager<
             required String body,
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               VariantsCompanion.insert(
@@ -2932,6 +3165,7 @@ class $$VariantsTableTableManager extends RootTableManager<
             body: body,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -3012,6 +3246,8 @@ typedef $$PublishLogsTableCreateCompanionBuilder = PublishLogsCompanion
   Value<String?> externalUrl,
   Value<DateTime?> postedAt,
   Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 typedef $$PublishLogsTableUpdateCompanionBuilder = PublishLogsCompanion
@@ -3024,6 +3260,8 @@ typedef $$PublishLogsTableUpdateCompanionBuilder = PublishLogsCompanion
   Value<String?> externalUrl,
   Value<DateTime?> postedAt,
   Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 
@@ -3077,6 +3315,12 @@ class $$PublishLogsTableFilterComposer
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
   $$VariantsTableFilterComposer get variantId {
     final $$VariantsTableFilterComposer composer = $composerBuilder(
         composer: this,
@@ -3128,6 +3372,12 @@ class $$PublishLogsTableOrderingComposer
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
   $$VariantsTableOrderingComposer get variantId {
     final $$VariantsTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -3178,6 +3428,12 @@ class $$PublishLogsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
 
   $$VariantsTableAnnotationComposer get variantId {
     final $$VariantsTableAnnotationComposer composer = $composerBuilder(
@@ -3231,6 +3487,8 @@ class $$PublishLogsTableTableManager extends RootTableManager<
             Value<String?> externalUrl = const Value.absent(),
             Value<DateTime?> postedAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PublishLogsCompanion(
@@ -3242,6 +3500,8 @@ class $$PublishLogsTableTableManager extends RootTableManager<
             externalUrl: externalUrl,
             postedAt: postedAt,
             createdAt: createdAt,
+            updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -3253,6 +3513,8 @@ class $$PublishLogsTableTableManager extends RootTableManager<
             Value<String?> externalUrl = const Value.absent(),
             Value<DateTime?> postedAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PublishLogsCompanion.insert(
@@ -3264,6 +3526,8 @@ class $$PublishLogsTableTableManager extends RootTableManager<
             externalUrl: externalUrl,
             postedAt: postedAt,
             createdAt: createdAt,
+            updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -3332,6 +3596,7 @@ typedef $$StyleProfilesTableCreateCompanionBuilder = StyleProfilesCompanion
   Value<List<String>> bannedPhrases,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 typedef $$StyleProfilesTableUpdateCompanionBuilder = StyleProfilesCompanion
@@ -3344,6 +3609,7 @@ typedef $$StyleProfilesTableUpdateCompanionBuilder = StyleProfilesCompanion
   Value<List<String>> bannedPhrases,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 
@@ -3381,6 +3647,9 @@ class $$StyleProfilesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
 }
 
 class $$StyleProfilesTableOrderingComposer
@@ -3417,6 +3686,9 @@ class $$StyleProfilesTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
 }
 
 class $$StyleProfilesTableAnnotationComposer
@@ -3452,6 +3724,9 @@ class $$StyleProfilesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
 }
 
 class $$StyleProfilesTableTableManager extends RootTableManager<
@@ -3488,6 +3763,7 @@ class $$StyleProfilesTableTableManager extends RootTableManager<
             Value<List<String>> bannedPhrases = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               StyleProfilesCompanion(
@@ -3499,6 +3775,7 @@ class $$StyleProfilesTableTableManager extends RootTableManager<
             bannedPhrases: bannedPhrases,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -3510,6 +3787,7 @@ class $$StyleProfilesTableTableManager extends RootTableManager<
             Value<List<String>> bannedPhrases = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               StyleProfilesCompanion.insert(
@@ -3521,6 +3799,7 @@ class $$StyleProfilesTableTableManager extends RootTableManager<
             bannedPhrases: bannedPhrases,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

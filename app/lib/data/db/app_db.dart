@@ -24,11 +24,20 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) => m.createAll(),
+        onUpgrade: (Migrator m, int from, int to) async {
+          if (from < 2) {
+            await m.addColumn(drafts, drafts.syncStatus);
+            await m.addColumn(variants, variants.syncStatus);
+            await m.addColumn(publishLogs, publishLogs.updatedAt);
+            await m.addColumn(publishLogs, publishLogs.syncStatus);
+            await m.addColumn(styleProfiles, styleProfiles.syncStatus);
+          }
+        },
       );
 }
 

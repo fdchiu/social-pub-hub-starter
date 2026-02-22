@@ -33,6 +33,7 @@ class StyleProfileRepo {
             ]),
             createdAt: Value(now),
             updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
           ),
         );
 

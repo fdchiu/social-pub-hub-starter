@@ -15,6 +15,8 @@ class Variants extends Table {
 
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
+  TextColumn get syncStatus => text().withDefault(const Constant('dirty'))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }

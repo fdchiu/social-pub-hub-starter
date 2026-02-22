@@ -47,6 +47,7 @@ class DraftRepo {
             audience: Value(audience),
             createdAt: Value(now),
             updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
           ),
         );
 
@@ -61,6 +62,7 @@ class DraftRepo {
       DraftsCompanion(
         canonicalMarkdown: Value(canonicalMarkdown),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
       ),
     );
   }

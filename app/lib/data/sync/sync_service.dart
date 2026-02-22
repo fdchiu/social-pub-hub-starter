@@ -57,12 +57,12 @@ class SyncService {
   Future<SyncSummary> syncNow() async {
     final prefs = await SharedPreferences.getInstance();
     final since = prefs.getInt(_cursorKey) ?? 0;
-    final pushPayload = await _buildPushPayload();
+    final pushBatch = await _buildPushBatch();
 
     final pushResponse = await _client.post(
       Uri.parse('$_baseUrl/sync/push'),
       headers: const {'content-type': 'application/json'},
-      body: jsonEncode(pushPayload),
+      body: jsonEncode(pushBatch.payload),
     );
     if (pushResponse.statusCode < 200 || pushResponse.statusCode >= 300) {
       throw Exception('Sync push failed: ${pushResponse.statusCode}');
@@ -70,6 +70,8 @@ class SyncService {
 
     final pushBody = jsonDecode(pushResponse.body) as Map<String, dynamic>;
     final pushCursor = (pushBody['cursor'] as num?)?.toInt() ?? since;
+
+    await _markPushedRowsClean(pushBatch);
 
     final changesResponse = await _client.get(
       Uri.parse('$_baseUrl/sync/changes?since=$since'),
@@ -110,13 +112,12 @@ class SyncService {
     final nextCursor = max(pushCursor, pullCursor);
     await prefs.setInt(_cursorKey, nextCursor);
 
-    final pushUpserts = pushPayload['upserts'] as Map<String, dynamic>;
     return SyncSummary(
       cursor: nextCursor,
-      pushedDrafts: _asMapList(pushUpserts['drafts']).length,
-      pushedVariants: _asMapList(pushUpserts['variants']).length,
-      pushedPublishLogs: _asMapList(pushUpserts['publish_logs']).length,
-      pushedStyleProfiles: _asMapList(pushUpserts['style_profiles']).length,
+      pushedDrafts: pushBatch.draftIds.length,
+      pushedVariants: pushBatch.variantIds.length,
+      pushedPublishLogs: pushBatch.publishLogIds.length,
+      pushedStyleProfiles: pushBatch.styleProfileIds.length,
       pulledDrafts: pulledDrafts.length,
       pulledVariants: pulledVariants.length,
       pulledPublishLogs: pulledPublishLogs.length,
@@ -128,13 +129,21 @@ class SyncService {
     );
   }
 
-  Future<Map<String, dynamic>> _buildPushPayload() async {
-    final drafts = await _db.select(_db.drafts).get();
-    final variants = await _db.select(_db.variants).get();
-    final publishLogs = await _db.select(_db.publishLogs).get();
-    final styleProfiles = await _db.select(_db.styleProfiles).get();
+  Future<_PushBatch> _buildPushBatch() async {
+    final drafts = await (_db.select(_db.drafts)
+          ..where((t) => t.syncStatus.equals('dirty')))
+        .get();
+    final variants = await (_db.select(_db.variants)
+          ..where((t) => t.syncStatus.equals('dirty')))
+        .get();
+    final publishLogs = await (_db.select(_db.publishLogs)
+          ..where((t) => t.syncStatus.equals('dirty')))
+        .get();
+    final styleProfiles = await (_db.select(_db.styleProfiles)
+          ..where((t) => t.syncStatus.equals('dirty')))
+        .get();
 
-    return {
+    final payload = {
       'upserts': {
         'drafts': drafts
             .map(
@@ -174,7 +183,7 @@ class SyncService {
                 'external_url': row.externalUrl,
                 'posted_at': row.postedAt?.toIso8601String(),
                 'created_at': row.createdAt.toIso8601String(),
-                'updated_at': row.createdAt.toIso8601String(),
+                'updated_at': row.updatedAt.toIso8601String(),
               },
             )
             .toList(),
@@ -200,6 +209,38 @@ class SyncService {
         'style_profiles': const <String>[],
       },
     };
+
+    return _PushBatch(
+      payload: payload,
+      draftIds: drafts.map((r) => r.id).toList(growable: false),
+      variantIds: variants.map((r) => r.id).toList(growable: false),
+      publishLogIds: publishLogs.map((r) => r.id).toList(growable: false),
+      styleProfileIds: styleProfiles.map((r) => r.id).toList(growable: false),
+    );
+  }
+
+  Future<void> _markPushedRowsClean(_PushBatch batch) async {
+    await _db.transaction(() async {
+      if (batch.draftIds.isNotEmpty) {
+        await (_db.update(_db.drafts)..where((t) => t.id.isIn(batch.draftIds)))
+            .write(const DraftsCompanion(syncStatus: Value('clean')));
+      }
+      if (batch.variantIds.isNotEmpty) {
+        await (_db.update(_db.variants)
+              ..where((t) => t.id.isIn(batch.variantIds)))
+            .write(const VariantsCompanion(syncStatus: Value('clean')));
+      }
+      if (batch.publishLogIds.isNotEmpty) {
+        await (_db.update(_db.publishLogs)
+              ..where((t) => t.id.isIn(batch.publishLogIds)))
+            .write(const PublishLogsCompanion(syncStatus: Value('clean')));
+      }
+      if (batch.styleProfileIds.isNotEmpty) {
+        await (_db.update(_db.styleProfiles)
+              ..where((t) => t.id.isIn(batch.styleProfileIds)))
+            .write(const StyleProfilesCompanion(syncStatus: Value('clean')));
+      }
+    });
   }
 
   Future<void> _applyDraftUpserts(List<Map<String, dynamic>> rows) async {
@@ -222,6 +263,7 @@ class SyncService {
               audience: Value(row['audience'] as String?),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
               updatedAt: Value(_asDateTime(row['updated_at']) ?? now),
+              syncStatus: const Value('clean'),
             ),
           );
     }
@@ -244,6 +286,7 @@ class SyncService {
               body: Value((row['text'] as String?) ?? ''),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
               updatedAt: Value(_asDateTime(row['updated_at']) ?? now),
+              syncStatus: const Value('clean'),
             ),
           );
     }
@@ -267,6 +310,8 @@ class SyncService {
               externalUrl: Value(row['external_url'] as String?),
               postedAt: Value(_asDateTime(row['posted_at'])),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
+              updatedAt: Value(_asDateTime(row['updated_at']) ?? now),
+              syncStatus: const Value('clean'),
             ),
           );
     }
@@ -291,6 +336,7 @@ class SyncService {
               bannedPhrases: Value(_asStringList(row['banned_phrases'])),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
               updatedAt: Value(_asDateTime(row['updated_at']) ?? now),
+              syncStatus: const Value('clean'),
             ),
           );
     }
@@ -370,4 +416,20 @@ class SyncService {
     }
     return null;
   }
+}
+
+class _PushBatch {
+  const _PushBatch({
+    required this.payload,
+    required this.draftIds,
+    required this.variantIds,
+    required this.publishLogIds,
+    required this.styleProfileIds,
+  });
+
+  final Map<String, dynamic> payload;
+  final List<String> draftIds;
+  final List<String> variantIds;
+  final List<String> publishLogIds;
+  final List<String> styleProfileIds;
 }

@@ -32,6 +32,7 @@ class VariantRepo {
             body: body,
             createdAt: Value(now),
             updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
           ),
           mode: InsertMode.insertOrReplace,
         );
