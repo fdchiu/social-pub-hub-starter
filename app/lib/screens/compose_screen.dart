@@ -10,7 +10,12 @@ import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 
 class ComposeScreen extends ConsumerStatefulWidget {
-  const ComposeScreen({super.key});
+  const ComposeScreen({
+    super.key,
+    this.initialDraftId,
+  });
+
+  final String? initialDraftId;
 
   @override
   ConsumerState<ComposeScreen> createState() => _ComposeScreenState();
@@ -205,15 +210,21 @@ Takeaway:
 
   Future<void> _loadOrCreateDraft() async {
     final repo = ref.read(draftRepoProvider);
-    final latest = await repo.getLatestDraft();
-    final draft = latest ??
-        await () async {
-          final draftId = await repo.createDraft(
-            canonicalMarkdown: _seedDraftText,
-            intent: 'how_to',
-          );
-          return repo.getDraftById(draftId);
-        }();
+    var draft = await () async {
+      final preferredDraftId = widget.initialDraftId;
+      if (preferredDraftId != null && preferredDraftId.isNotEmpty) {
+        return repo.getDraftById(preferredDraftId);
+      }
+      return null;
+    }();
+    draft ??= await repo.getLatestDraft();
+    draft ??= await () async {
+      final draftId = await repo.createDraft(
+        canonicalMarkdown: _seedDraftText,
+        intent: 'how_to',
+      );
+      return repo.getDraftById(draftId);
+    }();
 
     if (!mounted) {
       return;

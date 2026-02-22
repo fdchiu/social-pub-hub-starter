@@ -486,6 +486,16 @@ class _BundleChecklistCard extends StatelessWidget {
                     onPressed: onGenerateCanonicalDraft,
                     child: const Text('Generate canonical draft'),
                   ),
+                if (report.referenceDraftId != null &&
+                    report.referenceDraftId!.isNotEmpty)
+                  FilledButton.tonal(
+                    onPressed: () {
+                      final encoded =
+                          Uri.encodeQueryComponent(report.referenceDraftId!);
+                      context.go('/compose?draftId=$encoded');
+                    },
+                    child: const Text('Open canonical'),
+                  ),
                 if (report.missingPlatforms.isNotEmpty)
                   FilledButton.tonal(
                     onPressed: onBackfillVariants,
