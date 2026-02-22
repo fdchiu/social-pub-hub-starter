@@ -233,6 +233,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
     final selectedSourceIds = _selectedIds.toList(growable: false);
     final draftRepo = ref.read(draftRepoProvider);
+    final selectedSourceItems = await ref
+        .read(sourceRepoProvider)
+        .getSourceItemsByIds(selectedSourceIds);
 
     try {
       final baseUrl = ref.read(apiBaseUrlProvider);
@@ -241,6 +244,18 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             headers: const {'content-type': 'application/json'},
             body: jsonEncode({
               'source_ids': selectedSourceIds,
+              'source_materials': selectedSourceItems
+                  .map(
+                    (item) => {
+                      'id': item.id,
+                      'type': item.type,
+                      'title': item.title,
+                      'url': item.url,
+                      'note': item.userNote,
+                      'tags': item.tags,
+                    },
+                  )
+                  .toList(growable: false),
               'intent': 'how_to',
               'tone': 0.6,
               'punchiness': 0.7,
@@ -251,12 +266,14 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
       String draftId;
       String canonicalMarkdown;
+      var llmUsed = false;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final parsed = jsonDecode(response.body) as Map<String, dynamic>;
         draftId = (parsed['draft_id'] as String?)?.trim() ?? '';
         canonicalMarkdown =
             (parsed['canonical_markdown'] as String?)?.trim() ?? '';
+        llmUsed = parsed['llm_used'] as bool? ?? false;
         if (draftId.isEmpty) {
           throw Exception('Missing draft_id in response');
         }
@@ -293,6 +310,17 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           punchiness: 0.7,
           audience: 'builders',
         );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                llmUsed
+                    ? 'Draft generated with LLM + source evidence.'
+                    : 'Draft generated from template + source evidence.',
+              ),
+            ),
+          );
+        }
       }
 
       if (!mounted) {

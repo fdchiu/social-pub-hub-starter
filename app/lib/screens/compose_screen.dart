@@ -45,6 +45,7 @@ Takeaway:
   String? _saveError;
   String? _variantError;
   bool _generatingVariants = false;
+  bool _polishingDraft = false;
   final Set<String> _humanizingVariantIds = <String>{};
   double _humanizeStrictness = 0.7;
   String _variantPlatformFilter = 'all';
@@ -75,6 +76,18 @@ Takeaway:
         context: context,
         title: 'Compose',
         actions: [
+          IconButton(
+            onPressed:
+                (_draftId == null || _polishingDraft) ? null : _polishDraft,
+            tooltip: 'Polish draft',
+            icon: _polishingDraft
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.spellcheck),
+          ),
           IconButton(
             onPressed: (_draftId == null || _generatingVariants)
                 ? null
@@ -473,6 +486,95 @@ Takeaway:
       setState(() {
         _generatingVariants = false;
         _variantError = 'Variant generation failed: $e';
+      });
+    }
+  }
+
+  Future<void> _polishDraft() async {
+    final draftId = _draftId;
+    if (draftId == null) {
+      return;
+    }
+
+    setState(() {
+      _polishingDraft = true;
+      _saveError = null;
+    });
+
+    try {
+      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
+            draftId: draftId,
+            canonicalMarkdown: _controller.text,
+          );
+      final sourceItems =
+          await ref.read(sourceRepoProvider).getRecentSourceItems(limit: 12);
+      final styleProfile =
+          await ref.read(styleProfileRepoProvider).getOrCreateDefault();
+      final baseUrl = ref.read(apiBaseUrlProvider);
+      final response = await ref.read(httpClientProvider).post(
+            Uri.parse('$baseUrl/drafts/$draftId/polish'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({
+              'canonical_markdown': _controller.text,
+              'source_materials': sourceItems
+                  .map(
+                    (item) => {
+                      'id': item.id,
+                      'type': item.type,
+                      'title': item.title,
+                      'url': item.url,
+                      'note': item.userNote,
+                      'tags': item.tags,
+                    },
+                  )
+                  .toList(growable: false),
+              'style_profile_id': styleProfile.id,
+              'banned_phrases': styleProfile.bannedPhrases,
+              'strictness': _humanizeStrictness,
+            }),
+          );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Polish failed: ${response.statusCode}');
+      }
+
+      final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+      final nextText = (parsed['canonical_markdown'] as String?)?.trim();
+      if (nextText == null || nextText.isEmpty) {
+        throw Exception('Polish returned empty text');
+      }
+      final llmUsed = parsed['llm_used'] as bool? ?? false;
+      final fallbackReason = (parsed['fallback_reason'] as String?)?.trim();
+
+      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
+            draftId: draftId,
+            canonicalMarkdown: nextText,
+          );
+      if (!mounted) {
+        return;
+      }
+
+      _hydratingEditor = true;
+      _controller.text = nextText;
+      _hydratingEditor = false;
+      setState(() {
+        _polishingDraft = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            llmUsed
+                ? 'Draft polished with LLM evidence pass.'
+                : 'Draft polished with fallback rules (${fallbackReason ?? 'no LLM'}).',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _polishingDraft = false;
+        _saveError = 'Draft polish failed: $e';
       });
     }
   }

@@ -22,6 +22,27 @@ class SourceRepo {
     return query.getSingleOrNull();
   }
 
+  Future<List<SourceItem>> getSourceItemsByIds(List<String> ids) async {
+    if (ids.isEmpty) {
+      return const <SourceItem>[];
+    }
+    final query = _db.select(_db.sourceItems)..where((t) => t.id.isIn(ids));
+    final rows = await query.get();
+    final order = <String, int>{
+      for (var i = 0; i < ids.length; i++) ids[i]: i,
+    };
+    rows.sort((a, b) =>
+        (order[a.id] ?? ids.length).compareTo(order[b.id] ?? ids.length));
+    return rows;
+  }
+
+  Future<List<SourceItem>> getRecentSourceItems({int limit = 12}) {
+    final query = _db.select(_db.sourceItems)
+      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
+      ..limit(limit);
+    return query.get();
+  }
+
   Future<String> createSourceItem({
     required String type,
     String? url,

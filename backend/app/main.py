@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -21,6 +23,7 @@ from .models import (
 )
 from .schemas import (
     DraftFromSourcesRequest,
+    DraftPolishRequest,
     DraftVariantsRequest,
     DraftSyncItem,
     PublishConfirmRequest,
@@ -28,6 +31,7 @@ from .schemas import (
     ScheduledPostSyncItem,
     StyleProfileSyncItem,
     SyncPushRequest,
+    SourceMaterial,
     VariantHumanizeRequest,
     VariantSyncItem,
 )
@@ -285,14 +289,39 @@ def _soft_delete(db: Session, model: Any, entity_id: str) -> None:
     item.sync_cursor = _next_cursor(db)
 
 
-def _canonical_template(intent: str, source_ids: list[str], audience: str) -> str:
+def _source_material_snippet(material: SourceMaterial) -> str:
+    if material.note and material.note.strip():
+        return material.note.strip()
+    if material.title and material.title.strip():
+        return material.title.strip()
+    if material.url and material.url.strip():
+        return material.url.strip()
+    if material.tags:
+        return ", ".join(material.tags[:4])
+    return material.id
+
+
+def _canonical_template(
+    intent: str,
+    source_ids: list[str],
+    audience: str,
+    source_materials: list[SourceMaterial],
+) -> str:
     source_hint = ", ".join(source_ids[:3]) if source_ids else "recent captures"
+    evidence_lines = [
+        f"- {_source_material_snippet(material)}"
+        for material in source_materials[:3]
+        if _source_material_snippet(material)
+    ]
+    evidence_block = (
+        "\n".join(evidence_lines)
+        if evidence_lines
+        else "- What changed\n- Why it matters now\n- One tradeoff I would watch"
+    )
     return (
         "# Draft\n\n"
         f"Hook: My latest {intent.replace('_', ' ')} for {audience} came from {source_hint}.\n\n"
-        "- What changed\n"
-        "- Why it matters now\n"
-        "- One tradeoff I would watch\n\n"
+        f"{evidence_block}\n\n"
         "Takeaway: Keep it simple, then iterate from feedback.\n\n"
         "Question: What would you test first?"
     )
@@ -338,6 +367,111 @@ def _humanize_text(text: str, strictness: float, banned: list[str]) -> str:
     result = "\n".join(line.rstrip() for line in result.splitlines())
     result = "\n".join(line for line in result.splitlines() if line.strip())
     return result.strip()
+
+
+def _fallback_polish(
+    canonical_markdown: str,
+    strictness: float,
+    banned: list[str],
+) -> str:
+    return _humanize_text(canonical_markdown, strictness, banned)
+
+
+def _content_to_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        parts: list[str] = []
+        for part in value:
+            if isinstance(part, str):
+                parts.append(part)
+                continue
+            if isinstance(part, dict):
+                text = part.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+        return "\n".join(part for part in parts if part.strip()).strip()
+    return ""
+
+
+def _polish_with_llm(
+    canonical_markdown: str,
+    source_materials: list[SourceMaterial],
+    strictness: float,
+    banned: list[str],
+) -> tuple[str | None, str | None, str | None]:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None, None, "OPENAI_API_KEY missing"
+
+    model = os.getenv("OPENAI_MODEL", "gpt-5.3-codex")
+    evidence_lines = []
+    for index, material in enumerate(source_materials[:8], start=1):
+        snippet = _source_material_snippet(material)
+        evidence_lines.append(
+            f"[S{index}] id={material.id} type={material.type or 'unknown'} "
+            f"url={material.url or 'n/a'} :: {snippet}"
+        )
+    evidence_block = (
+        "\n".join(evidence_lines)
+        if evidence_lines
+        else "[S1] No explicit source material provided."
+    )
+    banned_block = ", ".join(phrase for phrase in banned if phrase) or "none"
+
+    system_prompt = (
+        "You edit social content drafts for clarity and human voice. "
+        "Use only the provided evidence. "
+        "If evidence is thin, keep statements cautious. "
+        "Return markdown only."
+    )
+    user_prompt = (
+        "Polish this draft for publish readiness.\n\n"
+        f"Strictness: {strictness:.1f}\n"
+        f"Banned phrases: {banned_block}\n\n"
+        f"Evidence pack:\n{evidence_block}\n\n"
+        f"Draft:\n{canonical_markdown}\n\n"
+        "Output requirements:\n"
+        "- keep core meaning\n"
+        "- remove banned phrasing\n"
+        "- concise, concrete, personal tone\n"
+        "- no extra preface, markdown only"
+    )
+
+    payload = {
+        "model": model,
+        "temperature": 0.4,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    }
+
+    try:
+        with httpx.Client(timeout=35.0) as client:
+            response = client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+        if response.status_code < 200 or response.status_code >= 300:
+            return None, model, f"OpenAI HTTP {response.status_code}"
+
+        parsed = response.json()
+        choices = parsed.get("choices")
+        if not isinstance(choices, list) or not choices:
+            return None, model, "No choices returned"
+        message = choices[0].get("message", {})
+        content = _content_to_text(message.get("content"))
+        text = content.strip()
+        if not text:
+            return None, model, "LLM returned empty content"
+        return text, model, None
+    except Exception as exc:  # pragma: no cover - network/runtime dependent
+        return None, model, f"{exc}"
 
 
 @app.on_event("startup")
@@ -446,7 +580,19 @@ def drafts_from_sources(
 ) -> dict[str, Any]:
     draft_id = _new_id("draft")
     now = utc_now()
-    canonical = _canonical_template(payload.intent, payload.source_ids, payload.audience)
+    canonical_template = _canonical_template(
+        payload.intent,
+        payload.source_ids,
+        payload.audience,
+        payload.source_materials,
+    )
+    polished, model, fallback_reason = _polish_with_llm(
+        canonical_markdown=canonical_template,
+        source_materials=payload.source_materials,
+        strictness=max(payload.punchiness, 0.7),
+        banned=[],
+    )
+    canonical = polished or canonical_template
     draft = Draft(
         id=draft_id,
         canonical_markdown=canonical,
@@ -460,7 +606,13 @@ def drafts_from_sources(
     )
     db.add(draft)
     db.commit()
-    return {"draft_id": draft_id, "canonical_markdown": canonical}
+    return {
+        "draft_id": draft_id,
+        "canonical_markdown": canonical,
+        "llm_used": polished is not None,
+        "model": model,
+        "fallback_reason": fallback_reason,
+    }
 
 
 @app.post("/drafts/{draft_id}/variants")
@@ -509,6 +661,49 @@ def draft_variants(
 
     db.commit()
     return {"variants": variants}
+
+
+@app.post("/drafts/{draft_id}/polish")
+def polish_draft(
+    draft_id: str,
+    payload: DraftPolishRequest,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    draft = db.get(Draft, draft_id)
+    if draft is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+    base_text = payload.canonical_markdown.strip() or draft.canonical_markdown
+    banned = [phrase for phrase in payload.banned_phrases if phrase.strip()]
+    if payload.style_profile_id:
+        style = db.get(StyleProfile, payload.style_profile_id)
+        if style is not None:
+            banned = list({*banned, *style.banned_phrases})
+
+    polished, model, fallback_reason = _polish_with_llm(
+        canonical_markdown=base_text,
+        source_materials=payload.source_materials,
+        strictness=payload.strictness,
+        banned=banned,
+    )
+    canonical = polished or _fallback_polish(
+        canonical_markdown=base_text,
+        strictness=payload.strictness,
+        banned=banned,
+    )
+
+    draft.canonical_markdown = canonical
+    draft.updated_at = utc_now()
+    draft.sync_cursor = _next_cursor(db)
+    db.commit()
+
+    return {
+        "draft_id": draft.id,
+        "canonical_markdown": canonical,
+        "llm_used": polished is not None,
+        "model": model,
+        "fallback_reason": fallback_reason,
+    }
 
 
 @app.post("/variants/{variant_id}/humanize")

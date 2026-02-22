@@ -132,6 +132,22 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
         "/drafts/from_sources",
         json={
             "source_ids": ["src_1", "src_2"],
+            "source_materials": [
+                {
+                    "id": "src_1",
+                    "type": "note",
+                    "title": "Release notes",
+                    "note": "Latency dropped after cache warmup.",
+                    "tags": ["perf", "ops"],
+                },
+                {
+                    "id": "src_2",
+                    "type": "url",
+                    "url": "https://example.com/post",
+                    "note": "Users reported better onboarding completion.",
+                    "tags": ["product"],
+                },
+            ],
             "intent": "how_to",
             "audience": "engineers",
             "tone": 0.6,
@@ -144,6 +160,26 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
     draft_id = draft_payload["draft_id"]
     assert isinstance(draft_id, str) and draft_id
     assert "Hook:" in draft_payload["canonical_markdown"]
+
+    polish_response = client.post(
+        f"/drafts/{draft_id}/polish",
+        json={
+            "canonical_markdown": "We should leverage quick wins for this launch.",
+            "source_materials": [
+                {
+                    "id": "src_1",
+                    "note": "Real feedback: simplify steps and ship smaller changes.",
+                }
+            ],
+            "strictness": 0.8,
+            "banned_phrases": ["leverage"],
+        },
+    )
+    assert polish_response.status_code == 200
+    polished_payload = polish_response.json()
+    assert polished_payload["draft_id"] == draft_id
+    assert isinstance(polished_payload["canonical_markdown"], str)
+    assert "leverage" not in polished_payload["canonical_markdown"].lower()
 
     variants_response = client.post(
         f"/drafts/{draft_id}/variants",

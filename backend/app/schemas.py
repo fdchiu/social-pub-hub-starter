@@ -5,6 +5,15 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class SourceMaterial(BaseModel):
+    id: str
+    type: str | None = None
+    title: str | None = None
+    url: str | None = None
+    note: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+
 class DraftSyncItem(BaseModel):
     id: str
     canonical_markdown: str = ""
@@ -91,11 +100,20 @@ class SyncPushRequest(BaseModel):
 
 class DraftFromSourcesRequest(BaseModel):
     source_ids: list[str] = Field(default_factory=list)
+    source_materials: list[SourceMaterial] = Field(default_factory=list)
     intent: str = "how_to"
     tone: float = 0.6
     punchiness: float = 0.7
     audience: str = "engineers"
     length_target: str = "short"
+
+
+class DraftPolishRequest(BaseModel):
+    canonical_markdown: str = ""
+    source_materials: list[SourceMaterial] = Field(default_factory=list)
+    style_profile_id: str | None = None
+    banned_phrases: list[str] = Field(default_factory=list)
+    strictness: float = 0.7
 
 
 class DraftVariantsRequest(BaseModel):

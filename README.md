@@ -15,6 +15,7 @@ This scaffold includes:
 - Docker compose for backend + Postgres
 - Style profile editor in Settings (voice, cadence, emoji, banned phrases)
 - Compose actions: generate variants, platform filter tabs, humanize per variant
+- LLM-backed draft polish path with evidence-pack fallback (template/rules when no key)
 
 Next steps:
 1. `cd backend && docker compose up --build`
@@ -26,6 +27,10 @@ Testing:
 
 Key workflow:
 1. Open Inbox, select source items, click "Create draft from selected".
-2. Compose opens with canonical draft; generate variants from the sparkle action.
+2. Compose opens with canonical draft. Optional: click "Polish draft" for LLM publish pass.
 3. Filter variants by platform, run Humanize, then copy/open composer/queue/confirm post.
 4. Use Settings to tune style profile and run sync.
+
+Optional LLM config (backend):
+1. `OPENAI_API_KEY=<your key>`
+2. `OPENAI_MODEL=gpt-5.3-codex` (or another model)

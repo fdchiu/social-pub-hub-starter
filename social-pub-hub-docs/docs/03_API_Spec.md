@@ -77,6 +77,9 @@ Request:
 ```json
 {
   "source_ids":["..."],
+  "source_materials":[
+    {"id":"src_1","type":"note","title":"...","url":"...","note":"...","tags":["..."]}
+  ],
   "intent":"how_to",
   "tone":0.6,
   "punchiness":0.7,
@@ -87,7 +90,38 @@ Request:
 
 Response:
 ```json
-{"draft_id":"...", "canonical_markdown":"..."}
+{
+  "draft_id":"...",
+  "canonical_markdown":"...",
+  "llm_used":true,
+  "model":"gpt-5.3-codex",
+  "fallback_reason":null
+}
+```
+
+### POST /drafts/{id}/polish
+Polish canonical draft for publish-readiness. Uses LLM when configured; falls back to local rewrite rules.
+
+Request:
+```json
+{
+  "canonical_markdown":"...",
+  "source_materials":[{"id":"src_1","note":"..."}],
+  "style_profile_id":"...",
+  "banned_phrases":["leverage"],
+  "strictness":0.7
+}
+```
+
+Response:
+```json
+{
+  "draft_id":"...",
+  "canonical_markdown":"...",
+  "llm_used":false,
+  "model":"gpt-5.3-codex",
+  "fallback_reason":"OPENAI_API_KEY missing"
+}
 ```
 
 ### POST /drafts/{id}/variants
@@ -160,4 +194,3 @@ Request:
 ```json
 {"filename":"paper.pdf","content_type":"application/pdf","bytes":123456}
 ```
-
