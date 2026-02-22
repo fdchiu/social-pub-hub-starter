@@ -22,6 +22,7 @@ class SyncSummary {
     required this.deletedVariants,
     required this.deletedPublishLogs,
     required this.deletedStyleProfiles,
+    required this.detectedConflicts,
   });
 
   final int cursor;
@@ -37,6 +38,7 @@ class SyncSummary {
   final int deletedVariants;
   final int deletedPublishLogs;
   final int deletedStyleProfiles;
+  final int detectedConflicts;
 }
 
 class SyncService {
@@ -53,8 +55,10 @@ class SyncService {
   final AppDatabase _db;
   final http.Client _client;
   final String _baseUrl;
+  int _detectedConflictsInRun = 0;
 
   Future<SyncSummary> syncNow() async {
+    _detectedConflictsInRun = 0;
     final prefs = await SharedPreferences.getInstance();
     final since = prefs.getInt(_cursorKey) ?? 0;
     final pushBatch = await _buildPushBatch();
@@ -126,6 +130,7 @@ class SyncService {
       deletedVariants: deletedVariants.length,
       deletedPublishLogs: deletedPublishLogs.length,
       deletedStyleProfiles: deletedStyleProfiles.length,
+      detectedConflicts: _detectedConflictsInRun,
     );
   }
 
@@ -243,6 +248,111 @@ class SyncService {
     });
   }
 
+  Future<void> resolveConflictKeepRemote(String conflictId) async {
+    final now = DateTime.now().toUtc();
+    await (_db.update(_db.syncConflicts)..where((t) => t.id.equals(conflictId)))
+        .write(
+      SyncConflictsCompanion(
+        resolvedAt: Value(now),
+        resolution: const Value('remote'),
+      ),
+    );
+  }
+
+  Future<void> resolveConflictUseLocal(String conflictId) async {
+    final conflict = await (_db.select(_db.syncConflicts)
+          ..where((t) => t.id.equals(conflictId)))
+        .getSingleOrNull();
+    if (conflict == null) {
+      return;
+    }
+
+    final payload = conflict.localPayload;
+    final now = DateTime.now().toUtc();
+    await _db.transaction(() async {
+      switch (conflict.entityType) {
+        case 'drafts':
+          await _db.into(_db.drafts).insertOnConflictUpdate(
+                DraftsCompanion(
+                  id: Value(conflict.entityId),
+                  canonicalMarkdown:
+                      Value((payload['canonical_markdown'] as String?) ?? ''),
+                  intent: Value(payload['intent'] as String?),
+                  tone: Value(_asDouble(payload['tone'])),
+                  punchiness: Value(_asDouble(payload['punchiness'])),
+                  emojiLevel: Value(payload['emoji_level'] as String?),
+                  audience: Value(payload['audience'] as String?),
+                  createdAt: Value(_asDateTime(payload['created_at']) ?? now),
+                  updatedAt: Value(now),
+                  syncStatus: const Value('dirty'),
+                ),
+              );
+          break;
+        case 'variants':
+          final draftId = payload['draft_id'] as String?;
+          if (draftId == null || draftId.isEmpty) {
+            break;
+          }
+          await _db.into(_db.variants).insertOnConflictUpdate(
+                VariantsCompanion(
+                  id: Value(conflict.entityId),
+                  draftId: Value(draftId),
+                  platform: Value((payload['platform'] as String?) ?? ''),
+                  body: Value((payload['text'] as String?) ?? ''),
+                  createdAt: Value(_asDateTime(payload['created_at']) ?? now),
+                  updatedAt: Value(now),
+                  syncStatus: const Value('dirty'),
+                ),
+              );
+          break;
+        case 'publish_logs':
+          await _db.into(_db.publishLogs).insertOnConflictUpdate(
+                PublishLogsCompanion(
+                  id: Value(conflict.entityId),
+                  variantId: Value(payload['variant_id'] as String?),
+                  platform: Value((payload['platform'] as String?) ?? ''),
+                  mode: Value((payload['mode'] as String?) ?? 'assisted'),
+                  status: Value((payload['status'] as String?) ?? 'draft'),
+                  externalUrl: Value(payload['external_url'] as String?),
+                  postedAt: Value(_asDateTime(payload['posted_at'])),
+                  createdAt: Value(_asDateTime(payload['created_at']) ?? now),
+                  updatedAt: Value(now),
+                  syncStatus: const Value('dirty'),
+                ),
+              );
+          break;
+        case 'style_profiles':
+          await _db.into(_db.styleProfiles).insertOnConflictUpdate(
+                StyleProfilesCompanion(
+                  id: Value(conflict.entityId),
+                  voiceName:
+                      Value((payload['voice_name'] as String?) ?? 'David'),
+                  casualFormal:
+                      Value(_asDouble(payload['casual_formal']) ?? 0.6),
+                  punchiness: Value(_asDouble(payload['punchiness']) ?? 0.7),
+                  emojiLevel:
+                      Value((payload['emoji_level'] as String?) ?? 'light'),
+                  bannedPhrases:
+                      Value(_asStringList(payload['banned_phrases'])),
+                  createdAt: Value(_asDateTime(payload['created_at']) ?? now),
+                  updatedAt: Value(now),
+                  syncStatus: const Value('dirty'),
+                ),
+              );
+          break;
+      }
+
+      await (_db.update(_db.syncConflicts)
+            ..where((t) => t.id.equals(conflictId)))
+          .write(
+        SyncConflictsCompanion(
+          resolvedAt: Value(now),
+          resolution: const Value('local'),
+        ),
+      );
+    });
+  }
+
   Future<void> _applyDraftUpserts(List<Map<String, dynamic>> rows) async {
     for (final row in rows) {
       final id = row['id'] as String?;
@@ -251,6 +361,23 @@ class SyncService {
       }
 
       final now = DateTime.now().toUtc();
+      final incomingUpdatedAt = _asDateTime(row['updated_at']) ?? now;
+      final existing = await (_db.select(_db.drafts)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing != null && existing.syncStatus == 'dirty') {
+        if (incomingUpdatedAt.isAfter(existing.updatedAt)) {
+          await _recordConflict(
+            entityType: 'drafts',
+            entityId: id,
+            localPayload: _draftToPayload(existing),
+            remotePayload: row,
+          );
+        } else {
+          continue;
+        }
+      }
+
       await _db.into(_db.drafts).insertOnConflictUpdate(
             DraftsCompanion(
               id: Value(id),
@@ -262,7 +389,7 @@ class SyncService {
               emojiLevel: Value(row['emoji_level'] as String?),
               audience: Value(row['audience'] as String?),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
-              updatedAt: Value(_asDateTime(row['updated_at']) ?? now),
+              updatedAt: Value(incomingUpdatedAt),
               syncStatus: const Value('clean'),
             ),
           );
@@ -278,6 +405,23 @@ class SyncService {
       }
 
       final now = DateTime.now().toUtc();
+      final incomingUpdatedAt = _asDateTime(row['updated_at']) ?? now;
+      final existing = await (_db.select(_db.variants)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing != null && existing.syncStatus == 'dirty') {
+        if (incomingUpdatedAt.isAfter(existing.updatedAt)) {
+          await _recordConflict(
+            entityType: 'variants',
+            entityId: id,
+            localPayload: _variantToPayload(existing),
+            remotePayload: row,
+          );
+        } else {
+          continue;
+        }
+      }
+
       await _db.into(_db.variants).insertOnConflictUpdate(
             VariantsCompanion(
               id: Value(id),
@@ -285,7 +429,7 @@ class SyncService {
               platform: Value((row['platform'] as String?) ?? ''),
               body: Value((row['text'] as String?) ?? ''),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
-              updatedAt: Value(_asDateTime(row['updated_at']) ?? now),
+              updatedAt: Value(incomingUpdatedAt),
               syncStatus: const Value('clean'),
             ),
           );
@@ -300,6 +444,23 @@ class SyncService {
       }
 
       final now = DateTime.now().toUtc();
+      final incomingUpdatedAt = _asDateTime(row['updated_at']) ?? now;
+      final existing = await (_db.select(_db.publishLogs)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing != null && existing.syncStatus == 'dirty') {
+        if (incomingUpdatedAt.isAfter(existing.updatedAt)) {
+          await _recordConflict(
+            entityType: 'publish_logs',
+            entityId: id,
+            localPayload: _publishLogToPayload(existing),
+            remotePayload: row,
+          );
+        } else {
+          continue;
+        }
+      }
+
       await _db.into(_db.publishLogs).insertOnConflictUpdate(
             PublishLogsCompanion(
               id: Value(id),
@@ -310,7 +471,7 @@ class SyncService {
               externalUrl: Value(row['external_url'] as String?),
               postedAt: Value(_asDateTime(row['posted_at'])),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
-              updatedAt: Value(_asDateTime(row['updated_at']) ?? now),
+              updatedAt: Value(incomingUpdatedAt),
               syncStatus: const Value('clean'),
             ),
           );
@@ -326,6 +487,23 @@ class SyncService {
       }
 
       final now = DateTime.now().toUtc();
+      final incomingUpdatedAt = _asDateTime(row['updated_at']) ?? now;
+      final existing = await (_db.select(_db.styleProfiles)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing != null && existing.syncStatus == 'dirty') {
+        if (incomingUpdatedAt.isAfter(existing.updatedAt)) {
+          await _recordConflict(
+            entityType: 'style_profiles',
+            entityId: id,
+            localPayload: _styleProfileToPayload(existing),
+            remotePayload: row,
+          );
+        } else {
+          continue;
+        }
+      }
+
       await _db.into(_db.styleProfiles).insertOnConflictUpdate(
             StyleProfilesCompanion(
               id: Value(id),
@@ -335,7 +513,7 @@ class SyncService {
               emojiLevel: Value((row['emoji_level'] as String?) ?? 'light'),
               bannedPhrases: Value(_asStringList(row['banned_phrases'])),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
-              updatedAt: Value(_asDateTime(row['updated_at']) ?? now),
+              updatedAt: Value(incomingUpdatedAt),
               syncStatus: const Value('clean'),
             ),
           );
@@ -384,6 +562,81 @@ class SyncService {
             ..where((t) => t.id.isIn(deletedStyleProfiles)))
           .go();
     }
+  }
+
+  Future<void> _recordConflict({
+    required String entityType,
+    required String entityId,
+    required Map<String, dynamic> localPayload,
+    required Map<String, dynamic> remotePayload,
+  }) async {
+    _detectedConflictsInRun += 1;
+    final now = DateTime.now().toUtc();
+    final conflictId = 'conflict:$entityType:$entityId';
+    await _db.into(_db.syncConflicts).insertOnConflictUpdate(
+          SyncConflictsCompanion(
+            id: Value(conflictId),
+            entityType: Value(entityType),
+            entityId: Value(entityId),
+            localPayload: Value(localPayload),
+            remotePayload: Value(remotePayload),
+            detectedAt: Value(now),
+            resolvedAt: const Value(null),
+            resolution: const Value(null),
+          ),
+        );
+  }
+
+  Map<String, dynamic> _draftToPayload(Draft row) {
+    return {
+      'id': row.id,
+      'canonical_markdown': row.canonicalMarkdown,
+      'intent': row.intent,
+      'tone': row.tone,
+      'punchiness': row.punchiness,
+      'emoji_level': row.emojiLevel,
+      'audience': row.audience,
+      'created_at': row.createdAt.toIso8601String(),
+      'updated_at': row.updatedAt.toIso8601String(),
+    };
+  }
+
+  Map<String, dynamic> _variantToPayload(Variant row) {
+    return {
+      'id': row.id,
+      'draft_id': row.draftId,
+      'platform': row.platform,
+      'text': row.body,
+      'created_at': row.createdAt.toIso8601String(),
+      'updated_at': row.updatedAt.toIso8601String(),
+    };
+  }
+
+  Map<String, dynamic> _publishLogToPayload(PublishLog row) {
+    return {
+      'id': row.id,
+      'variant_id': row.variantId,
+      'platform': row.platform,
+      'mode': row.mode,
+      'status': row.status,
+      'external_url': row.externalUrl,
+      'posted_at': row.postedAt?.toIso8601String(),
+      'created_at': row.createdAt.toIso8601String(),
+      'updated_at': row.updatedAt.toIso8601String(),
+    };
+  }
+
+  Map<String, dynamic> _styleProfileToPayload(StyleProfile row) {
+    return {
+      'id': row.id,
+      'voice_name': row.voiceName,
+      'casual_formal': row.casualFormal,
+      'punchiness': row.punchiness,
+      'emoji_level': row.emojiLevel,
+      'banned_phrases': row.bannedPhrases,
+      'created_at': row.createdAt.toIso8601String(),
+      'updated_at': row.updatedAt.toIso8601String(),
+    };
   }
 
   List<Map<String, dynamic>> _asMapList(Object? value) {

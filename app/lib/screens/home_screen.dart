@@ -27,6 +27,10 @@ class HomeScreen extends StatelessWidget {
             child: const Text("Publish Checklist"),
           ),
           ElevatedButton(
+            onPressed: () => context.go('/sync-conflicts'),
+            child: const Text("Sync Conflicts"),
+          ),
+          ElevatedButton(
             onPressed: () => context.go('/history'),
             child: const Text("History"),
           ),

@@ -2310,6 +2310,462 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
   }
 }
 
+class $SyncConflictsTable extends SyncConflicts
+    with TableInfo<$SyncConflictsTable, SyncConflict> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncConflictsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _entityTypeMeta =
+      const VerificationMeta('entityType');
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+      'entity_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _entityIdMeta =
+      const VerificationMeta('entityId');
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+      'entity_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  late final GeneratedColumnWithTypeConverter<Map<String, dynamic>, String>
+      localPayload = GeneratedColumn<String>(
+              'local_payload', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('{}'))
+          .withConverter<Map<String, dynamic>>(
+              $SyncConflictsTable.$converterlocalPayload);
+  @override
+  late final GeneratedColumnWithTypeConverter<Map<String, dynamic>, String>
+      remotePayload = GeneratedColumn<String>(
+              'remote_payload', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('{}'))
+          .withConverter<Map<String, dynamic>>(
+              $SyncConflictsTable.$converterremotePayload);
+  static const VerificationMeta _detectedAtMeta =
+      const VerificationMeta('detectedAt');
+  @override
+  late final GeneratedColumn<DateTime> detectedAt = GeneratedColumn<DateTime>(
+      'detected_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _resolvedAtMeta =
+      const VerificationMeta('resolvedAt');
+  @override
+  late final GeneratedColumn<DateTime> resolvedAt = GeneratedColumn<DateTime>(
+      'resolved_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _resolutionMeta =
+      const VerificationMeta('resolution');
+  @override
+  late final GeneratedColumn<String> resolution = GeneratedColumn<String>(
+      'resolution', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        entityType,
+        entityId,
+        localPayload,
+        remotePayload,
+        detectedAt,
+        resolvedAt,
+        resolution
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_conflicts';
+  @override
+  VerificationContext validateIntegrity(Insertable<SyncConflict> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+          _entityTypeMeta,
+          entityType.isAcceptableOrUnknown(
+              data['entity_type']!, _entityTypeMeta));
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(_entityIdMeta,
+          entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta));
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('detected_at')) {
+      context.handle(
+          _detectedAtMeta,
+          detectedAt.isAcceptableOrUnknown(
+              data['detected_at']!, _detectedAtMeta));
+    }
+    if (data.containsKey('resolved_at')) {
+      context.handle(
+          _resolvedAtMeta,
+          resolvedAt.isAcceptableOrUnknown(
+              data['resolved_at']!, _resolvedAtMeta));
+    }
+    if (data.containsKey('resolution')) {
+      context.handle(
+          _resolutionMeta,
+          resolution.isAcceptableOrUnknown(
+              data['resolution']!, _resolutionMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SyncConflict map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncConflict(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      entityType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}entity_type'])!,
+      entityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}entity_id'])!,
+      localPayload: $SyncConflictsTable.$converterlocalPayload.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}local_payload'])!),
+      remotePayload: $SyncConflictsTable.$converterremotePayload.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}remote_payload'])!),
+      detectedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}detected_at'])!,
+      resolvedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}resolved_at']),
+      resolution: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}resolution']),
+    );
+  }
+
+  @override
+  $SyncConflictsTable createAlias(String alias) {
+    return $SyncConflictsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<Map<String, dynamic>, String> $converterlocalPayload =
+      const JsonMapConverter();
+  static TypeConverter<Map<String, dynamic>, String> $converterremotePayload =
+      const JsonMapConverter();
+}
+
+class SyncConflict extends DataClass implements Insertable<SyncConflict> {
+  final String id;
+  final String entityType;
+  final String entityId;
+  final Map<String, dynamic> localPayload;
+  final Map<String, dynamic> remotePayload;
+  final DateTime detectedAt;
+  final DateTime? resolvedAt;
+  final String? resolution;
+  const SyncConflict(
+      {required this.id,
+      required this.entityType,
+      required this.entityId,
+      required this.localPayload,
+      required this.remotePayload,
+      required this.detectedAt,
+      this.resolvedAt,
+      this.resolution});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    {
+      map['local_payload'] = Variable<String>(
+          $SyncConflictsTable.$converterlocalPayload.toSql(localPayload));
+    }
+    {
+      map['remote_payload'] = Variable<String>(
+          $SyncConflictsTable.$converterremotePayload.toSql(remotePayload));
+    }
+    map['detected_at'] = Variable<DateTime>(detectedAt);
+    if (!nullToAbsent || resolvedAt != null) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt);
+    }
+    if (!nullToAbsent || resolution != null) {
+      map['resolution'] = Variable<String>(resolution);
+    }
+    return map;
+  }
+
+  SyncConflictsCompanion toCompanion(bool nullToAbsent) {
+    return SyncConflictsCompanion(
+      id: Value(id),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      localPayload: Value(localPayload),
+      remotePayload: Value(remotePayload),
+      detectedAt: Value(detectedAt),
+      resolvedAt: resolvedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolvedAt),
+      resolution: resolution == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolution),
+    );
+  }
+
+  factory SyncConflict.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncConflict(
+      id: serializer.fromJson<String>(json['id']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      localPayload:
+          serializer.fromJson<Map<String, dynamic>>(json['localPayload']),
+      remotePayload:
+          serializer.fromJson<Map<String, dynamic>>(json['remotePayload']),
+      detectedAt: serializer.fromJson<DateTime>(json['detectedAt']),
+      resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
+      resolution: serializer.fromJson<String?>(json['resolution']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'localPayload': serializer.toJson<Map<String, dynamic>>(localPayload),
+      'remotePayload': serializer.toJson<Map<String, dynamic>>(remotePayload),
+      'detectedAt': serializer.toJson<DateTime>(detectedAt),
+      'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
+      'resolution': serializer.toJson<String?>(resolution),
+    };
+  }
+
+  SyncConflict copyWith(
+          {String? id,
+          String? entityType,
+          String? entityId,
+          Map<String, dynamic>? localPayload,
+          Map<String, dynamic>? remotePayload,
+          DateTime? detectedAt,
+          Value<DateTime?> resolvedAt = const Value.absent(),
+          Value<String?> resolution = const Value.absent()}) =>
+      SyncConflict(
+        id: id ?? this.id,
+        entityType: entityType ?? this.entityType,
+        entityId: entityId ?? this.entityId,
+        localPayload: localPayload ?? this.localPayload,
+        remotePayload: remotePayload ?? this.remotePayload,
+        detectedAt: detectedAt ?? this.detectedAt,
+        resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
+        resolution: resolution.present ? resolution.value : this.resolution,
+      );
+  SyncConflict copyWithCompanion(SyncConflictsCompanion data) {
+    return SyncConflict(
+      id: data.id.present ? data.id.value : this.id,
+      entityType:
+          data.entityType.present ? data.entityType.value : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      localPayload: data.localPayload.present
+          ? data.localPayload.value
+          : this.localPayload,
+      remotePayload: data.remotePayload.present
+          ? data.remotePayload.value
+          : this.remotePayload,
+      detectedAt:
+          data.detectedAt.present ? data.detectedAt.value : this.detectedAt,
+      resolvedAt:
+          data.resolvedAt.present ? data.resolvedAt.value : this.resolvedAt,
+      resolution:
+          data.resolution.present ? data.resolution.value : this.resolution,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncConflict(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('localPayload: $localPayload, ')
+          ..write('remotePayload: $remotePayload, ')
+          ..write('detectedAt: $detectedAt, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('resolution: $resolution')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, entityType, entityId, localPayload,
+      remotePayload, detectedAt, resolvedAt, resolution);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncConflict &&
+          other.id == this.id &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.localPayload == this.localPayload &&
+          other.remotePayload == this.remotePayload &&
+          other.detectedAt == this.detectedAt &&
+          other.resolvedAt == this.resolvedAt &&
+          other.resolution == this.resolution);
+}
+
+class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
+  final Value<String> id;
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<Map<String, dynamic>> localPayload;
+  final Value<Map<String, dynamic>> remotePayload;
+  final Value<DateTime> detectedAt;
+  final Value<DateTime?> resolvedAt;
+  final Value<String?> resolution;
+  final Value<int> rowid;
+  const SyncConflictsCompanion({
+    this.id = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.localPayload = const Value.absent(),
+    this.remotePayload = const Value.absent(),
+    this.detectedAt = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.resolution = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncConflictsCompanion.insert({
+    required String id,
+    required String entityType,
+    required String entityId,
+    this.localPayload = const Value.absent(),
+    this.remotePayload = const Value.absent(),
+    this.detectedAt = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.resolution = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        entityType = Value(entityType),
+        entityId = Value(entityId);
+  static Insertable<SyncConflict> custom({
+    Expression<String>? id,
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<String>? localPayload,
+    Expression<String>? remotePayload,
+    Expression<DateTime>? detectedAt,
+    Expression<DateTime>? resolvedAt,
+    Expression<String>? resolution,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (localPayload != null) 'local_payload': localPayload,
+      if (remotePayload != null) 'remote_payload': remotePayload,
+      if (detectedAt != null) 'detected_at': detectedAt,
+      if (resolvedAt != null) 'resolved_at': resolvedAt,
+      if (resolution != null) 'resolution': resolution,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncConflictsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? entityType,
+      Value<String>? entityId,
+      Value<Map<String, dynamic>>? localPayload,
+      Value<Map<String, dynamic>>? remotePayload,
+      Value<DateTime>? detectedAt,
+      Value<DateTime?>? resolvedAt,
+      Value<String?>? resolution,
+      Value<int>? rowid}) {
+    return SyncConflictsCompanion(
+      id: id ?? this.id,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      localPayload: localPayload ?? this.localPayload,
+      remotePayload: remotePayload ?? this.remotePayload,
+      detectedAt: detectedAt ?? this.detectedAt,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+      resolution: resolution ?? this.resolution,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (localPayload.present) {
+      map['local_payload'] = Variable<String>(
+          $SyncConflictsTable.$converterlocalPayload.toSql(localPayload.value));
+    }
+    if (remotePayload.present) {
+      map['remote_payload'] = Variable<String>($SyncConflictsTable
+          .$converterremotePayload
+          .toSql(remotePayload.value));
+    }
+    if (detectedAt.present) {
+      map['detected_at'] = Variable<DateTime>(detectedAt.value);
+    }
+    if (resolvedAt.present) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt.value);
+    }
+    if (resolution.present) {
+      map['resolution'] = Variable<String>(resolution.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncConflictsCompanion(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('localPayload: $localPayload, ')
+          ..write('remotePayload: $remotePayload, ')
+          ..write('detectedAt: $detectedAt, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('resolution: $resolution, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2318,12 +2774,19 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $VariantsTable variants = $VariantsTable(this);
   late final $PublishLogsTable publishLogs = $PublishLogsTable(this);
   late final $StyleProfilesTable styleProfiles = $StyleProfilesTable(this);
+  late final $SyncConflictsTable syncConflicts = $SyncConflictsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [sourceItems, drafts, variants, publishLogs, styleProfiles];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+        sourceItems,
+        drafts,
+        variants,
+        publishLogs,
+        styleProfiles,
+        syncConflicts
+      ];
 }
 
 typedef $$SourceItemsTableCreateCompanionBuilder = SourceItemsCompanion
@@ -3824,6 +4287,234 @@ typedef $$StyleProfilesTableProcessedTableManager = ProcessedTableManager<
     ),
     StyleProfile,
     PrefetchHooks Function()>;
+typedef $$SyncConflictsTableCreateCompanionBuilder = SyncConflictsCompanion
+    Function({
+  required String id,
+  required String entityType,
+  required String entityId,
+  Value<Map<String, dynamic>> localPayload,
+  Value<Map<String, dynamic>> remotePayload,
+  Value<DateTime> detectedAt,
+  Value<DateTime?> resolvedAt,
+  Value<String?> resolution,
+  Value<int> rowid,
+});
+typedef $$SyncConflictsTableUpdateCompanionBuilder = SyncConflictsCompanion
+    Function({
+  Value<String> id,
+  Value<String> entityType,
+  Value<String> entityId,
+  Value<Map<String, dynamic>> localPayload,
+  Value<Map<String, dynamic>> remotePayload,
+  Value<DateTime> detectedAt,
+  Value<DateTime?> resolvedAt,
+  Value<String?> resolution,
+  Value<int> rowid,
+});
+
+class $$SyncConflictsTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncConflictsTable> {
+  $$SyncConflictsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+      column: $table.entityType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+      column: $table.entityId, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<Map<String, dynamic>, Map<String, dynamic>,
+          String>
+      get localPayload => $composableBuilder(
+          column: $table.localPayload,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnWithTypeConverterFilters<Map<String, dynamic>, Map<String, dynamic>,
+          String>
+      get remotePayload => $composableBuilder(
+          column: $table.remotePayload,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<DateTime> get detectedAt => $composableBuilder(
+      column: $table.detectedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get resolvedAt => $composableBuilder(
+      column: $table.resolvedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resolution => $composableBuilder(
+      column: $table.resolution, builder: (column) => ColumnFilters(column));
+}
+
+class $$SyncConflictsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncConflictsTable> {
+  $$SyncConflictsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+      column: $table.entityType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+      column: $table.entityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get localPayload => $composableBuilder(
+      column: $table.localPayload,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get remotePayload => $composableBuilder(
+      column: $table.remotePayload,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get detectedAt => $composableBuilder(
+      column: $table.detectedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get resolvedAt => $composableBuilder(
+      column: $table.resolvedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get resolution => $composableBuilder(
+      column: $table.resolution, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SyncConflictsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncConflictsTable> {
+  $$SyncConflictsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+      column: $table.entityType, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<Map<String, dynamic>, String>
+      get localPayload => $composableBuilder(
+          column: $table.localPayload, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<Map<String, dynamic>, String>
+      get remotePayload => $composableBuilder(
+          column: $table.remotePayload, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get detectedAt => $composableBuilder(
+      column: $table.detectedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get resolvedAt => $composableBuilder(
+      column: $table.resolvedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get resolution => $composableBuilder(
+      column: $table.resolution, builder: (column) => column);
+}
+
+class $$SyncConflictsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SyncConflictsTable,
+    SyncConflict,
+    $$SyncConflictsTableFilterComposer,
+    $$SyncConflictsTableOrderingComposer,
+    $$SyncConflictsTableAnnotationComposer,
+    $$SyncConflictsTableCreateCompanionBuilder,
+    $$SyncConflictsTableUpdateCompanionBuilder,
+    (
+      SyncConflict,
+      BaseReferences<_$AppDatabase, $SyncConflictsTable, SyncConflict>
+    ),
+    SyncConflict,
+    PrefetchHooks Function()> {
+  $$SyncConflictsTableTableManager(_$AppDatabase db, $SyncConflictsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncConflictsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncConflictsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncConflictsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> entityType = const Value.absent(),
+            Value<String> entityId = const Value.absent(),
+            Value<Map<String, dynamic>> localPayload = const Value.absent(),
+            Value<Map<String, dynamic>> remotePayload = const Value.absent(),
+            Value<DateTime> detectedAt = const Value.absent(),
+            Value<DateTime?> resolvedAt = const Value.absent(),
+            Value<String?> resolution = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SyncConflictsCompanion(
+            id: id,
+            entityType: entityType,
+            entityId: entityId,
+            localPayload: localPayload,
+            remotePayload: remotePayload,
+            detectedAt: detectedAt,
+            resolvedAt: resolvedAt,
+            resolution: resolution,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String entityType,
+            required String entityId,
+            Value<Map<String, dynamic>> localPayload = const Value.absent(),
+            Value<Map<String, dynamic>> remotePayload = const Value.absent(),
+            Value<DateTime> detectedAt = const Value.absent(),
+            Value<DateTime?> resolvedAt = const Value.absent(),
+            Value<String?> resolution = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SyncConflictsCompanion.insert(
+            id: id,
+            entityType: entityType,
+            entityId: entityId,
+            localPayload: localPayload,
+            remotePayload: remotePayload,
+            detectedAt: detectedAt,
+            resolvedAt: resolvedAt,
+            resolution: resolution,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SyncConflictsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SyncConflictsTable,
+    SyncConflict,
+    $$SyncConflictsTableFilterComposer,
+    $$SyncConflictsTableOrderingComposer,
+    $$SyncConflictsTableAnnotationComposer,
+    $$SyncConflictsTableCreateCompanionBuilder,
+    $$SyncConflictsTableUpdateCompanionBuilder,
+    (
+      SyncConflict,
+      BaseReferences<_$AppDatabase, $SyncConflictsTable, SyncConflict>
+    ),
+    SyncConflict,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3838,4 +4529,6 @@ class $AppDatabaseManager {
       $$PublishLogsTableTableManager(_db, _db.publishLogs);
   $$StyleProfilesTableTableManager get styleProfiles =>
       $$StyleProfilesTableTableManager(_db, _db.styleProfiles);
+  $$SyncConflictsTableTableManager get syncConflicts =>
+      $$SyncConflictsTableTableManager(_db, _db.syncConflicts);
 }

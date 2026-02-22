@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../data/sync/sync_service.dart';
+import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -20,6 +22,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final integrationsAsync = ref.watch(integrationsProvider);
+    final conflictsAsync = ref.watch(openSyncConflictsStreamProvider);
+    final openConflictCount = conflictsAsync.maybeWhen(
+      data: (rows) => rows.length,
+      orElse: () => 0,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -53,6 +60,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.only(top: 12),
               child: Text(_summaryText(_lastSummary!)),
             ),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              leading: Icon(
+                openConflictCount == 0
+                    ? Icons.check_circle
+                    : Icons.warning_amber,
+                color: openConflictCount == 0 ? Colors.green : Colors.orange,
+              ),
+              title: Text('Sync conflicts: $openConflictCount open'),
+              subtitle: const Text('Review and choose local/remote versions'),
+              trailing: FilledButton.tonal(
+                onPressed: () => context.go('/sync-conflicts'),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
           Row(
             children: [
@@ -162,6 +186,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         '${summary.pulledPublishLogs}/${summary.pulledStyleProfiles}\n'
         'Deleted d/v/p/s: '
         '${summary.deletedDrafts}/${summary.deletedVariants}/'
-        '${summary.deletedPublishLogs}/${summary.deletedStyleProfiles}';
+        '${summary.deletedPublishLogs}/${summary.deletedStyleProfiles}\n'
+        'Conflicts detected: ${summary.detectedConflicts}';
   }
 }

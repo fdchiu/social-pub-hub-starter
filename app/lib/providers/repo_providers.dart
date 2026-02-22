@@ -5,6 +5,7 @@ import '../data/repos/draft_repo.dart';
 import '../data/repos/publish_log_repo.dart';
 import '../data/repos/source_repo.dart';
 import '../data/repos/style_profile_repo.dart';
+import '../data/repos/sync_conflict_repo.dart';
 import '../data/repos/variant_repo.dart';
 import 'db_providers.dart';
 
@@ -28,6 +29,10 @@ final styleProfileRepoProvider = Provider<StyleProfileRepo>((ref) {
   return StyleProfileRepo(ref.watch(appDatabaseProvider));
 });
 
+final syncConflictRepoProvider = Provider<SyncConflictRepo>((ref) {
+  return SyncConflictRepo(ref.watch(appDatabaseProvider));
+});
+
 final sourceItemsStreamProvider = StreamProvider<List<SourceItem>>((ref) {
   return ref.watch(sourceRepoProvider).watchSourceItems();
 });
@@ -39,4 +44,9 @@ final publishLogsStreamProvider = StreamProvider<List<PublishLog>>((ref) {
 final draftVariantsStreamProvider =
     StreamProvider.family<List<Variant>, String>((ref, draftId) {
   return ref.watch(variantRepoProvider).watchVariantsForDraft(draftId);
+});
+
+final openSyncConflictsStreamProvider =
+    StreamProvider<List<SyncConflict>>((ref) {
+  return ref.watch(syncConflictRepoProvider).watchOpenConflicts();
 });
