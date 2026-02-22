@@ -11,6 +11,8 @@ class Bundles extends Table {
 
   TextColumn get anchorRef => text().nullable()();
 
+  TextColumn get canonicalDraftId => text().nullable()();
+
   TextColumn get relatedVariantIds => text()
       .map(const StringListConverter())
       .withDefault(const Constant('[]'))();

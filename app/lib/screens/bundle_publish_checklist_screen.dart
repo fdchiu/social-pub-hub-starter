@@ -64,6 +64,12 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
                           );
                           return _BundleChecklistCard(
                             report: report,
+                            onGenerateCanonicalDraft: () =>
+                                _generateCanonicalDraftFromSources(
+                              context: context,
+                              ref: ref,
+                              report: report,
+                            ),
                             onAttachSource: () => _attachLatestSourceToBundle(
                               context: context,
                               ref: ref,
@@ -159,14 +165,24 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
     final missingPlatforms = _targetPlatforms
         .where((platform) => !uniquePlatforms.contains(platform))
         .toList(growable: false);
-    final referenceDraftId =
-        resolvedVariants.isEmpty ? null : resolvedVariants.first.draftId;
+    final canonicalDraftId = bundle.canonicalDraftId;
+    final referenceDraftId = (canonicalDraftId != null &&
+            canonicalDraftId.trim().isNotEmpty)
+        ? canonicalDraftId
+        : (resolvedVariants.isEmpty ? null : resolvedVariants.first.draftId);
 
     final checks = <_ChecklistLine>[
       _ChecklistLine(
         label: 'Anchor reference set',
         passed: bundle.anchorRef != null && bundle.anchorRef!.trim().isNotEmpty,
         detail: 'anchor=${bundle.anchorType}:${bundle.anchorRef ?? '-'}',
+      ),
+      _ChecklistLine(
+        label: 'Canonical draft linked',
+        passed: referenceDraftId != null && referenceDraftId.isNotEmpty,
+        detail: referenceDraftId == null || referenceDraftId.isEmpty
+            ? 'Generate canonical from linked sources'
+            : 'draft=${referenceDraftId.substring(0, 8)}',
       ),
       _ChecklistLine(
         label: 'At least 1 source linked',
@@ -204,6 +220,7 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
       checks: checks,
       passedChecks: passedChecks,
       totalChecks: checks.length,
+      linkedSources: linkedSources,
       sourceCount: linkedSources.length,
       variantCount: relatedVariantIds.length,
       postedCount: postedVariantIds.length,
@@ -212,6 +229,38 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
       missingPlatforms: missingPlatforms,
       referenceDraftId: referenceDraftId,
     );
+  }
+
+  Future<void> _generateCanonicalDraftFromSources({
+    required BuildContext context,
+    required WidgetRef ref,
+    required _BundleReport report,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (report.linkedSources.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Link at least one source first')),
+      );
+      return;
+    }
+    final canonical =
+        _canonicalFromSources(report.bundle, report.linkedSources);
+    final draftId = await ref.read(draftRepoProvider).createDraft(
+          canonicalMarkdown: canonical,
+          intent: 'how_to',
+          audience: 'engineers',
+        );
+    await ref.read(bundleRepoProvider).setCanonicalDraftId(
+          bundleId: report.bundle.id,
+          draftId: draftId,
+        );
+    if (context.mounted) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Canonical draft ${draftId.substring(0, 8)} linked'),
+        ),
+      );
+    }
   }
 
   Future<void> _attachLatestSourceToBundle({
@@ -343,17 +392,47 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
     }
     return 'Platform variant draft';
   }
+
+  String _canonicalFromSources(Bundle bundle, List<SourceItem> sources) {
+    final bullets = sources.take(5).map((source) {
+      final label = source.title?.trim().isNotEmpty == true
+          ? source.title!.trim()
+          : (source.userNote?.trim().isNotEmpty == true
+              ? source.userNote!.trim()
+              : (source.url?.trim().isNotEmpty == true
+                  ? source.url!.trim()
+                  : source.type));
+      return '- $label';
+    }).join('\n');
+    return '''
+# ${bundle.name}
+
+Hook: I grouped these sources into one publish wave and extracted a practical angle.
+
+Sources:
+$bullets
+
+Draft shape:
+- What changed
+- Why it matters now
+- One tradeoff worth debating
+
+Takeaway: Start with a concrete step and ask for feedback.
+''';
+  }
 }
 
 class _BundleChecklistCard extends StatelessWidget {
   const _BundleChecklistCard({
     required this.report,
+    required this.onGenerateCanonicalDraft,
     required this.onAttachSource,
     required this.onBackfillVariants,
     required this.onCleanMissingVariants,
   });
 
   final _BundleReport report;
+  final Future<void> Function() onGenerateCanonicalDraft;
   final Future<void> Function() onAttachSource;
   final Future<void> Function() onBackfillVariants;
   final Future<void> Function() onCleanMissingVariants;
@@ -399,6 +478,13 @@ class _BundleChecklistCard extends StatelessWidget {
                   FilledButton.tonal(
                     onPressed: onAttachSource,
                     child: const Text('Attach latest source'),
+                  ),
+                if (report.sourceCount > 0 &&
+                    (report.referenceDraftId == null ||
+                        report.referenceDraftId!.isEmpty))
+                  FilledButton.tonal(
+                    onPressed: onGenerateCanonicalDraft,
+                    child: const Text('Generate canonical draft'),
                   ),
                 if (report.missingPlatforms.isNotEmpty)
                   FilledButton.tonal(
@@ -453,6 +539,7 @@ class _BundleReport {
     required this.checks,
     required this.passedChecks,
     required this.totalChecks,
+    required this.linkedSources,
     required this.sourceCount,
     required this.variantCount,
     required this.postedCount,
@@ -466,6 +553,7 @@ class _BundleReport {
   final List<_ChecklistLine> checks;
   final int passedChecks;
   final int totalChecks;
+  final List<SourceItem> linkedSources;
   final int sourceCount;
   final int variantCount;
   final int postedCount;

@@ -23,6 +23,7 @@ class BundleRepo {
     required String name,
     required String anchorType,
     String? anchorRef,
+    String? canonicalDraftId,
     List<String> relatedVariantIds = const <String>[],
     String? notes,
   }) async {
@@ -35,6 +36,11 @@ class BundleRepo {
             anchorType: Value(anchorType),
             anchorRef:
                 Value(anchorRef?.trim().isEmpty ?? true ? null : anchorRef),
+            canonicalDraftId: Value(
+              canonicalDraftId?.trim().isEmpty ?? true
+                  ? null
+                  : canonicalDraftId,
+            ),
             relatedVariantIds: Value(relatedVariantIds),
             notes: Value(notes?.trim().isEmpty ?? true ? null : notes),
             createdAt: Value(now),
@@ -82,6 +88,18 @@ class BundleRepo {
     await (_db.update(_db.bundles)..where((t) => t.id.equals(bundleId))).write(
       BundlesCompanion(
         relatedVariantIds: Value(filtered),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
+
+  Future<void> setCanonicalDraftId({
+    required String bundleId,
+    String? draftId,
+  }) async {
+    await (_db.update(_db.bundles)..where((t) => t.id.equals(bundleId))).write(
+      BundlesCompanion(
+        canonicalDraftId: Value(draftId),
         updatedAt: Value(DateTime.now().toUtc()),
       ),
     );
