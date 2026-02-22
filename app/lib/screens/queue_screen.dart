@@ -282,12 +282,22 @@ class _ScheduledPostCard extends ConsumerWidget {
   }
 
   Future<void> _markPosted(BuildContext context, WidgetRef ref) async {
+    final externalUrl = await _promptExternalUrl(context);
     await ref.read(scheduledPostRepoProvider).markPosted(
           scheduledPostId: item.id,
+          externalUrl: externalUrl,
+        );
+    await ref.read(publishLogRepoProvider).createPublishLog(
+          variantId: item.variantId,
+          platform: item.platform,
+          mode: 'scheduled',
+          status: 'posted',
+          externalUrl: externalUrl,
+          postedAt: DateTime.now().toUtc(),
         );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Queue item marked posted')),
+        const SnackBar(content: Text('Queue item marked posted and logged')),
       );
     }
   }
@@ -307,6 +317,35 @@ class _ScheduledPostCard extends ConsumerWidget {
     final hour = value.hour.toString().padLeft(2, '0');
     final minute = value.minute.toString().padLeft(2, '0');
     return '$month/$day ${value.year} $hour:$minute';
+  }
+
+  Future<String?> _promptExternalUrl(BuildContext context) async {
+    final controller = TextEditingController();
+    final value = await showDialog<String?>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('External post URL (optional)'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'https://...'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('Skip'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+    return value;
   }
 
   String _shortId(String id) {
