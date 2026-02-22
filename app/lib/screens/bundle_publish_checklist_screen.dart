@@ -496,6 +496,13 @@ class _BundleChecklistCard extends StatelessWidget {
                     },
                     child: const Text('Open canonical'),
                   ),
+                FilledButton.tonal(
+                  onPressed: () {
+                    final encoded = Uri.encodeQueryComponent(report.bundle.id);
+                    context.go('/publish?bundleId=$encoded');
+                  },
+                  child: const Text('Open publish console'),
+                ),
                 if (report.missingPlatforms.isNotEmpty)
                   FilledButton.tonal(
                     onPressed: onBackfillVariants,

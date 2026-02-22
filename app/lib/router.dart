@@ -21,7 +21,11 @@ final router = GoRouter(
       path: '/bundle-checklist',
       builder: (c, s) => const BundlePublishChecklistScreen(),
     ),
-    GoRoute(path: '/publish', builder: (c, s) => const PublishConsoleScreen()),
+    GoRoute(
+      path: '/publish',
+      builder: (c, s) => PublishConsoleScreen(
+          initialBundleId: s.uri.queryParameters['bundleId']),
+    ),
     GoRoute(
       path: '/compose',
       builder: (c, s) =>
