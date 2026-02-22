@@ -26,6 +26,7 @@ class DraftRepo {
   }
 
   Future<String> createDraft({
+    String? id,
     String canonicalMarkdown = '',
     String? intent,
     double? tone,
@@ -33,12 +34,12 @@ class DraftRepo {
     String? emojiLevel,
     String? audience,
   }) async {
-    final id = generateEntityId();
+    final draftId = id ?? generateEntityId();
     final now = DateTime.now().toUtc();
 
     await _db.into(_db.drafts).insert(
           DraftsCompanion.insert(
-            id: id,
+            id: draftId,
             canonicalMarkdown: Value(canonicalMarkdown),
             intent: Value(intent),
             tone: Value(tone),
@@ -49,9 +50,10 @@ class DraftRepo {
             updatedAt: Value(now),
             syncStatus: const Value('dirty'),
           ),
+          mode: InsertMode.insertOrReplace,
         );
 
-    return id;
+    return draftId;
   }
 
   Future<void> updateCanonicalMarkdown({

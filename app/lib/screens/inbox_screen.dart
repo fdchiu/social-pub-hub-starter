@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
+import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
 
 class InboxScreen extends ConsumerStatefulWidget {
@@ -14,6 +18,7 @@ class InboxScreen extends ConsumerStatefulWidget {
 
 class _InboxScreenState extends ConsumerState<InboxScreen> {
   final Set<String> _selectedIds = <String>{};
+  bool _creatingDraft = false;
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +30,14 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         title: 'Inbox',
         actions: [
           IconButton(
-            onPressed: _createDraftFromSelectedStub,
-            icon: const Icon(Icons.note_add_outlined),
+            onPressed: _creatingDraft ? null : _createDraftFromSelected,
+            icon: _creatingDraft
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.note_add_outlined),
             tooltip: 'Create draft from selected',
           ),
         ],
@@ -207,12 +218,123 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     tagsController.dispose();
   }
 
-  void _createDraftFromSelectedStub() {
+  Future<void> _createDraftFromSelected() async {
     final count = _selectedIds.length;
-    final message = count == 0
-        ? 'Select source items first.'
-        : 'Draft creation from $count selected items is stubbed next.';
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    if (count == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select source items first.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _creatingDraft = true;
+    });
+
+    final selectedSourceIds = _selectedIds.toList(growable: false);
+    final draftRepo = ref.read(draftRepoProvider);
+
+    try {
+      final baseUrl = ref.read(apiBaseUrlProvider);
+      final response = await ref.read(httpClientProvider).post(
+            Uri.parse('$baseUrl/drafts/from_sources'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({
+              'source_ids': selectedSourceIds,
+              'intent': 'how_to',
+              'tone': 0.6,
+              'punchiness': 0.7,
+              'audience': 'builders',
+              'length_target': 'short',
+            }),
+          );
+
+      String draftId;
+      String canonicalMarkdown;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+        draftId = (parsed['draft_id'] as String?)?.trim() ?? '';
+        canonicalMarkdown =
+            (parsed['canonical_markdown'] as String?)?.trim() ?? '';
+        if (draftId.isEmpty) {
+          throw Exception('Missing draft_id in response');
+        }
+        if (canonicalMarkdown.isEmpty) {
+          canonicalMarkdown = _buildLocalDraftTemplate(selectedSourceIds);
+        }
+      } else {
+        draftId = '';
+        canonicalMarkdown = '';
+      }
+
+      if (draftId.isEmpty) {
+        draftId = await draftRepo.createDraft(
+          canonicalMarkdown: _buildLocalDraftTemplate(selectedSourceIds),
+          intent: 'how_to',
+          audience: 'builders',
+        );
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Backend unavailable. Created local draft from $count source items.',
+            ),
+          ),
+        );
+      } else {
+        await draftRepo.createDraft(
+          id: draftId,
+          canonicalMarkdown: canonicalMarkdown,
+          intent: 'how_to',
+          tone: 0.6,
+          punchiness: 0.7,
+          audience: 'builders',
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _selectedIds.clear();
+      });
+      context.go(
+        Uri(
+          path: '/compose',
+          queryParameters: {'draftId': draftId},
+        ).toString(),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed creating draft: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _creatingDraft = false;
+        });
+      }
+    }
+  }
+
+  String _buildLocalDraftTemplate(List<String> sourceIds) {
+    final sourceHint = sourceIds.take(3).join(', ');
+    return '''
+# Draft
+
+Hook: Quick synthesis from selected inbox captures.
+
+- Source IDs: ${sourceHint.isEmpty ? 'none' : sourceHint}
+- What changed
+- Why this matters now
+
+Takeaway: Start with one testable claim and iterate.
+''';
   }
 }

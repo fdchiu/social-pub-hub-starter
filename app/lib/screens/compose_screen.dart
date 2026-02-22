@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import '../utils/composer_links.dart';
@@ -44,6 +45,8 @@ Takeaway:
   String? _saveError;
   String? _variantError;
   bool _generatingVariants = false;
+  final Set<String> _humanizingVariantIds = <String>{};
+  double _humanizeStrictness = 0.7;
 
   @override
   void initState() {
@@ -135,6 +138,28 @@ Takeaway:
                       ),
                     ),
                   const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Text('Humanize strictness'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Slider(
+                          min: 0,
+                          max: 1,
+                          divisions: 10,
+                          value: _humanizeStrictness,
+                          label: _humanizeStrictness.toStringAsFixed(1),
+                          onChanged: (value) {
+                            setState(() {
+                              _humanizeStrictness = value;
+                            });
+                          },
+                        ),
+                      ),
+                      Text(_humanizeStrictness.toStringAsFixed(1)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
                   Expanded(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -158,6 +183,8 @@ Takeaway:
                                       const Divider(height: 1),
                                   itemBuilder: (context, index) {
                                     final variant = variants[index];
+                                    final humanizing = _humanizingVariantIds
+                                        .contains(variant.id);
                                     return ListTile(
                                       title: Text(
                                         variant.platform.toUpperCase(),
@@ -204,6 +231,26 @@ Takeaway:
                                             ),
                                             icon: const Icon(
                                                 Icons.schedule_outlined),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Humanize',
+                                            onPressed: humanizing
+                                                ? null
+                                                : () => _humanizeVariant(
+                                                      variant,
+                                                    ),
+                                            icon: humanizing
+                                                ? const SizedBox(
+                                                    width: 16,
+                                                    height: 16,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : const Icon(
+                                                    Icons.auto_fix_high,
+                                                  ),
                                           ),
                                         ],
                                       ),
@@ -369,6 +416,63 @@ Takeaway:
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Copied variant text')),
     );
+  }
+
+  Future<void> _humanizeVariant(Variant variant) async {
+    setState(() {
+      _humanizingVariantIds.add(variant.id);
+    });
+
+    try {
+      final styleProfile =
+          await ref.read(styleProfileRepoProvider).getOrCreateDefault();
+      final baseUrl = ref.read(apiBaseUrlProvider);
+      final response = await ref.read(httpClientProvider).post(
+            Uri.parse('$baseUrl/variants/${variant.id}/humanize'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({
+              'style_profile_id': styleProfile.id,
+              'strictness': _humanizeStrictness,
+            }),
+          );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Humanize failed: ${response.statusCode}');
+      }
+
+      final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+      final nextText = (parsed['text'] as String?)?.trim();
+      if (nextText == null || nextText.isEmpty) {
+        throw Exception('Humanize returned empty text');
+      }
+
+      await ref.read(variantRepoProvider).updateVariantBody(
+            variantId: variant.id,
+            body: nextText,
+          );
+
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Humanized ${variant.platform.toUpperCase()} variant'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Humanize failed: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _humanizingVariantIds.remove(variant.id);
+        });
+      }
+    }
   }
 
   Future<void> _openComposerForVariant({

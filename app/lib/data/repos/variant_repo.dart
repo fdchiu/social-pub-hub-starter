@@ -55,4 +55,18 @@ class VariantRepo {
     await (_db.delete(_db.variants)..where((t) => t.draftId.equals(draftId)))
         .go();
   }
+
+  Future<void> updateVariantBody({
+    required String variantId,
+    required String body,
+  }) async {
+    await (_db.update(_db.variants)..where((t) => t.id.equals(variantId)))
+        .write(
+      VariantsCompanion(
+        body: Value(body),
+        updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
+      ),
+    );
+  }
 }
