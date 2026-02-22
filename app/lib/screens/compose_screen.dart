@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
@@ -165,6 +166,15 @@ Takeaway:
                                             onPressed: () =>
                                                 _copyVariantText(variant.body),
                                             icon: const Icon(Icons.copy),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Open composer',
+                                            onPressed: () =>
+                                                _openComposerForVariant(
+                                              platform: variant.platform,
+                                              text: variant.body,
+                                            ),
+                                            icon: const Icon(Icons.open_in_new),
                                           ),
                                           IconButton(
                                             tooltip: 'Confirm posted',
@@ -331,6 +341,63 @@ Takeaway:
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Copied variant text')),
     );
+  }
+
+  Future<void> _openComposerForVariant({
+    required String platform,
+    required String text,
+  }) async {
+    final uri = _composerUriForPlatform(platform: platform, text: text);
+    if (uri == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No composer URL configured for $platform')),
+      );
+      return;
+    }
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to open composer for $platform')),
+      );
+    }
+  }
+
+  Uri? _composerUriForPlatform({
+    required String platform,
+    required String text,
+  }) {
+    final normalized = platform.toLowerCase();
+    if (normalized == 'x') {
+      return Uri.https('twitter.com', '/intent/tweet', {'text': text});
+    }
+    if (normalized == 'linkedin') {
+      return Uri.https('www.linkedin.com', '/feed/');
+    }
+    if (normalized == 'reddit') {
+      var title = text
+          .split('\n')
+          .map((line) => line.trim())
+          .firstWhere((line) => line.isNotEmpty, orElse: () => 'Post idea');
+      if (title.length > 120) {
+        title = title.substring(0, 120);
+      }
+      return Uri.https('www.reddit.com', '/submit', {
+        'selftext': 'true',
+        'title': title,
+        'text': text,
+      });
+    }
+    if (normalized == 'facebook') {
+      return Uri.https('www.facebook.com', '/');
+    }
+    if (normalized == 'youtube') {
+      return Uri.https('studio.youtube.com', '/');
+    }
+    return null;
   }
 
   Future<void> _confirmPosted(String variantId, String platform) async {
