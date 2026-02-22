@@ -64,4 +64,26 @@ class BundleRepo {
       ),
     );
   }
+
+  Future<void> removeRelatedVariantIds({
+    required String bundleId,
+    required List<String> variantIds,
+  }) async {
+    if (variantIds.isEmpty) {
+      return;
+    }
+    final bundle = await getBundleById(bundleId);
+    if (bundle == null) {
+      return;
+    }
+    final filtered = bundle.relatedVariantIds
+        .where((id) => !variantIds.contains(id))
+        .toList(growable: false);
+    await (_db.update(_db.bundles)..where((t) => t.id.equals(bundleId))).write(
+      BundlesCompanion(
+        relatedVariantIds: Value(filtered),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
 }

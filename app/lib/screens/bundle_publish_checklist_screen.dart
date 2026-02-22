@@ -74,6 +74,12 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
                               ref: ref,
                               report: report,
                             ),
+                            onCleanMissingVariants: () =>
+                                _cleanMissingVariantRefs(
+                              context: context,
+                              ref: ref,
+                              report: report,
+                            ),
                           );
                         },
                       );
@@ -202,6 +208,7 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
       variantCount: relatedVariantIds.length,
       postedCount: postedVariantIds.length,
       missingVariantCount: missingVariantIds.length,
+      missingVariantIds: missingVariantIds,
       missingPlatforms: missingPlatforms,
       referenceDraftId: referenceDraftId,
     );
@@ -291,6 +298,33 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _cleanMissingVariantRefs({
+    required BuildContext context,
+    required WidgetRef ref,
+    required _BundleReport report,
+  }) async {
+    if (report.missingVariantIds.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No stale refs to clean')),
+        );
+      }
+      return;
+    }
+    await ref.read(bundleRepoProvider).removeRelatedVariantIds(
+          bundleId: report.bundle.id,
+          variantIds: report.missingVariantIds,
+        );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Removed ${report.missingVariantIds.length} stale variant refs'),
+        ),
+      );
+    }
+  }
+
   String _variantTemplate(String platform) {
     if (platform == 'x') {
       return 'Quick build update:\n- What changed\n- Tradeoff\nWhat would you test next?';
@@ -316,11 +350,13 @@ class _BundleChecklistCard extends StatelessWidget {
     required this.report,
     required this.onAttachSource,
     required this.onBackfillVariants,
+    required this.onCleanMissingVariants,
   });
 
   final _BundleReport report;
   final Future<void> Function() onAttachSource;
   final Future<void> Function() onBackfillVariants;
+  final Future<void> Function() onCleanMissingVariants;
 
   @override
   Widget build(BuildContext context) {
@@ -370,6 +406,12 @@ class _BundleChecklistCard extends StatelessWidget {
                     child: Text(
                         'Backfill ${report.missingPlatforms.length} platforms'),
                   ),
+                if (report.missingVariantCount > 0)
+                  FilledButton.tonal(
+                    onPressed: onCleanMissingVariants,
+                    child:
+                        Text('Clean ${report.missingVariantCount} stale refs'),
+                  ),
               ],
             ),
             const SizedBox(height: 10),
@@ -415,6 +457,7 @@ class _BundleReport {
     required this.variantCount,
     required this.postedCount,
     required this.missingVariantCount,
+    required this.missingVariantIds,
     required this.missingPlatforms,
     required this.referenceDraftId,
   });
@@ -427,6 +470,7 @@ class _BundleReport {
   final int variantCount;
   final int postedCount;
   final int missingVariantCount;
+  final List<String> missingVariantIds;
   final List<String> missingPlatforms;
   final String? referenceDraftId;
 }
