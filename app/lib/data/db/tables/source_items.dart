@@ -17,6 +17,8 @@ class SourceItems extends Table {
       .map(const StringListConverter())
       .withDefault(const Constant('[]'))();
 
+  TextColumn get bundleId => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();

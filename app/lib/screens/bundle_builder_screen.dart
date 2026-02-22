@@ -31,6 +31,7 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
   Widget build(BuildContext context) {
     final variantsAsync = ref.watch(allVariantsStreamProvider);
     final bundlesAsync = ref.watch(bundlesStreamProvider);
+    final sourceItemsAsync = ref.watch(sourceItemsStreamProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Bundle Builder')),
@@ -184,37 +185,57 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
               return variantsAsync.when(
                 data: (variants) {
                   final byId = {for (final v in variants) v.id: v};
-                  return Column(
-                    children: [
-                      for (final bundle in bundles)
-                        Card(
-                          child: ListTile(
-                            title: Text(bundle.name),
-                            subtitle: Text(
-                              'anchor=${bundle.anchorType}:${bundle.anchorRef ?? '-'} · '
-                              'variants=${bundle.relatedVariantIds.length}',
-                            ),
-                            trailing: Wrap(
-                              spacing: 8,
-                              children: [
-                                FilledButton.tonal(
-                                  onPressed: () =>
-                                      _showWavePreview(context, bundle, byId),
-                                  child: const Text('Wave'),
+                  return sourceItemsAsync.when(
+                    data: (sources) {
+                      final sourceCountByBundle = <String, int>{};
+                      for (final source in sources) {
+                        final bundleId = source.bundleId;
+                        if (bundleId == null || bundleId.isEmpty) {
+                          continue;
+                        }
+                        sourceCountByBundle[bundleId] =
+                            (sourceCountByBundle[bundleId] ?? 0) + 1;
+                      }
+                      return Column(
+                        children: [
+                          for (final bundle in bundles)
+                            Card(
+                              child: ListTile(
+                                title: Text(bundle.name),
+                                subtitle: Text(
+                                  'anchor=${bundle.anchorType}:${bundle.anchorRef ?? '-'} · '
+                                  'variants=${bundle.relatedVariantIds.length} · '
+                                  'sources=${sourceCountByBundle[bundle.id] ?? 0}',
                                 ),
-                                FilledButton.tonal(
-                                  onPressed: () => _showYouTubeMetadataPreview(
-                                    context,
-                                    bundle,
-                                    byId,
-                                  ),
-                                  child: const Text('YouTube meta'),
+                                trailing: Wrap(
+                                  spacing: 8,
+                                  children: [
+                                    FilledButton.tonal(
+                                      onPressed: () => _showWavePreview(
+                                        context,
+                                        bundle,
+                                        byId,
+                                      ),
+                                      child: const Text('Wave'),
+                                    ),
+                                    FilledButton.tonal(
+                                      onPressed: () =>
+                                          _showYouTubeMetadataPreview(
+                                        context,
+                                        bundle,
+                                        byId,
+                                      ),
+                                      child: const Text('YouTube meta'),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                    ],
+                        ],
+                      );
+                    },
+                    loading: () => const LinearProgressIndicator(),
+                    error: (error, _) => Text('Source map error: $error'),
                   );
                 },
                 loading: () => const LinearProgressIndicator(),

@@ -42,6 +42,12 @@ class $SourceItemsTable extends SourceItems
               requiredDuringInsert: false,
               defaultValue: const Constant('[]'))
           .withConverter<List<String>>($SourceItemsTable.$convertertags);
+  static const VerificationMeta _bundleIdMeta =
+      const VerificationMeta('bundleId');
+  @override
+  late final GeneratedColumn<String> bundleId = GeneratedColumn<String>(
+      'bundle_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -60,7 +66,7 @@ class $SourceItemsTable extends SourceItems
       defaultValue: currentDateAndTime);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, type, url, title, userNote, tags, createdAt, updatedAt];
+      [id, type, url, title, userNote, tags, bundleId, createdAt, updatedAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -94,6 +100,10 @@ class $SourceItemsTable extends SourceItems
       context.handle(_userNoteMeta,
           userNote.isAcceptableOrUnknown(data['user_note']!, _userNoteMeta));
     }
+    if (data.containsKey('bundle_id')) {
+      context.handle(_bundleIdMeta,
+          bundleId.isAcceptableOrUnknown(data['bundle_id']!, _bundleIdMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -124,6 +134,8 @@ class $SourceItemsTable extends SourceItems
       tags: $SourceItemsTable.$convertertags.fromSql(attachedDatabase
           .typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}tags'])!),
+      bundleId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}bundle_id']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -147,6 +159,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
   final String? title;
   final String? userNote;
   final List<String> tags;
+  final String? bundleId;
   final DateTime createdAt;
   final DateTime updatedAt;
   const SourceItem(
@@ -156,6 +169,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       this.title,
       this.userNote,
       required this.tags,
+      this.bundleId,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -176,6 +190,9 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       map['tags'] =
           Variable<String>($SourceItemsTable.$convertertags.toSql(tags));
     }
+    if (!nullToAbsent || bundleId != null) {
+      map['bundle_id'] = Variable<String>(bundleId);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -192,6 +209,9 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           ? const Value.absent()
           : Value(userNote),
       tags: Value(tags),
+      bundleId: bundleId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bundleId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -207,6 +227,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       title: serializer.fromJson<String?>(json['title']),
       userNote: serializer.fromJson<String?>(json['userNote']),
       tags: serializer.fromJson<List<String>>(json['tags']),
+      bundleId: serializer.fromJson<String?>(json['bundleId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -221,6 +242,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       'title': serializer.toJson<String?>(title),
       'userNote': serializer.toJson<String?>(userNote),
       'tags': serializer.toJson<List<String>>(tags),
+      'bundleId': serializer.toJson<String?>(bundleId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -233,6 +255,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           Value<String?> title = const Value.absent(),
           Value<String?> userNote = const Value.absent(),
           List<String>? tags,
+          Value<String?> bundleId = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       SourceItem(
@@ -242,6 +265,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
         title: title.present ? title.value : this.title,
         userNote: userNote.present ? userNote.value : this.userNote,
         tags: tags ?? this.tags,
+        bundleId: bundleId.present ? bundleId.value : this.bundleId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -253,6 +277,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       title: data.title.present ? data.title.value : this.title,
       userNote: data.userNote.present ? data.userNote.value : this.userNote,
       tags: data.tags.present ? data.tags.value : this.tags,
+      bundleId: data.bundleId.present ? data.bundleId.value : this.bundleId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -267,6 +292,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           ..write('title: $title, ')
           ..write('userNote: $userNote, ')
           ..write('tags: $tags, ')
+          ..write('bundleId: $bundleId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -274,8 +300,8 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, type, url, title, userNote, tags, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id, type, url, title, userNote, tags, bundleId, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -286,6 +312,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           other.title == this.title &&
           other.userNote == this.userNote &&
           other.tags == this.tags &&
+          other.bundleId == this.bundleId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -297,6 +324,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
   final Value<String?> title;
   final Value<String?> userNote;
   final Value<List<String>> tags;
+  final Value<String?> bundleId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -307,6 +335,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     this.title = const Value.absent(),
     this.userNote = const Value.absent(),
     this.tags = const Value.absent(),
+    this.bundleId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -318,6 +347,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     this.title = const Value.absent(),
     this.userNote = const Value.absent(),
     this.tags = const Value.absent(),
+    this.bundleId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -330,6 +360,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     Expression<String>? title,
     Expression<String>? userNote,
     Expression<String>? tags,
+    Expression<String>? bundleId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -341,6 +372,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       if (title != null) 'title': title,
       if (userNote != null) 'user_note': userNote,
       if (tags != null) 'tags': tags,
+      if (bundleId != null) 'bundle_id': bundleId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -354,6 +386,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       Value<String?>? title,
       Value<String?>? userNote,
       Value<List<String>>? tags,
+      Value<String?>? bundleId,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
@@ -364,6 +397,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       title: title ?? this.title,
       userNote: userNote ?? this.userNote,
       tags: tags ?? this.tags,
+      bundleId: bundleId ?? this.bundleId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -392,6 +426,9 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       map['tags'] =
           Variable<String>($SourceItemsTable.$convertertags.toSql(tags.value));
     }
+    if (bundleId.present) {
+      map['bundle_id'] = Variable<String>(bundleId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -413,6 +450,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
           ..write('title: $title, ')
           ..write('userNote: $userNote, ')
           ..write('tags: $tags, ')
+          ..write('bundleId: $bundleId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -3234,6 +3272,7 @@ typedef $$SourceItemsTableCreateCompanionBuilder = SourceItemsCompanion
   Value<String?> title,
   Value<String?> userNote,
   Value<List<String>> tags,
+  Value<String?> bundleId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -3246,6 +3285,7 @@ typedef $$SourceItemsTableUpdateCompanionBuilder = SourceItemsCompanion
   Value<String?> title,
   Value<String?> userNote,
   Value<List<String>> tags,
+  Value<String?> bundleId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -3279,6 +3319,9 @@ class $$SourceItemsTableFilterComposer
       $composableBuilder(
           column: $table.tags,
           builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<String> get bundleId => $composableBuilder(
+      column: $table.bundleId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -3314,6 +3357,9 @@ class $$SourceItemsTableOrderingComposer
   ColumnOrderings<String> get tags => $composableBuilder(
       column: $table.tags, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get bundleId => $composableBuilder(
+      column: $table.bundleId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -3347,6 +3393,9 @@ class $$SourceItemsTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<List<String>, String> get tags =>
       $composableBuilder(column: $table.tags, builder: (column) => column);
+
+  GeneratedColumn<String> get bundleId =>
+      $composableBuilder(column: $table.bundleId, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3384,6 +3433,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             Value<String?> title = const Value.absent(),
             Value<String?> userNote = const Value.absent(),
             Value<List<String>> tags = const Value.absent(),
+            Value<String?> bundleId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -3395,6 +3445,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             title: title,
             userNote: userNote,
             tags: tags,
+            bundleId: bundleId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -3406,6 +3457,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             Value<String?> title = const Value.absent(),
             Value<String?> userNote = const Value.absent(),
             Value<List<String>> tags = const Value.absent(),
+            Value<String?> bundleId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -3417,6 +3469,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             title: title,
             userNote: userNote,
             tags: tags,
+            bundleId: bundleId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,

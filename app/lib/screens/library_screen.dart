@@ -33,6 +33,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final sourceItemsAsync = ref.watch(sourceItemsStreamProvider);
+    final bundlesAsync = ref.watch(bundlesStreamProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Library')),
@@ -113,13 +114,57 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         itemBuilder: (context, index) {
                           final item = filtered[index];
                           final subtitle = _itemSubtitle(item);
+                          final bundles = bundlesAsync.valueOrNull;
                           return ListTile(
                             title: Text(_itemTitle(item)),
                             subtitle: Text(subtitle),
-                            trailing: IconButton(
-                              tooltip: 'Create draft',
-                              icon: const Icon(Icons.note_add_outlined),
-                              onPressed: () => _createDraftFromSource(item),
+                            trailing: PopupMenuButton<_LibraryAction>(
+                              onSelected: (action) async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                if (action == _LibraryAction.createDraft) {
+                                  await _createDraftFromSource(item);
+                                  return;
+                                }
+                                if (action == _LibraryAction.addToBundle) {
+                                  await _showAssignBundleDialog(
+                                    item: item,
+                                    bundles: bundles ?? const <Bundle>[],
+                                  );
+                                  return;
+                                }
+                                if (action == _LibraryAction.clearBundle) {
+                                  await ref
+                                      .read(sourceRepoProvider)
+                                      .assignBundle(
+                                        sourceId: item.id,
+                                        bundleId: null,
+                                      );
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                          content: Text('Removed from bundle')),
+                                    );
+                                  }
+                                }
+                              },
+                              itemBuilder: (context) {
+                                return [
+                                  const PopupMenuItem(
+                                    value: _LibraryAction.createDraft,
+                                    child: Text('Create draft'),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: _LibraryAction.addToBundle,
+                                    child: Text('Add to bundle'),
+                                  ),
+                                  if (item.bundleId != null &&
+                                      item.bundleId!.isNotEmpty)
+                                    const PopupMenuItem(
+                                      value: _LibraryAction.clearBundle,
+                                      child: Text('Clear bundle'),
+                                    ),
+                                ];
+                              },
                             ),
                           );
                         },
@@ -179,6 +224,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   String _itemSubtitle(SourceItem item) {
     final parts = <String>[
       item.type,
+      if (item.bundleId != null && item.bundleId!.isNotEmpty)
+        'bundle:${item.bundleId!.substring(0, 8)}',
       if (item.url != null && item.url!.trim().isNotEmpty) item.url!.trim(),
       if (item.userNote != null && item.userNote!.trim().isNotEmpty)
         item.userNote!.trim(),
@@ -213,4 +260,81 @@ Takeaway: Start with one clear point, then iterate.
     );
     context.go('/compose');
   }
+
+  Future<void> _showAssignBundleDialog({
+    required SourceItem item,
+    required List<Bundle> bundles,
+  }) async {
+    if (bundles.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No bundles found. Create one first.')),
+      );
+      return;
+    }
+    String selectedBundleId = item.bundleId ?? bundles.first.id;
+    final chosenBundleId = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            return AlertDialog(
+              title: const Text('Assign to bundle'),
+              content: DropdownButtonFormField<String>(
+                value: selectedBundleId,
+                items: bundles
+                    .map(
+                      (bundle) => DropdownMenuItem(
+                        value: bundle.id,
+                        child: Text(bundle.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setLocalState(() {
+                    selectedBundleId = value;
+                  });
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(selectedBundleId),
+                  child: const Text('Assign'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (chosenBundleId == null) {
+      return;
+    }
+    await ref.read(sourceRepoProvider).assignBundle(
+          sourceId: item.id,
+          bundleId: chosenBundleId,
+        );
+    if (!mounted) {
+      return;
+    }
+    final chosen = bundles.firstWhere((b) => b.id == chosenBundleId);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Added to bundle: ${chosen.name}')),
+    );
+  }
+}
+
+enum _LibraryAction {
+  createDraft,
+  addToBundle,
+  clearBundle,
 }

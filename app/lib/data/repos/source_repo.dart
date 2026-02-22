@@ -20,6 +20,7 @@ class SourceRepo {
     String? title,
     String? userNote,
     List<String> tags = const <String>[],
+    String? bundleId,
   }) async {
     final now = DateTime.now().toUtc();
     final id = generateEntityId();
@@ -35,11 +36,26 @@ class SourceRepo {
             userNote: Value(
                 userNote?.trim().isEmpty ?? true ? null : userNote?.trim()),
             tags: Value(normalizedTags),
+            bundleId: Value(
+                bundleId?.trim().isEmpty ?? true ? null : bundleId?.trim()),
             createdAt: Value(now),
             updatedAt: Value(now),
           ),
         );
 
     return id;
+  }
+
+  Future<void> assignBundle({
+    required String sourceId,
+    String? bundleId,
+  }) async {
+    await (_db.update(_db.sourceItems)..where((t) => t.id.equals(sourceId)))
+        .write(
+      SourceItemsCompanion(
+        bundleId: Value(bundleId),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
   }
 }
