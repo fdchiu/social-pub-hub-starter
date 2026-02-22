@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_db.dart';
 import '../data/repos/draft_repo.dart';
+import '../data/repos/bundle_repo.dart';
 import '../data/repos/publish_log_repo.dart';
 import '../data/repos/source_repo.dart';
 import '../data/repos/style_profile_repo.dart';
@@ -15,6 +16,10 @@ final sourceRepoProvider = Provider<SourceRepo>((ref) {
 
 final draftRepoProvider = Provider<DraftRepo>((ref) {
   return DraftRepo(ref.watch(appDatabaseProvider));
+});
+
+final bundleRepoProvider = Provider<BundleRepo>((ref) {
+  return BundleRepo(ref.watch(appDatabaseProvider));
 });
 
 final variantRepoProvider = Provider<VariantRepo>((ref) {
@@ -44,6 +49,14 @@ final publishLogsStreamProvider = StreamProvider<List<PublishLog>>((ref) {
 final draftVariantsStreamProvider =
     StreamProvider.family<List<Variant>, String>((ref, draftId) {
   return ref.watch(variantRepoProvider).watchVariantsForDraft(draftId);
+});
+
+final allVariantsStreamProvider = StreamProvider<List<Variant>>((ref) {
+  return ref.watch(variantRepoProvider).watchAllVariants();
+});
+
+final bundlesStreamProvider = StreamProvider<List<Bundle>>((ref) {
+  return ref.watch(bundleRepoProvider).watchBundles();
 });
 
 final openSyncConflictsStreamProvider =

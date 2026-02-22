@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'converters/json_map_converter.dart';
 import 'converters/string_list_converter.dart';
+import 'tables/bundles.dart';
 import 'tables/drafts.dart';
 import 'tables/publish_logs.dart';
 import 'tables/source_items.dart';
@@ -21,13 +22,14 @@ part 'app_db.g.dart';
     PublishLogs,
     StyleProfiles,
     SyncConflicts,
+    Bundles,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -42,6 +44,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 3) {
             await m.createTable(syncConflicts);
+          }
+          if (from < 4) {
+            await m.createTable(bundles);
           }
         },
       );

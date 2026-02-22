@@ -2766,6 +2766,441 @@ class SyncConflictsCompanion extends UpdateCompanion<SyncConflict> {
   }
 }
 
+class $BundlesTable extends Bundles with TableInfo<$BundlesTable, Bundle> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BundlesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _anchorTypeMeta =
+      const VerificationMeta('anchorType');
+  @override
+  late final GeneratedColumn<String> anchorType = GeneratedColumn<String>(
+      'anchor_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('youtube'));
+  static const VerificationMeta _anchorRefMeta =
+      const VerificationMeta('anchorRef');
+  @override
+  late final GeneratedColumn<String> anchorRef = GeneratedColumn<String>(
+      'anchor_ref', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String>
+      relatedVariantIds = GeneratedColumn<String>(
+              'related_variant_ids', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('[]'))
+          .withConverter<List<String>>(
+              $BundlesTable.$converterrelatedVariantIds);
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+      'notes', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        name,
+        anchorType,
+        anchorRef,
+        relatedVariantIds,
+        notes,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'bundles';
+  @override
+  VerificationContext validateIntegrity(Insertable<Bundle> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('anchor_type')) {
+      context.handle(
+          _anchorTypeMeta,
+          anchorType.isAcceptableOrUnknown(
+              data['anchor_type']!, _anchorTypeMeta));
+    }
+    if (data.containsKey('anchor_ref')) {
+      context.handle(_anchorRefMeta,
+          anchorRef.isAcceptableOrUnknown(data['anchor_ref']!, _anchorRefMeta));
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Bundle map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Bundle(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      anchorType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}anchor_type'])!,
+      anchorRef: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}anchor_ref']),
+      relatedVariantIds: $BundlesTable.$converterrelatedVariantIds.fromSql(
+          attachedDatabase.typeMapping.read(DriftSqlType.string,
+              data['${effectivePrefix}related_variant_ids'])!),
+      notes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $BundlesTable createAlias(String alias) {
+    return $BundlesTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<List<String>, String> $converterrelatedVariantIds =
+      const StringListConverter();
+}
+
+class Bundle extends DataClass implements Insertable<Bundle> {
+  final String id;
+  final String name;
+  final String anchorType;
+  final String? anchorRef;
+  final List<String> relatedVariantIds;
+  final String? notes;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Bundle(
+      {required this.id,
+      required this.name,
+      required this.anchorType,
+      this.anchorRef,
+      required this.relatedVariantIds,
+      this.notes,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['anchor_type'] = Variable<String>(anchorType);
+    if (!nullToAbsent || anchorRef != null) {
+      map['anchor_ref'] = Variable<String>(anchorRef);
+    }
+    {
+      map['related_variant_ids'] = Variable<String>(
+          $BundlesTable.$converterrelatedVariantIds.toSql(relatedVariantIds));
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  BundlesCompanion toCompanion(bool nullToAbsent) {
+    return BundlesCompanion(
+      id: Value(id),
+      name: Value(name),
+      anchorType: Value(anchorType),
+      anchorRef: anchorRef == null && nullToAbsent
+          ? const Value.absent()
+          : Value(anchorRef),
+      relatedVariantIds: Value(relatedVariantIds),
+      notes:
+          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Bundle.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Bundle(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      anchorType: serializer.fromJson<String>(json['anchorType']),
+      anchorRef: serializer.fromJson<String?>(json['anchorRef']),
+      relatedVariantIds:
+          serializer.fromJson<List<String>>(json['relatedVariantIds']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'anchorType': serializer.toJson<String>(anchorType),
+      'anchorRef': serializer.toJson<String?>(anchorRef),
+      'relatedVariantIds': serializer.toJson<List<String>>(relatedVariantIds),
+      'notes': serializer.toJson<String?>(notes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Bundle copyWith(
+          {String? id,
+          String? name,
+          String? anchorType,
+          Value<String?> anchorRef = const Value.absent(),
+          List<String>? relatedVariantIds,
+          Value<String?> notes = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      Bundle(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        anchorType: anchorType ?? this.anchorType,
+        anchorRef: anchorRef.present ? anchorRef.value : this.anchorRef,
+        relatedVariantIds: relatedVariantIds ?? this.relatedVariantIds,
+        notes: notes.present ? notes.value : this.notes,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  Bundle copyWithCompanion(BundlesCompanion data) {
+    return Bundle(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      anchorType:
+          data.anchorType.present ? data.anchorType.value : this.anchorType,
+      anchorRef: data.anchorRef.present ? data.anchorRef.value : this.anchorRef,
+      relatedVariantIds: data.relatedVariantIds.present
+          ? data.relatedVariantIds.value
+          : this.relatedVariantIds,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Bundle(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('anchorType: $anchorType, ')
+          ..write('anchorRef: $anchorRef, ')
+          ..write('relatedVariantIds: $relatedVariantIds, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, anchorType, anchorRef,
+      relatedVariantIds, notes, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Bundle &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.anchorType == this.anchorType &&
+          other.anchorRef == this.anchorRef &&
+          other.relatedVariantIds == this.relatedVariantIds &&
+          other.notes == this.notes &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class BundlesCompanion extends UpdateCompanion<Bundle> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> anchorType;
+  final Value<String?> anchorRef;
+  final Value<List<String>> relatedVariantIds;
+  final Value<String?> notes;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const BundlesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.anchorType = const Value.absent(),
+    this.anchorRef = const Value.absent(),
+    this.relatedVariantIds = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BundlesCompanion.insert({
+    required String id,
+    required String name,
+    this.anchorType = const Value.absent(),
+    this.anchorRef = const Value.absent(),
+    this.relatedVariantIds = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        name = Value(name);
+  static Insertable<Bundle> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? anchorType,
+    Expression<String>? anchorRef,
+    Expression<String>? relatedVariantIds,
+    Expression<String>? notes,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (anchorType != null) 'anchor_type': anchorType,
+      if (anchorRef != null) 'anchor_ref': anchorRef,
+      if (relatedVariantIds != null) 'related_variant_ids': relatedVariantIds,
+      if (notes != null) 'notes': notes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BundlesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? name,
+      Value<String>? anchorType,
+      Value<String?>? anchorRef,
+      Value<List<String>>? relatedVariantIds,
+      Value<String?>? notes,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return BundlesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      anchorType: anchorType ?? this.anchorType,
+      anchorRef: anchorRef ?? this.anchorRef,
+      relatedVariantIds: relatedVariantIds ?? this.relatedVariantIds,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (anchorType.present) {
+      map['anchor_type'] = Variable<String>(anchorType.value);
+    }
+    if (anchorRef.present) {
+      map['anchor_ref'] = Variable<String>(anchorRef.value);
+    }
+    if (relatedVariantIds.present) {
+      map['related_variant_ids'] = Variable<String>($BundlesTable
+          .$converterrelatedVariantIds
+          .toSql(relatedVariantIds.value));
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BundlesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('anchorType: $anchorType, ')
+          ..write('anchorRef: $anchorRef, ')
+          ..write('relatedVariantIds: $relatedVariantIds, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2775,6 +3210,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PublishLogsTable publishLogs = $PublishLogsTable(this);
   late final $StyleProfilesTable styleProfiles = $StyleProfilesTable(this);
   late final $SyncConflictsTable syncConflicts = $SyncConflictsTable(this);
+  late final $BundlesTable bundles = $BundlesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2785,7 +3221,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         variants,
         publishLogs,
         styleProfiles,
-        syncConflicts
+        syncConflicts,
+        bundles
       ];
 }
 
@@ -4515,6 +4952,220 @@ typedef $$SyncConflictsTableProcessedTableManager = ProcessedTableManager<
     ),
     SyncConflict,
     PrefetchHooks Function()>;
+typedef $$BundlesTableCreateCompanionBuilder = BundlesCompanion Function({
+  required String id,
+  required String name,
+  Value<String> anchorType,
+  Value<String?> anchorRef,
+  Value<List<String>> relatedVariantIds,
+  Value<String?> notes,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$BundlesTableUpdateCompanionBuilder = BundlesCompanion Function({
+  Value<String> id,
+  Value<String> name,
+  Value<String> anchorType,
+  Value<String?> anchorRef,
+  Value<List<String>> relatedVariantIds,
+  Value<String?> notes,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$BundlesTableFilterComposer
+    extends Composer<_$AppDatabase, $BundlesTable> {
+  $$BundlesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get anchorType => $composableBuilder(
+      column: $table.anchorType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get anchorRef => $composableBuilder(
+      column: $table.anchorRef, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+      get relatedVariantIds => $composableBuilder(
+          column: $table.relatedVariantIds,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$BundlesTableOrderingComposer
+    extends Composer<_$AppDatabase, $BundlesTable> {
+  $$BundlesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get anchorType => $composableBuilder(
+      column: $table.anchorType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get anchorRef => $composableBuilder(
+      column: $table.anchorRef, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get relatedVariantIds => $composableBuilder(
+      column: $table.relatedVariantIds,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$BundlesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BundlesTable> {
+  $$BundlesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get anchorType => $composableBuilder(
+      column: $table.anchorType, builder: (column) => column);
+
+  GeneratedColumn<String> get anchorRef =>
+      $composableBuilder(column: $table.anchorRef, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<String>, String>
+      get relatedVariantIds => $composableBuilder(
+          column: $table.relatedVariantIds, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$BundlesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $BundlesTable,
+    Bundle,
+    $$BundlesTableFilterComposer,
+    $$BundlesTableOrderingComposer,
+    $$BundlesTableAnnotationComposer,
+    $$BundlesTableCreateCompanionBuilder,
+    $$BundlesTableUpdateCompanionBuilder,
+    (Bundle, BaseReferences<_$AppDatabase, $BundlesTable, Bundle>),
+    Bundle,
+    PrefetchHooks Function()> {
+  $$BundlesTableTableManager(_$AppDatabase db, $BundlesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BundlesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BundlesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BundlesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> anchorType = const Value.absent(),
+            Value<String?> anchorRef = const Value.absent(),
+            Value<List<String>> relatedVariantIds = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              BundlesCompanion(
+            id: id,
+            name: name,
+            anchorType: anchorType,
+            anchorRef: anchorRef,
+            relatedVariantIds: relatedVariantIds,
+            notes: notes,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String name,
+            Value<String> anchorType = const Value.absent(),
+            Value<String?> anchorRef = const Value.absent(),
+            Value<List<String>> relatedVariantIds = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              BundlesCompanion.insert(
+            id: id,
+            name: name,
+            anchorType: anchorType,
+            anchorRef: anchorRef,
+            relatedVariantIds: relatedVariantIds,
+            notes: notes,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$BundlesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $BundlesTable,
+    Bundle,
+    $$BundlesTableFilterComposer,
+    $$BundlesTableOrderingComposer,
+    $$BundlesTableAnnotationComposer,
+    $$BundlesTableCreateCompanionBuilder,
+    $$BundlesTableUpdateCompanionBuilder,
+    (Bundle, BaseReferences<_$AppDatabase, $BundlesTable, Bundle>),
+    Bundle,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4531,4 +5182,6 @@ class $AppDatabaseManager {
       $$StyleProfilesTableTableManager(_db, _db.styleProfiles);
   $$SyncConflictsTableTableManager get syncConflicts =>
       $$SyncConflictsTableTableManager(_db, _db.syncConflicts);
+  $$BundlesTableTableManager get bundles =>
+      $$BundlesTableTableManager(_db, _db.bundles);
 }
