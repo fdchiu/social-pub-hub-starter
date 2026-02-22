@@ -6,7 +6,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/repo_providers.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
-  const HistoryScreen({super.key});
+  const HistoryScreen({
+    super.key,
+    this.initialVariantId,
+  });
+
+  final String? initialVariantId;
 
   @override
   ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
@@ -15,6 +20,16 @@ class HistoryScreen extends ConsumerStatefulWidget {
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   String _platformFilter = 'all';
   String _statusFilter = 'all';
+  String? _variantFilterId;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialVariantId = widget.initialVariantId?.trim();
+    if (initialVariantId != null && initialVariantId.isNotEmpty) {
+      _variantFilterId = initialVariantId;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +58,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 row.platform.toLowerCase() == _platformFilter;
             final statusMatches = _statusFilter == 'all' ||
                 row.status.toLowerCase() == _statusFilter;
-            return platformMatches && statusMatches;
+            final variantMatches =
+                _variantFilterId == null || row.variantId == _variantFilterId;
+            return platformMatches && statusMatches && variantMatches;
           }).toList();
 
           String labelFor(String value) {
@@ -108,6 +125,27 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   ],
                 ),
               ),
+              if (_variantFilterId != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Variant filter: ${_shortId(_variantFilterId!)}',
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _variantFilterId = null;
+                          });
+                        },
+                        child: const Text('Clear'),
+                      ),
+                    ],
+                  ),
+                ),
               Expanded(
                 child: filtered.isEmpty
                     ? const Center(child: Text('No logs match filters.'))
@@ -118,11 +156,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           final item = filtered[index];
                           final posted =
                               item.postedAt?.toLocal().toIso8601String() ?? '-';
+                          final variantLabel = item.variantId == null
+                              ? '-'
+                              : _shortId(item.variantId!);
                           return ListTile(
                             title: Text(
                                 '${item.platform.toUpperCase()} · ${item.status}'),
-                            subtitle:
-                                Text('mode=${item.mode} · postedAt=$posted'),
+                            subtitle: Text(
+                                'mode=${item.mode} · variant=$variantLabel · postedAt=$posted'),
                             trailing: PopupMenuButton<_HistoryAction>(
                               onSelected: (action) {
                                 if (action == _HistoryAction.cloneAsDraft) {
@@ -212,7 +253,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Created draft ${draftId.substring(0, 8)}')),
     );
-    context.go('/compose');
+    final encoded = Uri.encodeQueryComponent(draftId);
+    context.go('/compose?draftId=$encoded');
   }
 
   Future<void> _openExternalUrl(String value) async {
@@ -233,6 +275,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         const SnackBar(content: Text('Unable to open URL')),
       );
     }
+  }
+
+  String _shortId(String id) {
+    if (id.length <= 8) {
+      return id;
+    }
+    return id.substring(0, 8);
   }
 }
 

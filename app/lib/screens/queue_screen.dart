@@ -8,11 +8,20 @@ import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
 import '../utils/composer_links.dart';
 
-class QueueScreen extends ConsumerWidget {
+class QueueScreen extends ConsumerStatefulWidget {
   const QueueScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<QueueScreen> createState() => _QueueScreenState();
+}
+
+class _QueueScreenState extends ConsumerState<QueueScreen> {
+  String _statusFilter = 'all';
+  String _platformFilter = 'all';
+  bool _overdueOnly = false;
+
+  @override
+  Widget build(BuildContext context) {
     final queueAsync = ref.watch(scheduledPostsStreamProvider);
     return Scaffold(
       appBar: AppBar(
@@ -33,14 +42,122 @@ class QueueScreen extends ConsumerWidget {
                   Text('No scheduled posts yet. Queue from Compose variants.'),
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return _ScheduledPostCard(item: item);
-            },
+          final now = DateTime.now().toUtc();
+          final statusOptions = <String>{
+            'all',
+            ...items.map((row) => row.status.toLowerCase()),
+          }.toList()
+            ..sort();
+          final platformOptions = <String>{
+            'all',
+            ...items.map((row) => row.platform.toLowerCase()),
+          }.toList()
+            ..sort();
+          final selectedStatus =
+              statusOptions.contains(_statusFilter) ? _statusFilter : 'all';
+          final selectedPlatform = platformOptions.contains(_platformFilter)
+              ? _platformFilter
+              : 'all';
+
+          final filtered = items.where((row) {
+            final statusMatches =
+                selectedStatus == 'all' || row.status == selectedStatus;
+            final platformMatches = selectedPlatform == 'all' ||
+                row.platform.toLowerCase() == selectedPlatform;
+            final isOverdue =
+                row.status == 'queued' && row.scheduledFor.isBefore(now);
+            final overdueMatches = !_overdueOnly || isOverdue;
+            return statusMatches && platformMatches && overdueMatches;
+          }).toList(growable: false);
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedPlatform,
+                        decoration:
+                            const InputDecoration(labelText: 'Platform'),
+                        items: platformOptions
+                            .map(
+                              (value) => DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value == 'all'
+                                    ? 'All'
+                                    : value.toUpperCase()),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          setState(() {
+                            _platformFilter = value;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedStatus,
+                        decoration: const InputDecoration(labelText: 'Status'),
+                        items: statusOptions
+                            .map(
+                              (value) => DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value == 'all'
+                                    ? 'All'
+                                    : value.toUpperCase()),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          setState(() {
+                            _statusFilter = value;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SwitchListTile(
+                value: _overdueOnly,
+                onChanged: (value) {
+                  setState(() {
+                    _overdueOnly = value;
+                  });
+                },
+                title: const Text('Overdue only'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              Expanded(
+                child: filtered.isEmpty
+                    ? const Center(child: Text('No queue items match filters.'))
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final item = filtered[index];
+                          final isOverdue = item.status == 'queued' &&
+                              item.scheduledFor.isBefore(now);
+                          return _ScheduledPostCard(
+                            item: item,
+                            isOverdue: isOverdue,
+                          );
+                        },
+                      ),
+              ),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -52,9 +169,13 @@ class QueueScreen extends ConsumerWidget {
 }
 
 class _ScheduledPostCard extends ConsumerWidget {
-  const _ScheduledPostCard({required this.item});
+  const _ScheduledPostCard({
+    required this.item,
+    required this.isOverdue,
+  });
 
   final ScheduledPost item;
+  final bool isOverdue;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -73,6 +194,10 @@ class _ScheduledPostCard extends ConsumerWidget {
                 ),
                 const SizedBox(width: 10),
                 _StatusPill(status: item.status),
+                if (isOverdue) ...[
+                  const SizedBox(width: 8),
+                  const _OverduePill(),
+                ],
                 const Spacer(),
                 Text(
                   _formatDateTime(item.scheduledFor.toLocal()),
@@ -99,6 +224,11 @@ class _ScheduledPostCard extends ConsumerWidget {
                   onPressed: () => _openComposer(context),
                   child: const Text('Open composer'),
                 ),
+                if (item.variantId != null && item.variantId!.isNotEmpty)
+                  FilledButton.tonal(
+                    onPressed: () => _openHistory(context, item.variantId!),
+                    child: Text('History ${_shortId(item.variantId!)}'),
+                  ),
                 if (isQueued)
                   FilledButton.tonal(
                     onPressed: () => _markPosted(context, ref),
@@ -146,6 +276,11 @@ class _ScheduledPostCard extends ConsumerWidget {
     }
   }
 
+  void _openHistory(BuildContext context, String variantId) {
+    final encoded = Uri.encodeQueryComponent(variantId);
+    context.go('/history?variantId=$encoded');
+  }
+
   Future<void> _markPosted(BuildContext context, WidgetRef ref) async {
     await ref.read(scheduledPostRepoProvider).markPosted(
           scheduledPostId: item.id,
@@ -173,6 +308,13 @@ class _ScheduledPostCard extends ConsumerWidget {
     final minute = value.minute.toString().padLeft(2, '0');
     return '$month/$day ${value.year} $hour:$minute';
   }
+
+  String _shortId(String id) {
+    if (id.length <= 8) {
+      return id;
+    }
+    return id.substring(0, 8);
+  }
 }
 
 class _StatusPill extends StatelessWidget {
@@ -197,6 +339,28 @@ class _StatusPill extends StatelessWidget {
         status,
         style: TextStyle(
           color: fg,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _OverduePill extends StatelessWidget {
+  const _OverduePill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.red.shade900,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        'overdue',
+        style: TextStyle(
+          color: Colors.red.shade100,
           fontWeight: FontWeight.w600,
         ),
       ),

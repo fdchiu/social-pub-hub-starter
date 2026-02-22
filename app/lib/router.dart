@@ -41,7 +41,11 @@ final router = GoRouter(
       builder: (c, s) => const SyncConflictsScreen(),
     ),
     GoRoute(path: '/queue', builder: (c, s) => const QueueScreen()),
-    GoRoute(path: '/history', builder: (c, s) => const HistoryScreen()),
+    GoRoute(
+      path: '/history',
+      builder: (c, s) =>
+          HistoryScreen(initialVariantId: s.uri.queryParameters['variantId']),
+    ),
     GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen()),
   ],
 );
