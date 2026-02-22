@@ -153,7 +153,7 @@ def _apply_draft_upsert(db: Session, payload: DraftSyncItem) -> None:
     incoming_updated_at = _to_utc(payload.updated_at)
     item = db.get(Draft, payload.id)
 
-    if item is not None and incoming_updated_at <= item.updated_at:
+    if item is not None and incoming_updated_at <= _to_utc(item.updated_at):
         return
 
     if item is None:
@@ -179,7 +179,7 @@ def _apply_variant_upsert(db: Session, payload: VariantSyncItem) -> None:
     incoming_updated_at = _to_utc(payload.updated_at)
     item = db.get(Variant, payload.id)
 
-    if item is not None and incoming_updated_at <= item.updated_at:
+    if item is not None and incoming_updated_at <= _to_utc(item.updated_at):
         return
 
     if item is None:
@@ -202,7 +202,7 @@ def _apply_publish_log_upsert(db: Session, payload: PublishLogSyncItem) -> None:
     incoming_updated_at = _to_utc(payload.updated_at)
     item = db.get(PublishLog, payload.id)
 
-    if item is not None and incoming_updated_at <= item.updated_at:
+    if item is not None and incoming_updated_at <= _to_utc(item.updated_at):
         return
 
     if item is None:
@@ -228,7 +228,7 @@ def _apply_style_profile_upsert(db: Session, payload: StyleProfileSyncItem) -> N
     incoming_updated_at = _to_utc(payload.updated_at)
     item = db.get(StyleProfile, payload.id)
 
-    if item is not None and incoming_updated_at <= item.updated_at:
+    if item is not None and incoming_updated_at <= _to_utc(item.updated_at):
         return
 
     if item is None:
@@ -253,7 +253,7 @@ def _apply_scheduled_post_upsert(db: Session, payload: ScheduledPostSyncItem) ->
     incoming_updated_at = _to_utc(payload.updated_at)
     item = db.get(ScheduledPost, payload.id)
 
-    if item is not None and incoming_updated_at <= item.updated_at:
+    if item is not None and incoming_updated_at <= _to_utc(item.updated_at):
         return
 
     if item is None:
