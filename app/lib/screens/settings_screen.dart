@@ -19,6 +19,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   SyncSummary? _lastSummary;
   String? _lastError;
   DateTime? _lastRunAt;
+  final TextEditingController _voiceController = TextEditingController();
+  final TextEditingController _bannedPhrasesController =
+      TextEditingController();
+  String? _styleProfileId;
+  bool _loadingStyleProfile = true;
+  bool _savingStyleProfile = false;
+  String? _styleProfileError;
+  double _casualFormal = 0.6;
+  double _punchiness = 0.7;
+  String _emojiLevel = 'light';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStyleProfile();
+  }
+
+  @override
+  void dispose() {
+    _voiceController.dispose();
+    _bannedPhrasesController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +105,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
+          _buildStyleProfileCard(),
+          const SizedBox(height: 24),
           Row(
             children: [
               Text(
@@ -136,6 +161,123 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildStyleProfileCard() {
+    final profileId = _styleProfileId;
+    final disabled = _loadingStyleProfile || _savingStyleProfile;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Style profile',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            if (_loadingStyleProfile)
+              const LinearProgressIndicator()
+            else ...[
+              TextField(
+                controller: _voiceController,
+                enabled: !disabled,
+                decoration: const InputDecoration(
+                  labelText: 'Voice name',
+                  hintText: 'David',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text('Casual/Formal: ${_casualFormal.toStringAsFixed(1)}'),
+              Slider(
+                min: 0,
+                max: 1,
+                divisions: 10,
+                value: _casualFormal,
+                onChanged: disabled
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _casualFormal = value;
+                        });
+                      },
+              ),
+              Text('Punchiness: ${_punchiness.toStringAsFixed(1)}'),
+              Slider(
+                min: 0,
+                max: 1,
+                divisions: 10,
+                value: _punchiness,
+                onChanged: disabled
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _punchiness = value;
+                        });
+                      },
+              ),
+              DropdownButtonFormField<String>(
+                value: _emojiLevel,
+                items: const [
+                  DropdownMenuItem(value: 'none', child: Text('No emoji')),
+                  DropdownMenuItem(value: 'light', child: Text('Light emoji')),
+                  DropdownMenuItem(
+                    value: 'medium',
+                    child: Text('Medium emoji'),
+                  ),
+                  DropdownMenuItem(value: 'high', child: Text('High emoji')),
+                ],
+                onChanged: disabled
+                    ? null
+                    : (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setState(() {
+                          _emojiLevel = value;
+                        });
+                      },
+                decoration: const InputDecoration(labelText: 'Emoji level'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _bannedPhrasesController,
+                enabled: !disabled,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Banned phrases',
+                  hintText: 'delve, leverage, game-changer',
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed:
+                    (profileId == null || disabled) ? null : _saveStyleProfile,
+                icon: _savingStyleProfile
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save),
+                label: Text(_savingStyleProfile ? 'Saving…' : 'Save profile'),
+              ),
+              if (_styleProfileError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _styleProfileError!,
+                    style: const TextStyle(color: Colors.orange),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   String _capabilityText(Map<String, dynamic> capabilities) {
     final enabled = <String>[];
     capabilities.forEach((key, value) {
@@ -177,6 +319,79 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _syncing = false;
         _lastError = 'Sync failed: $e';
         _lastRunAt = DateTime.now();
+      });
+    }
+  }
+
+  Future<void> _loadStyleProfile() async {
+    try {
+      final profile =
+          await ref.read(styleProfileRepoProvider).getOrCreateDefault();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _styleProfileId = profile.id;
+        _voiceController.text = profile.voiceName;
+        _casualFormal = profile.casualFormal;
+        _punchiness = profile.punchiness;
+        _emojiLevel = profile.emojiLevel;
+        _bannedPhrasesController.text = profile.bannedPhrases.join(', ');
+        _loadingStyleProfile = false;
+        _styleProfileError = null;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loadingStyleProfile = false;
+        _styleProfileError = 'Failed loading style profile: $error';
+      });
+    }
+  }
+
+  Future<void> _saveStyleProfile() async {
+    final profileId = _styleProfileId;
+    if (profileId == null) {
+      return;
+    }
+
+    setState(() {
+      _savingStyleProfile = true;
+      _styleProfileError = null;
+    });
+
+    try {
+      await ref.read(styleProfileRepoProvider).updateStyleProfile(
+            id: profileId,
+            voiceName: _voiceController.text,
+            casualFormal: _casualFormal,
+            punchiness: _punchiness,
+            emojiLevel: _emojiLevel,
+            bannedPhrases: _bannedPhrasesController.text
+                .split(',')
+                .map((phrase) => phrase.trim())
+                .where((phrase) => phrase.isNotEmpty)
+                .toList(growable: false),
+          );
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _savingStyleProfile = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Style profile saved')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _savingStyleProfile = false;
+        _styleProfileError = 'Failed saving style profile: $error';
       });
     }
   }

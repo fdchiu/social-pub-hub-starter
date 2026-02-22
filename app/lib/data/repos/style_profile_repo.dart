@@ -40,4 +40,30 @@ class StyleProfileRepo {
     return (_db.select(_db.styleProfiles)..where((t) => t.id.equals(id)))
         .getSingle();
   }
+
+  Future<void> updateStyleProfile({
+    required String id,
+    required String voiceName,
+    required double casualFormal,
+    required double punchiness,
+    required String emojiLevel,
+    required List<String> bannedPhrases,
+  }) async {
+    final normalizedPhrases = bannedPhrases
+        .map((phrase) => phrase.trim())
+        .where((phrase) => phrase.isNotEmpty)
+        .toList(growable: false);
+
+    await (_db.update(_db.styleProfiles)..where((t) => t.id.equals(id))).write(
+      StyleProfilesCompanion(
+        voiceName: Value(voiceName.trim().isEmpty ? 'David' : voiceName.trim()),
+        casualFormal: Value(casualFormal),
+        punchiness: Value(punchiness),
+        emojiLevel: Value(emojiLevel),
+        bannedPhrases: Value(normalizedPhrases),
+        updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
+      ),
+    );
+  }
 }
