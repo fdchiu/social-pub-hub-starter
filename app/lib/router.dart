@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'screens/home_screen.dart';
 import 'screens/inbox_screen.dart';
 import 'screens/library_screen.dart';
+import 'screens/analytics_screen.dart';
 import 'screens/bundle_builder_screen.dart';
 import 'screens/bundle_publish_checklist_screen.dart';
 import 'screens/compose_screen.dart';
@@ -41,6 +42,7 @@ final router = GoRouter(
       builder: (c, s) => const SyncConflictsScreen(),
     ),
     GoRoute(path: '/queue', builder: (c, s) => const QueueScreen()),
+    GoRoute(path: '/analytics', builder: (c, s) => const AnalyticsScreen()),
     GoRoute(
       path: '/history',
       builder: (c, s) =>

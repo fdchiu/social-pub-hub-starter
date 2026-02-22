@@ -8,7 +8,8 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Social Pub Hub")),
-      body: Column(
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
           ElevatedButton(
             onPressed: () => context.go('/inbox'),
@@ -49,6 +50,10 @@ class HomeScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () => context.go('/history'),
             child: const Text("History"),
+          ),
+          ElevatedButton(
+            onPressed: () => context.go('/analytics'),
+            child: const Text("Analytics"),
           ),
           ElevatedButton(
             onPressed: () => context.go('/settings'),
