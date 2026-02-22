@@ -178,15 +178,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   String _summaryText(SyncSummary summary) {
-    return 'Pushed d/v/p/s: '
+    return 'Pushed d/v/p/s/q: '
         '${summary.pushedDrafts}/${summary.pushedVariants}/'
-        '${summary.pushedPublishLogs}/${summary.pushedStyleProfiles}\n'
-        'Pulled d/v/p/s: '
+        '${summary.pushedPublishLogs}/${summary.pushedStyleProfiles}/'
+        '${summary.pushedScheduledPosts}\n'
+        'Pulled d/v/p/s/q: '
         '${summary.pulledDrafts}/${summary.pulledVariants}/'
-        '${summary.pulledPublishLogs}/${summary.pulledStyleProfiles}\n'
-        'Deleted d/v/p/s: '
+        '${summary.pulledPublishLogs}/${summary.pulledStyleProfiles}/'
+        '${summary.pulledScheduledPosts}\n'
+        'Deleted d/v/p/s/q: '
         '${summary.deletedDrafts}/${summary.deletedVariants}/'
-        '${summary.deletedPublishLogs}/${summary.deletedStyleProfiles}\n'
+        '${summary.deletedPublishLogs}/${summary.deletedStyleProfiles}/'
+        '${summary.deletedScheduledPosts}\n'
         'Conflicts detected: ${summary.detectedConflicts}';
   }
 }

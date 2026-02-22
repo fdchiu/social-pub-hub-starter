@@ -12,6 +12,7 @@ from .db import Base, SessionLocal, engine, get_db
 from .models import (
     Draft,
     PublishLog,
+    ScheduledPost,
     SYNC_TABLES,
     StyleProfile,
     SyncCounter,
@@ -24,6 +25,7 @@ from .schemas import (
     DraftSyncItem,
     PublishConfirmRequest,
     PublishLogSyncItem,
+    ScheduledPostSyncItem,
     StyleProfileSyncItem,
     SyncPushRequest,
     VariantHumanizeRequest,
@@ -113,6 +115,21 @@ def _serialize_style_profile(item: StyleProfile) -> dict[str, Any]:
     }
 
 
+def _serialize_scheduled_post(item: ScheduledPost) -> dict[str, Any]:
+    return {
+        "id": item.id,
+        "variant_id": item.variant_id,
+        "platform": item.platform,
+        "content": item.content,
+        "scheduled_for": item.scheduled_for,
+        "status": item.status,
+        "external_url": item.external_url,
+        "created_at": item.created_at,
+        "updated_at": item.updated_at,
+        "deleted_at": item.deleted_at,
+    }
+
+
 def _serialize(name: str, item: Any) -> dict[str, Any]:
     if name == "drafts":
         return _serialize_draft(item)
@@ -122,6 +139,8 @@ def _serialize(name: str, item: Any) -> dict[str, Any]:
         return _serialize_publish_log(item)
     if name == "style_profiles":
         return _serialize_style_profile(item)
+    if name == "scheduled_posts":
+        return _serialize_scheduled_post(item)
     raise ValueError(f"Unknown sync table: {name}")
 
 
@@ -224,6 +243,32 @@ def _apply_style_profile_upsert(db: Session, payload: StyleProfileSyncItem) -> N
     item.punchiness = payload.punchiness
     item.emoji_level = payload.emoji_level
     item.banned_phrases = payload.banned_phrases
+    item.updated_at = incoming_updated_at
+    item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None
+    item.sync_cursor = _next_cursor(db)
+
+
+def _apply_scheduled_post_upsert(db: Session, payload: ScheduledPostSyncItem) -> None:
+    now = utc_now()
+    incoming_updated_at = _to_utc(payload.updated_at)
+    item = db.get(ScheduledPost, payload.id)
+
+    if item is not None and incoming_updated_at <= item.updated_at:
+        return
+
+    if item is None:
+        item = ScheduledPost(
+            id=payload.id,
+            created_at=_to_utc(payload.created_at) if payload.created_at else now,
+        )
+        db.add(item)
+
+    item.variant_id = payload.variant_id
+    item.platform = payload.platform
+    item.content = payload.content
+    item.scheduled_for = _to_utc(payload.scheduled_for)
+    item.status = payload.status
+    item.external_url = payload.external_url
     item.updated_at = incoming_updated_at
     item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None
     item.sync_cursor = _next_cursor(db)
@@ -375,6 +420,8 @@ def sync_push(payload: SyncPushRequest, db: Session = Depends(get_db)) -> dict[s
         _apply_publish_log_upsert(db, item)
     for item in payload.upserts.style_profiles:
         _apply_style_profile_upsert(db, item)
+    for item in payload.upserts.scheduled_posts:
+        _apply_scheduled_post_upsert(db, item)
 
     for entity_id in payload.deletes.drafts:
         _soft_delete(db, Draft, entity_id)
@@ -384,6 +431,8 @@ def sync_push(payload: SyncPushRequest, db: Session = Depends(get_db)) -> dict[s
         _soft_delete(db, PublishLog, entity_id)
     for entity_id in payload.deletes.style_profiles:
         _soft_delete(db, StyleProfile, entity_id)
+    for entity_id in payload.deletes.scheduled_posts:
+        _soft_delete(db, ScheduledPost, entity_id)
 
     db.commit()
     cursor = _ensure_sync_counter(db).value

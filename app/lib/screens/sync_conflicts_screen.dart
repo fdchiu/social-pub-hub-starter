@@ -135,6 +135,7 @@ class _ConflictCard extends ConsumerWidget {
     for (final key in const [
       'canonical_markdown',
       'text',
+      'content',
       'status',
       'voice_name',
     ]) {

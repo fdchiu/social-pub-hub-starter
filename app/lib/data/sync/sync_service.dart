@@ -14,14 +14,17 @@ class SyncSummary {
     required this.pushedVariants,
     required this.pushedPublishLogs,
     required this.pushedStyleProfiles,
+    required this.pushedScheduledPosts,
     required this.pulledDrafts,
     required this.pulledVariants,
     required this.pulledPublishLogs,
     required this.pulledStyleProfiles,
+    required this.pulledScheduledPosts,
     required this.deletedDrafts,
     required this.deletedVariants,
     required this.deletedPublishLogs,
     required this.deletedStyleProfiles,
+    required this.deletedScheduledPosts,
     required this.detectedConflicts,
   });
 
@@ -30,14 +33,17 @@ class SyncSummary {
   final int pushedVariants;
   final int pushedPublishLogs;
   final int pushedStyleProfiles;
+  final int pushedScheduledPosts;
   final int pulledDrafts;
   final int pulledVariants;
   final int pulledPublishLogs;
   final int pulledStyleProfiles;
+  final int pulledScheduledPosts;
   final int deletedDrafts;
   final int deletedVariants;
   final int deletedPublishLogs;
   final int deletedStyleProfiles;
+  final int deletedScheduledPosts;
   final int detectedConflicts;
 }
 
@@ -94,22 +100,26 @@ class SyncService {
     final pulledVariants = _asMapList(upserts['variants']);
     final pulledPublishLogs = _asMapList(upserts['publish_logs']);
     final pulledStyleProfiles = _asMapList(upserts['style_profiles']);
+    final pulledScheduledPosts = _asMapList(upserts['scheduled_posts']);
 
     final deletedDrafts = _asStringList(deletes['drafts']);
     final deletedVariants = _asStringList(deletes['variants']);
     final deletedPublishLogs = _asStringList(deletes['publish_logs']);
     final deletedStyleProfiles = _asStringList(deletes['style_profiles']);
+    final deletedScheduledPosts = _asStringList(deletes['scheduled_posts']);
 
     await _db.transaction(() async {
       await _applyDraftUpserts(pulledDrafts);
       await _applyVariantUpserts(pulledVariants);
       await _applyPublishLogUpserts(pulledPublishLogs);
       await _applyStyleProfileUpserts(pulledStyleProfiles);
+      await _applyScheduledPostUpserts(pulledScheduledPosts);
       await _applyDeletes(
         deletedDrafts: deletedDrafts,
         deletedVariants: deletedVariants,
         deletedPublishLogs: deletedPublishLogs,
         deletedStyleProfiles: deletedStyleProfiles,
+        deletedScheduledPosts: deletedScheduledPosts,
       );
     });
 
@@ -122,14 +132,17 @@ class SyncService {
       pushedVariants: pushBatch.variantIds.length,
       pushedPublishLogs: pushBatch.publishLogIds.length,
       pushedStyleProfiles: pushBatch.styleProfileIds.length,
+      pushedScheduledPosts: pushBatch.scheduledPostIds.length,
       pulledDrafts: pulledDrafts.length,
       pulledVariants: pulledVariants.length,
       pulledPublishLogs: pulledPublishLogs.length,
       pulledStyleProfiles: pulledStyleProfiles.length,
+      pulledScheduledPosts: pulledScheduledPosts.length,
       deletedDrafts: deletedDrafts.length,
       deletedVariants: deletedVariants.length,
       deletedPublishLogs: deletedPublishLogs.length,
       deletedStyleProfiles: deletedStyleProfiles.length,
+      deletedScheduledPosts: deletedScheduledPosts.length,
       detectedConflicts: _detectedConflictsInRun,
     );
   }
@@ -145,6 +158,9 @@ class SyncService {
           ..where((t) => t.syncStatus.equals('dirty')))
         .get();
     final styleProfiles = await (_db.select(_db.styleProfiles)
+          ..where((t) => t.syncStatus.equals('dirty')))
+        .get();
+    final scheduledPosts = await (_db.select(_db.scheduledPosts)
           ..where((t) => t.syncStatus.equals('dirty')))
         .get();
 
@@ -206,12 +222,28 @@ class SyncService {
               },
             )
             .toList(),
+        'scheduled_posts': scheduledPosts
+            .map(
+              (row) => {
+                'id': row.id,
+                'variant_id': row.variantId,
+                'platform': row.platform,
+                'content': row.content,
+                'scheduled_for': row.scheduledFor.toIso8601String(),
+                'status': row.status,
+                'external_url': row.externalUrl,
+                'created_at': row.createdAt.toIso8601String(),
+                'updated_at': row.updatedAt.toIso8601String(),
+              },
+            )
+            .toList(),
       },
       'deletes': {
         'drafts': const <String>[],
         'variants': const <String>[],
         'publish_logs': const <String>[],
         'style_profiles': const <String>[],
+        'scheduled_posts': const <String>[],
       },
     };
 
@@ -221,6 +253,7 @@ class SyncService {
       variantIds: variants.map((r) => r.id).toList(growable: false),
       publishLogIds: publishLogs.map((r) => r.id).toList(growable: false),
       styleProfileIds: styleProfiles.map((r) => r.id).toList(growable: false),
+      scheduledPostIds: scheduledPosts.map((r) => r.id).toList(growable: false),
     );
   }
 
@@ -244,6 +277,11 @@ class SyncService {
         await (_db.update(_db.styleProfiles)
               ..where((t) => t.id.isIn(batch.styleProfileIds)))
             .write(const StyleProfilesCompanion(syncStatus: Value('clean')));
+      }
+      if (batch.scheduledPostIds.isNotEmpty) {
+        await (_db.update(_db.scheduledPosts)
+              ..where((t) => t.id.isIn(batch.scheduledPostIds)))
+            .write(const ScheduledPostsCompanion(syncStatus: Value('clean')));
       }
     });
   }
@@ -334,6 +372,23 @@ class SyncService {
                       Value((payload['emoji_level'] as String?) ?? 'light'),
                   bannedPhrases:
                       Value(_asStringList(payload['banned_phrases'])),
+                  createdAt: Value(_asDateTime(payload['created_at']) ?? now),
+                  updatedAt: Value(now),
+                  syncStatus: const Value('dirty'),
+                ),
+              );
+          break;
+        case 'scheduled_posts':
+          await _db.into(_db.scheduledPosts).insertOnConflictUpdate(
+                ScheduledPostsCompanion(
+                  id: Value(conflict.entityId),
+                  variantId: Value(payload['variant_id'] as String?),
+                  platform: Value((payload['platform'] as String?) ?? ''),
+                  content: Value((payload['content'] as String?) ?? ''),
+                  scheduledFor:
+                      Value(_asDateTime(payload['scheduled_for']) ?? now),
+                  status: Value((payload['status'] as String?) ?? 'queued'),
+                  externalUrl: Value(payload['external_url'] as String?),
                   createdAt: Value(_asDateTime(payload['created_at']) ?? now),
                   updatedAt: Value(now),
                   syncStatus: const Value('dirty'),
@@ -520,12 +575,62 @@ class SyncService {
     }
   }
 
+  Future<void> _applyScheduledPostUpserts(
+      List<Map<String, dynamic>> rows) async {
+    for (final row in rows) {
+      final id = row['id'] as String?;
+      if (id == null || id.isEmpty) {
+        continue;
+      }
+
+      final now = DateTime.now().toUtc();
+      final incomingUpdatedAt = _asDateTime(row['updated_at']) ?? now;
+      final existing = await (_db.select(_db.scheduledPosts)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing != null && existing.syncStatus == 'dirty') {
+        if (incomingUpdatedAt.isAfter(existing.updatedAt)) {
+          await _recordConflict(
+            entityType: 'scheduled_posts',
+            entityId: id,
+            localPayload: _scheduledPostToPayload(existing),
+            remotePayload: row,
+          );
+        } else {
+          continue;
+        }
+      }
+
+      await _db.into(_db.scheduledPosts).insertOnConflictUpdate(
+            ScheduledPostsCompanion(
+              id: Value(id),
+              variantId: Value(row['variant_id'] as String?),
+              platform: Value((row['platform'] as String?) ?? ''),
+              content: Value((row['content'] as String?) ?? ''),
+              scheduledFor: Value(_asDateTime(row['scheduled_for']) ?? now),
+              status: Value((row['status'] as String?) ?? 'queued'),
+              externalUrl: Value(row['external_url'] as String?),
+              createdAt: Value(_asDateTime(row['created_at']) ?? now),
+              updatedAt: Value(incomingUpdatedAt),
+              syncStatus: const Value('clean'),
+            ),
+          );
+    }
+  }
+
   Future<void> _applyDeletes({
     required List<String> deletedDrafts,
     required List<String> deletedVariants,
     required List<String> deletedPublishLogs,
     required List<String> deletedStyleProfiles,
+    required List<String> deletedScheduledPosts,
   }) async {
+    if (deletedScheduledPosts.isNotEmpty) {
+      await (_db.delete(_db.scheduledPosts)
+            ..where((t) => t.id.isIn(deletedScheduledPosts)))
+          .go();
+    }
+
     if (deletedPublishLogs.isNotEmpty) {
       await (_db.delete(_db.publishLogs)
             ..where((t) => t.id.isIn(deletedPublishLogs)))
@@ -536,6 +641,9 @@ class SyncService {
       await (_db.update(_db.publishLogs)
             ..where((t) => t.variantId.isIn(deletedVariants)))
           .write(const PublishLogsCompanion(variantId: Value(null)));
+      await (_db.update(_db.scheduledPosts)
+            ..where((t) => t.variantId.isIn(deletedVariants)))
+          .write(const ScheduledPostsCompanion(variantId: Value(null)));
       await (_db.delete(_db.variants)..where((t) => t.id.isIn(deletedVariants)))
           .go();
     }
@@ -549,6 +657,9 @@ class SyncService {
         await (_db.update(_db.publishLogs)
               ..where((t) => t.variantId.isIn(linkedVariantIds)))
             .write(const PublishLogsCompanion(variantId: Value(null)));
+        await (_db.update(_db.scheduledPosts)
+              ..where((t) => t.variantId.isIn(linkedVariantIds)))
+            .write(const ScheduledPostsCompanion(variantId: Value(null)));
         await (_db.delete(_db.variants)
               ..where((t) => t.id.isIn(linkedVariantIds)))
             .go();
@@ -639,6 +750,20 @@ class SyncService {
     };
   }
 
+  Map<String, dynamic> _scheduledPostToPayload(ScheduledPost row) {
+    return {
+      'id': row.id,
+      'variant_id': row.variantId,
+      'platform': row.platform,
+      'content': row.content,
+      'scheduled_for': row.scheduledFor.toIso8601String(),
+      'status': row.status,
+      'external_url': row.externalUrl,
+      'created_at': row.createdAt.toIso8601String(),
+      'updated_at': row.updatedAt.toIso8601String(),
+    };
+  }
+
   List<Map<String, dynamic>> _asMapList(Object? value) {
     if (value is! List) {
       return const <Map<String, dynamic>>[];
@@ -678,6 +803,7 @@ class _PushBatch {
     required this.variantIds,
     required this.publishLogIds,
     required this.styleProfileIds,
+    required this.scheduledPostIds,
   });
 
   final Map<String, dynamic> payload;
@@ -685,4 +811,5 @@ class _PushBatch {
   final List<String> variantIds;
   final List<String> publishLogIds;
   final List<String> styleProfileIds;
+  final List<String> scheduledPostIds;
 }

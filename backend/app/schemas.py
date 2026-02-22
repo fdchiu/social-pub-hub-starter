@@ -53,11 +53,25 @@ class StyleProfileSyncItem(BaseModel):
     deleted_at: datetime | None = None
 
 
+class ScheduledPostSyncItem(BaseModel):
+    id: str
+    variant_id: str | None = None
+    platform: str = ""
+    content: str = ""
+    scheduled_for: datetime | None = None
+    status: str = "queued"
+    external_url: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    deleted_at: datetime | None = None
+
+
 class SyncUpserts(BaseModel):
     drafts: list[DraftSyncItem] = Field(default_factory=list)
     variants: list[VariantSyncItem] = Field(default_factory=list)
     publish_logs: list[PublishLogSyncItem] = Field(default_factory=list)
     style_profiles: list[StyleProfileSyncItem] = Field(default_factory=list)
+    scheduled_posts: list[ScheduledPostSyncItem] = Field(default_factory=list)
     source_items: list[dict] = Field(default_factory=list)
 
 
@@ -66,6 +80,7 @@ class SyncDeletes(BaseModel):
     variants: list[str] = Field(default_factory=list)
     publish_logs: list[str] = Field(default_factory=list)
     style_profiles: list[str] = Field(default_factory=list)
+    scheduled_posts: list[str] = Field(default_factory=list)
     source_items: list[str] = Field(default_factory=list)
 
 

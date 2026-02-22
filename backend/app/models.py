@@ -79,9 +79,28 @@ class StyleProfile(Base):
     sync_cursor: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False, index=True)
 
 
+class ScheduledPost(Base):
+    __tablename__ = "scheduled_posts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    variant_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("variants.id"), nullable=True
+    )
+    platform: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    scheduled_for: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String, default="queued", nullable=False)
+    external_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sync_cursor: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False, index=True)
+
+
 SYNC_TABLES = {
     "drafts": Draft,
     "variants": Variant,
     "publish_logs": PublishLog,
     "style_profiles": StyleProfile,
+    "scheduled_posts": ScheduledPost,
 }
