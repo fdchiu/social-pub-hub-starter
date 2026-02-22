@@ -15,6 +15,11 @@ class VariantRepo {
     return query.watch();
   }
 
+  Future<Variant?> getVariantById(String id) {
+    final query = _db.select(_db.variants)..where((t) => t.id.equals(id));
+    return query.getSingleOrNull();
+  }
+
   Future<String> createVariant({
     String? id,
     required String draftId,

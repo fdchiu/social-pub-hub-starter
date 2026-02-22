@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/repo_providers.dart';
 
@@ -121,13 +123,48 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                 '${item.platform.toUpperCase()} · ${item.status}'),
                             subtitle:
                                 Text('mode=${item.mode} · postedAt=$posted'),
-                            trailing: item.externalUrl == null
-                                ? null
-                                : IconButton(
-                                    onPressed: () {},
-                                    icon: const Icon(Icons.link),
-                                    tooltip: item.externalUrl!,
-                                  ),
+                            trailing: PopupMenuButton<_HistoryAction>(
+                              onSelected: (action) {
+                                if (action == _HistoryAction.cloneAsDraft) {
+                                  _cloneAsDraft(item.variantId);
+                                  return;
+                                }
+                                if (action == _HistoryAction.openExternalUrl &&
+                                    item.externalUrl != null) {
+                                  _openExternalUrl(item.externalUrl!);
+                                }
+                              },
+                              itemBuilder: (context) {
+                                final menu = <PopupMenuEntry<_HistoryAction>>[];
+                                if (item.variantId != null) {
+                                  menu.add(
+                                    const PopupMenuItem(
+                                      value: _HistoryAction.cloneAsDraft,
+                                      child: Text('Clone as draft'),
+                                    ),
+                                  );
+                                }
+                                if (item.externalUrl != null &&
+                                    item.externalUrl!.trim().isNotEmpty) {
+                                  menu.add(
+                                    const PopupMenuItem(
+                                      value: _HistoryAction.openExternalUrl,
+                                      child: Text('Open external URL'),
+                                    ),
+                                  );
+                                }
+                                if (menu.isEmpty) {
+                                  menu.add(
+                                    const PopupMenuItem(
+                                      enabled: false,
+                                      value: _HistoryAction.cloneAsDraft,
+                                      child: Text('No actions'),
+                                    ),
+                                  );
+                                }
+                                return menu;
+                              },
+                            ),
                           );
                         },
                       ),
@@ -141,4 +178,65 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
     );
   }
+
+  Future<void> _cloneAsDraft(String? variantId) async {
+    if (variantId == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No variant linked to this history row')),
+      );
+      return;
+    }
+
+    final variant =
+        await ref.read(variantRepoProvider).getVariantById(variantId);
+    if (variant == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Variant not found')),
+      );
+      return;
+    }
+
+    final draftId = await ref.read(draftRepoProvider).createDraft(
+          canonicalMarkdown: variant.body,
+          intent: 'how_to',
+        );
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Created draft ${draftId.substring(0, 8)}')),
+    );
+    context.go('/compose');
+  }
+
+  Future<void> _openExternalUrl(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid URL')),
+      );
+      return;
+    }
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open URL')),
+      );
+    }
+  }
+}
+
+enum _HistoryAction {
+  cloneAsDraft,
+  openExternalUrl,
 }
