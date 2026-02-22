@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
+import '../utils/composer_links.dart';
 
 class QueueScreen extends ConsumerWidget {
   const QueueScreen({super.key});
@@ -88,6 +91,14 @@ class _ScheduledPostCard extends ConsumerWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
+                FilledButton.tonal(
+                  onPressed: () => _copy(context),
+                  child: const Text('Copy'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => _openComposer(context),
+                  child: const Text('Open composer'),
+                ),
                 if (isQueued)
                   FilledButton.tonal(
                     onPressed: () => _markPosted(context, ref),
@@ -104,6 +115,35 @@ class _ScheduledPostCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _copy(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: item.content));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Copied queued text')),
+      );
+    }
+  }
+
+  Future<void> _openComposer(BuildContext context) async {
+    final uri =
+        composerUriForPlatform(platform: item.platform, text: item.content);
+    if (uri == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('No composer URL configured for ${item.platform}')),
+        );
+      }
+      return;
+    }
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to open composer for ${item.platform}')),
+      );
+    }
   }
 
   Future<void> _markPosted(BuildContext context, WidgetRef ref) async {

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
+import '../utils/composer_links.dart';
 import 'compose_queue_action.dart';
 
 class ComposeScreen extends ConsumerStatefulWidget {
@@ -372,7 +373,7 @@ Takeaway:
     required String platform,
     required String text,
   }) async {
-    final uri = _composerUriForPlatform(platform: platform, text: text);
+    final uri = composerUriForPlatform(platform: platform, text: text);
     if (uri == null) {
       if (!mounted) {
         return;
@@ -389,40 +390,6 @@ Takeaway:
         SnackBar(content: Text('Unable to open composer for $platform')),
       );
     }
-  }
-
-  Uri? _composerUriForPlatform({
-    required String platform,
-    required String text,
-  }) {
-    final normalized = platform.toLowerCase();
-    if (normalized == 'x') {
-      return Uri.https('twitter.com', '/intent/tweet', {'text': text});
-    }
-    if (normalized == 'linkedin') {
-      return Uri.https('www.linkedin.com', '/feed/');
-    }
-    if (normalized == 'reddit') {
-      var title = text
-          .split('\n')
-          .map((line) => line.trim())
-          .firstWhere((line) => line.isNotEmpty, orElse: () => 'Post idea');
-      if (title.length > 120) {
-        title = title.substring(0, 120);
-      }
-      return Uri.https('www.reddit.com', '/submit', {
-        'selftext': 'true',
-        'title': title,
-        'text': text,
-      });
-    }
-    if (normalized == 'facebook') {
-      return Uri.https('www.facebook.com', '/');
-    }
-    if (normalized == 'youtube') {
-      return Uri.https('studio.youtube.com', '/');
-    }
-    return null;
   }
 
   Future<void> _confirmPosted(String variantId, String platform) async {
