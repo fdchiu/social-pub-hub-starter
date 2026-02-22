@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
+import 'compose_queue_action.dart';
 
 class ComposeScreen extends ConsumerStatefulWidget {
   const ComposeScreen({
@@ -187,6 +188,19 @@ Takeaway:
                                                 variant.id, variant.platform),
                                             icon: const Icon(
                                                 Icons.check_circle_outline),
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Queue',
+                                            onPressed: () =>
+                                                queueVariantFromCompose(
+                                              context: context,
+                                              ref: ref,
+                                              variantId: variant.id,
+                                              platform: variant.platform,
+                                              body: variant.body,
+                                            ),
+                                            icon: const Icon(
+                                                Icons.schedule_outlined),
                                           ),
                                         ],
                                       ),

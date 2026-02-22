@@ -8,6 +8,7 @@ import 'screens/compose_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/publish_console_screen.dart';
 import 'screens/publish_checklist_screen.dart';
+import 'screens/queue_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/sync_conflicts_screen.dart';
 
@@ -39,6 +40,7 @@ final router = GoRouter(
       path: '/sync-conflicts',
       builder: (c, s) => const SyncConflictsScreen(),
     ),
+    GoRoute(path: '/queue', builder: (c, s) => const QueueScreen()),
     GoRoute(path: '/history', builder: (c, s) => const HistoryScreen()),
     GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen()),
   ],

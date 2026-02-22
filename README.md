@@ -6,13 +6,13 @@ Stack:
 - Flutter (macOS/iOS/Web ready)
 - FastAPI backend
 - Postgres (planned)
-- Offline-first local DB (to be added: Drift/Isar)
+- Offline-first local DB (Drift)
 
 This scaffold includes:
-- Basic Flutter app structure
-- FastAPI server with health + stub endpoints
+- Flutter flows: inbox, library, compose, history, publish console, bundles
+- Queue scheduling: queue variants from compose + manage queued items
+- FastAPI server with health + stub/sync endpoints
 - Docker compose for backend + Postgres
-- Folder structure aligned with documentation
 
 Next steps:
 1. `cd backend && docker compose up --build`

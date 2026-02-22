@@ -91,6 +91,11 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const Spacer(),
+              FilledButton.tonal(
+                onPressed: () => context.go('/queue'),
+                child: const Text('Open queue'),
+              ),
+              const SizedBox(width: 8),
               FilledButton(
                 onPressed: () => context.go('/compose'),
                 child: const Text('Open compose'),

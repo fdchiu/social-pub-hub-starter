@@ -4,6 +4,7 @@ import '../data/db/app_db.dart';
 import '../data/repos/draft_repo.dart';
 import '../data/repos/bundle_repo.dart';
 import '../data/repos/publish_log_repo.dart';
+import '../data/repos/scheduled_post_repo.dart';
 import '../data/repos/source_repo.dart';
 import '../data/repos/style_profile_repo.dart';
 import '../data/repos/sync_conflict_repo.dart';
@@ -30,6 +31,10 @@ final publishLogRepoProvider = Provider<PublishLogRepo>((ref) {
   return PublishLogRepo(ref.watch(appDatabaseProvider));
 });
 
+final scheduledPostRepoProvider = Provider<ScheduledPostRepo>((ref) {
+  return ScheduledPostRepo(ref.watch(appDatabaseProvider));
+});
+
 final styleProfileRepoProvider = Provider<StyleProfileRepo>((ref) {
   return StyleProfileRepo(ref.watch(appDatabaseProvider));
 });
@@ -44,6 +49,10 @@ final sourceItemsStreamProvider = StreamProvider<List<SourceItem>>((ref) {
 
 final publishLogsStreamProvider = StreamProvider<List<PublishLog>>((ref) {
   return ref.watch(publishLogRepoProvider).watchPublishLogs();
+});
+
+final scheduledPostsStreamProvider = StreamProvider<List<ScheduledPost>>((ref) {
+  return ref.watch(scheduledPostRepoProvider).watchScheduledPosts();
 });
 
 final draftVariantsStreamProvider =

@@ -7,6 +7,7 @@ import 'converters/string_list_converter.dart';
 import 'tables/bundles.dart';
 import 'tables/drafts.dart';
 import 'tables/publish_logs.dart';
+import 'tables/scheduled_posts.dart';
 import 'tables/source_items.dart';
 import 'tables/style_profiles.dart';
 import 'tables/sync_conflicts.dart';
@@ -20,6 +21,7 @@ part 'app_db.g.dart';
     Drafts,
     Variants,
     PublishLogs,
+    ScheduledPosts,
     StyleProfiles,
     SyncConflicts,
     Bundles,
@@ -29,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -53,6 +55,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 6) {
             await m.addColumn(bundles, bundles.canonicalDraftId);
+          }
+          if (from < 7) {
+            await m.createTable(scheduledPosts);
           }
         },
       );

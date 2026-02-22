@@ -1868,6 +1868,521 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
   }
 }
 
+class $ScheduledPostsTable extends ScheduledPosts
+    with TableInfo<$ScheduledPostsTable, ScheduledPost> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ScheduledPostsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _variantIdMeta =
+      const VerificationMeta('variantId');
+  @override
+  late final GeneratedColumn<String> variantId = GeneratedColumn<String>(
+      'variant_id', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES variants (id)'));
+  static const VerificationMeta _platformMeta =
+      const VerificationMeta('platform');
+  @override
+  late final GeneratedColumn<String> platform = GeneratedColumn<String>(
+      'platform', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentMeta =
+      const VerificationMeta('content');
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+      'content', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _scheduledForMeta =
+      const VerificationMeta('scheduledFor');
+  @override
+  late final GeneratedColumn<DateTime> scheduledFor = GeneratedColumn<DateTime>(
+      'scheduled_for', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('queued'));
+  static const VerificationMeta _externalUrlMeta =
+      const VerificationMeta('externalUrl');
+  @override
+  late final GeneratedColumn<String> externalUrl = GeneratedColumn<String>(
+      'external_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('dirty'));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        variantId,
+        platform,
+        content,
+        scheduledFor,
+        status,
+        externalUrl,
+        createdAt,
+        updatedAt,
+        syncStatus
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'scheduled_posts';
+  @override
+  VerificationContext validateIntegrity(Insertable<ScheduledPost> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('variant_id')) {
+      context.handle(_variantIdMeta,
+          variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta));
+    }
+    if (data.containsKey('platform')) {
+      context.handle(_platformMeta,
+          platform.isAcceptableOrUnknown(data['platform']!, _platformMeta));
+    } else if (isInserting) {
+      context.missing(_platformMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(_contentMeta,
+          content.isAcceptableOrUnknown(data['content']!, _contentMeta));
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('scheduled_for')) {
+      context.handle(
+          _scheduledForMeta,
+          scheduledFor.isAcceptableOrUnknown(
+              data['scheduled_for']!, _scheduledForMeta));
+    } else if (isInserting) {
+      context.missing(_scheduledForMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('external_url')) {
+      context.handle(
+          _externalUrlMeta,
+          externalUrl.isAcceptableOrUnknown(
+              data['external_url']!, _externalUrlMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ScheduledPost map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ScheduledPost(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      variantId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}variant_id']),
+      platform: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}platform'])!,
+      content: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content'])!,
+      scheduledFor: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}scheduled_for'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      externalUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}external_url']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
+    );
+  }
+
+  @override
+  $ScheduledPostsTable createAlias(String alias) {
+    return $ScheduledPostsTable(attachedDatabase, alias);
+  }
+}
+
+class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
+  final String id;
+  final String? variantId;
+  final String platform;
+  final String content;
+  final DateTime scheduledFor;
+  final String status;
+  final String? externalUrl;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String syncStatus;
+  const ScheduledPost(
+      {required this.id,
+      this.variantId,
+      required this.platform,
+      required this.content,
+      required this.scheduledFor,
+      required this.status,
+      this.externalUrl,
+      required this.createdAt,
+      required this.updatedAt,
+      required this.syncStatus});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || variantId != null) {
+      map['variant_id'] = Variable<String>(variantId);
+    }
+    map['platform'] = Variable<String>(platform);
+    map['content'] = Variable<String>(content);
+    map['scheduled_for'] = Variable<DateTime>(scheduledFor);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || externalUrl != null) {
+      map['external_url'] = Variable<String>(externalUrl);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
+    return map;
+  }
+
+  ScheduledPostsCompanion toCompanion(bool nullToAbsent) {
+    return ScheduledPostsCompanion(
+      id: Value(id),
+      variantId: variantId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(variantId),
+      platform: Value(platform),
+      content: Value(content),
+      scheduledFor: Value(scheduledFor),
+      status: Value(status),
+      externalUrl: externalUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(externalUrl),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory ScheduledPost.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ScheduledPost(
+      id: serializer.fromJson<String>(json['id']),
+      variantId: serializer.fromJson<String?>(json['variantId']),
+      platform: serializer.fromJson<String>(json['platform']),
+      content: serializer.fromJson<String>(json['content']),
+      scheduledFor: serializer.fromJson<DateTime>(json['scheduledFor']),
+      status: serializer.fromJson<String>(json['status']),
+      externalUrl: serializer.fromJson<String?>(json['externalUrl']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'variantId': serializer.toJson<String?>(variantId),
+      'platform': serializer.toJson<String>(platform),
+      'content': serializer.toJson<String>(content),
+      'scheduledFor': serializer.toJson<DateTime>(scheduledFor),
+      'status': serializer.toJson<String>(status),
+      'externalUrl': serializer.toJson<String?>(externalUrl),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+    };
+  }
+
+  ScheduledPost copyWith(
+          {String? id,
+          Value<String?> variantId = const Value.absent(),
+          String? platform,
+          String? content,
+          DateTime? scheduledFor,
+          String? status,
+          Value<String?> externalUrl = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt,
+          String? syncStatus}) =>
+      ScheduledPost(
+        id: id ?? this.id,
+        variantId: variantId.present ? variantId.value : this.variantId,
+        platform: platform ?? this.platform,
+        content: content ?? this.content,
+        scheduledFor: scheduledFor ?? this.scheduledFor,
+        status: status ?? this.status,
+        externalUrl: externalUrl.present ? externalUrl.value : this.externalUrl,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
+      );
+  ScheduledPost copyWithCompanion(ScheduledPostsCompanion data) {
+    return ScheduledPost(
+      id: data.id.present ? data.id.value : this.id,
+      variantId: data.variantId.present ? data.variantId.value : this.variantId,
+      platform: data.platform.present ? data.platform.value : this.platform,
+      content: data.content.present ? data.content.value : this.content,
+      scheduledFor: data.scheduledFor.present
+          ? data.scheduledFor.value
+          : this.scheduledFor,
+      status: data.status.present ? data.status.value : this.status,
+      externalUrl:
+          data.externalUrl.present ? data.externalUrl.value : this.externalUrl,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ScheduledPost(')
+          ..write('id: $id, ')
+          ..write('variantId: $variantId, ')
+          ..write('platform: $platform, ')
+          ..write('content: $content, ')
+          ..write('scheduledFor: $scheduledFor, ')
+          ..write('status: $status, ')
+          ..write('externalUrl: $externalUrl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, variantId, platform, content,
+      scheduledFor, status, externalUrl, createdAt, updatedAt, syncStatus);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ScheduledPost &&
+          other.id == this.id &&
+          other.variantId == this.variantId &&
+          other.platform == this.platform &&
+          other.content == this.content &&
+          other.scheduledFor == this.scheduledFor &&
+          other.status == this.status &&
+          other.externalUrl == this.externalUrl &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
+}
+
+class ScheduledPostsCompanion extends UpdateCompanion<ScheduledPost> {
+  final Value<String> id;
+  final Value<String?> variantId;
+  final Value<String> platform;
+  final Value<String> content;
+  final Value<DateTime> scheduledFor;
+  final Value<String> status;
+  final Value<String?> externalUrl;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
+  final Value<int> rowid;
+  const ScheduledPostsCompanion({
+    this.id = const Value.absent(),
+    this.variantId = const Value.absent(),
+    this.platform = const Value.absent(),
+    this.content = const Value.absent(),
+    this.scheduledFor = const Value.absent(),
+    this.status = const Value.absent(),
+    this.externalUrl = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ScheduledPostsCompanion.insert({
+    required String id,
+    this.variantId = const Value.absent(),
+    required String platform,
+    required String content,
+    required DateTime scheduledFor,
+    this.status = const Value.absent(),
+    this.externalUrl = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        platform = Value(platform),
+        content = Value(content),
+        scheduledFor = Value(scheduledFor);
+  static Insertable<ScheduledPost> custom({
+    Expression<String>? id,
+    Expression<String>? variantId,
+    Expression<String>? platform,
+    Expression<String>? content,
+    Expression<DateTime>? scheduledFor,
+    Expression<String>? status,
+    Expression<String>? externalUrl,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (variantId != null) 'variant_id': variantId,
+      if (platform != null) 'platform': platform,
+      if (content != null) 'content': content,
+      if (scheduledFor != null) 'scheduled_for': scheduledFor,
+      if (status != null) 'status': status,
+      if (externalUrl != null) 'external_url': externalUrl,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ScheduledPostsCompanion copyWith(
+      {Value<String>? id,
+      Value<String?>? variantId,
+      Value<String>? platform,
+      Value<String>? content,
+      Value<DateTime>? scheduledFor,
+      Value<String>? status,
+      Value<String?>? externalUrl,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<String>? syncStatus,
+      Value<int>? rowid}) {
+    return ScheduledPostsCompanion(
+      id: id ?? this.id,
+      variantId: variantId ?? this.variantId,
+      platform: platform ?? this.platform,
+      content: content ?? this.content,
+      scheduledFor: scheduledFor ?? this.scheduledFor,
+      status: status ?? this.status,
+      externalUrl: externalUrl ?? this.externalUrl,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (variantId.present) {
+      map['variant_id'] = Variable<String>(variantId.value);
+    }
+    if (platform.present) {
+      map['platform'] = Variable<String>(platform.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (scheduledFor.present) {
+      map['scheduled_for'] = Variable<DateTime>(scheduledFor.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (externalUrl.present) {
+      map['external_url'] = Variable<String>(externalUrl.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ScheduledPostsCompanion(')
+          ..write('id: $id, ')
+          ..write('variantId: $variantId, ')
+          ..write('platform: $platform, ')
+          ..write('content: $content, ')
+          ..write('scheduledFor: $scheduledFor, ')
+          ..write('status: $status, ')
+          ..write('externalUrl: $externalUrl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $StyleProfilesTable extends StyleProfiles
     with TableInfo<$StyleProfilesTable, StyleProfile> {
   @override
@@ -3291,6 +3806,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DraftsTable drafts = $DraftsTable(this);
   late final $VariantsTable variants = $VariantsTable(this);
   late final $PublishLogsTable publishLogs = $PublishLogsTable(this);
+  late final $ScheduledPostsTable scheduledPosts = $ScheduledPostsTable(this);
   late final $StyleProfilesTable styleProfiles = $StyleProfilesTable(this);
   late final $SyncConflictsTable syncConflicts = $SyncConflictsTable(this);
   late final $BundlesTable bundles = $BundlesTable(this);
@@ -3303,6 +3819,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         drafts,
         variants,
         publishLogs,
+        scheduledPosts,
         styleProfiles,
         syncConflicts,
         bundles
@@ -3916,6 +4433,21 @@ final class $$VariantsTableReferences
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
+
+  static MultiTypedResultKey<$ScheduledPostsTable, List<ScheduledPost>>
+      _scheduledPostsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.scheduledPosts,
+              aliasName: $_aliasNameGenerator(
+                  db.variants.id, db.scheduledPosts.variantId));
+
+  $$ScheduledPostsTableProcessedTableManager get scheduledPostsRefs {
+    final manager = $$ScheduledPostsTableTableManager($_db, $_db.scheduledPosts)
+        .filter((f) => f.variantId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_scheduledPostsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 }
 
 class $$VariantsTableFilterComposer
@@ -3978,6 +4510,27 @@ class $$VariantsTableFilterComposer
             $$PublishLogsTableFilterComposer(
               $db: $db,
               $table: $db.publishLogs,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> scheduledPostsRefs(
+      Expression<bool> Function($$ScheduledPostsTableFilterComposer f) f) {
+    final $$ScheduledPostsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.scheduledPosts,
+        getReferencedColumn: (t) => t.variantId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ScheduledPostsTableFilterComposer(
+              $db: $db,
+              $table: $db.scheduledPosts,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -4102,6 +4655,27 @@ class $$VariantsTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> scheduledPostsRefs<T extends Object>(
+      Expression<T> Function($$ScheduledPostsTableAnnotationComposer a) f) {
+    final $$ScheduledPostsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.scheduledPosts,
+        getReferencedColumn: (t) => t.variantId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ScheduledPostsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.scheduledPosts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$VariantsTableTableManager extends RootTableManager<
@@ -4115,7 +4689,8 @@ class $$VariantsTableTableManager extends RootTableManager<
     $$VariantsTableUpdateCompanionBuilder,
     (Variant, $$VariantsTableReferences),
     Variant,
-    PrefetchHooks Function({bool draftId, bool publishLogsRefs})> {
+    PrefetchHooks Function(
+        {bool draftId, bool publishLogsRefs, bool scheduledPostsRefs})> {
   $$VariantsTableTableManager(_$AppDatabase db, $VariantsTable table)
       : super(TableManagerState(
           db: db,
@@ -4170,10 +4745,16 @@ class $$VariantsTableTableManager extends RootTableManager<
               .map((e) =>
                   (e.readTable(table), $$VariantsTableReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({draftId = false, publishLogsRefs = false}) {
+          prefetchHooksCallback: (
+              {draftId = false,
+              publishLogsRefs = false,
+              scheduledPostsRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [if (publishLogsRefs) db.publishLogs],
+              explicitlyWatchedTables: [
+                if (publishLogsRefs) db.publishLogs,
+                if (scheduledPostsRefs) db.scheduledPosts
+              ],
               addJoins: <
                   T extends TableManagerState<
                       dynamic,
@@ -4214,6 +4795,19 @@ class $$VariantsTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.variantId == item.id),
+                        typedResults: items),
+                  if (scheduledPostsRefs)
+                    await $_getPrefetchedData<Variant, $VariantsTable,
+                            ScheduledPost>(
+                        currentTable: table,
+                        referencedTable: $$VariantsTableReferences
+                            ._scheduledPostsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$VariantsTableReferences(db, table, p0)
+                                .scheduledPostsRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.variantId == item.id),
                         typedResults: items)
                 ];
               },
@@ -4233,7 +4827,8 @@ typedef $$VariantsTableProcessedTableManager = ProcessedTableManager<
     $$VariantsTableUpdateCompanionBuilder,
     (Variant, $$VariantsTableReferences),
     Variant,
-    PrefetchHooks Function({bool draftId, bool publishLogsRefs})>;
+    PrefetchHooks Function(
+        {bool draftId, bool publishLogsRefs, bool scheduledPostsRefs})>;
 typedef $$PublishLogsTableCreateCompanionBuilder = PublishLogsCompanion
     Function({
   required String id,
@@ -4583,6 +5178,359 @@ typedef $$PublishLogsTableProcessedTableManager = ProcessedTableManager<
     $$PublishLogsTableUpdateCompanionBuilder,
     (PublishLog, $$PublishLogsTableReferences),
     PublishLog,
+    PrefetchHooks Function({bool variantId})>;
+typedef $$ScheduledPostsTableCreateCompanionBuilder = ScheduledPostsCompanion
+    Function({
+  required String id,
+  Value<String?> variantId,
+  required String platform,
+  required String content,
+  required DateTime scheduledFor,
+  Value<String> status,
+  Value<String?> externalUrl,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<String> syncStatus,
+  Value<int> rowid,
+});
+typedef $$ScheduledPostsTableUpdateCompanionBuilder = ScheduledPostsCompanion
+    Function({
+  Value<String> id,
+  Value<String?> variantId,
+  Value<String> platform,
+  Value<String> content,
+  Value<DateTime> scheduledFor,
+  Value<String> status,
+  Value<String?> externalUrl,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<String> syncStatus,
+  Value<int> rowid,
+});
+
+final class $$ScheduledPostsTableReferences
+    extends BaseReferences<_$AppDatabase, $ScheduledPostsTable, ScheduledPost> {
+  $$ScheduledPostsTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $VariantsTable _variantIdTable(_$AppDatabase db) =>
+      db.variants.createAlias(
+          $_aliasNameGenerator(db.scheduledPosts.variantId, db.variants.id));
+
+  $$VariantsTableProcessedTableManager? get variantId {
+    final $_column = $_itemColumn<String>('variant_id');
+    if ($_column == null) return null;
+    final manager = $$VariantsTableTableManager($_db, $_db.variants)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_variantIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$ScheduledPostsTableFilterComposer
+    extends Composer<_$AppDatabase, $ScheduledPostsTable> {
+  $$ScheduledPostsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get platform => $composableBuilder(
+      column: $table.platform, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get scheduledFor => $composableBuilder(
+      column: $table.scheduledFor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get externalUrl => $composableBuilder(
+      column: $table.externalUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  $$VariantsTableFilterComposer get variantId {
+    final $$VariantsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.variantId,
+        referencedTable: $db.variants,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$VariantsTableFilterComposer(
+              $db: $db,
+              $table: $db.variants,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ScheduledPostsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ScheduledPostsTable> {
+  $$ScheduledPostsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get platform => $composableBuilder(
+      column: $table.platform, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get scheduledFor => $composableBuilder(
+      column: $table.scheduledFor,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get externalUrl => $composableBuilder(
+      column: $table.externalUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
+  $$VariantsTableOrderingComposer get variantId {
+    final $$VariantsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.variantId,
+        referencedTable: $db.variants,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$VariantsTableOrderingComposer(
+              $db: $db,
+              $table: $db.variants,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ScheduledPostsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ScheduledPostsTable> {
+  $$ScheduledPostsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get platform =>
+      $composableBuilder(column: $table.platform, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get scheduledFor => $composableBuilder(
+      column: $table.scheduledFor, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get externalUrl => $composableBuilder(
+      column: $table.externalUrl, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
+
+  $$VariantsTableAnnotationComposer get variantId {
+    final $$VariantsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.variantId,
+        referencedTable: $db.variants,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$VariantsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.variants,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ScheduledPostsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ScheduledPostsTable,
+    ScheduledPost,
+    $$ScheduledPostsTableFilterComposer,
+    $$ScheduledPostsTableOrderingComposer,
+    $$ScheduledPostsTableAnnotationComposer,
+    $$ScheduledPostsTableCreateCompanionBuilder,
+    $$ScheduledPostsTableUpdateCompanionBuilder,
+    (ScheduledPost, $$ScheduledPostsTableReferences),
+    ScheduledPost,
+    PrefetchHooks Function({bool variantId})> {
+  $$ScheduledPostsTableTableManager(
+      _$AppDatabase db, $ScheduledPostsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ScheduledPostsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ScheduledPostsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ScheduledPostsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String?> variantId = const Value.absent(),
+            Value<String> platform = const Value.absent(),
+            Value<String> content = const Value.absent(),
+            Value<DateTime> scheduledFor = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String?> externalUrl = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ScheduledPostsCompanion(
+            id: id,
+            variantId: variantId,
+            platform: platform,
+            content: content,
+            scheduledFor: scheduledFor,
+            status: status,
+            externalUrl: externalUrl,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            syncStatus: syncStatus,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            Value<String?> variantId = const Value.absent(),
+            required String platform,
+            required String content,
+            required DateTime scheduledFor,
+            Value<String> status = const Value.absent(),
+            Value<String?> externalUrl = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ScheduledPostsCompanion.insert(
+            id: id,
+            variantId: variantId,
+            platform: platform,
+            content: content,
+            scheduledFor: scheduledFor,
+            status: status,
+            externalUrl: externalUrl,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            syncStatus: syncStatus,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$ScheduledPostsTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({variantId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (variantId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.variantId,
+                    referencedTable:
+                        $$ScheduledPostsTableReferences._variantIdTable(db),
+                    referencedColumn:
+                        $$ScheduledPostsTableReferences._variantIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$ScheduledPostsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ScheduledPostsTable,
+    ScheduledPost,
+    $$ScheduledPostsTableFilterComposer,
+    $$ScheduledPostsTableOrderingComposer,
+    $$ScheduledPostsTableAnnotationComposer,
+    $$ScheduledPostsTableCreateCompanionBuilder,
+    $$ScheduledPostsTableUpdateCompanionBuilder,
+    (ScheduledPost, $$ScheduledPostsTableReferences),
+    ScheduledPost,
     PrefetchHooks Function({bool variantId})>;
 typedef $$StyleProfilesTableCreateCompanionBuilder = StyleProfilesCompanion
     Function({
@@ -5293,6 +6241,8 @@ class $AppDatabaseManager {
       $$VariantsTableTableManager(_db, _db.variants);
   $$PublishLogsTableTableManager get publishLogs =>
       $$PublishLogsTableTableManager(_db, _db.publishLogs);
+  $$ScheduledPostsTableTableManager get scheduledPosts =>
+      $$ScheduledPostsTableTableManager(_db, _db.scheduledPosts);
   $$StyleProfilesTableTableManager get styleProfiles =>
       $$StyleProfilesTableTableManager(_db, _db.styleProfiles);
   $$SyncConflictsTableTableManager get syncConflicts =>
