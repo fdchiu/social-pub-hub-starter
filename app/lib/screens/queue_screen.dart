@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
 import '../utils/composer_links.dart';
+import '../widgets/hub_app_bar.dart';
 
 class QueueScreen extends ConsumerStatefulWidget {
   const QueueScreen({super.key});
@@ -24,8 +25,9 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
   Widget build(BuildContext context) {
     final queueAsync = ref.watch(scheduledPostsStreamProvider);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Schedule Queue'),
+      appBar: buildHubAppBar(
+        context: context,
+        title: 'Schedule Queue',
         actions: [
           IconButton(
             tooltip: 'Open compose',

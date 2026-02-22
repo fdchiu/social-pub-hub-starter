@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import '../utils/composer_links.dart';
+import '../widgets/hub_app_bar.dart';
 import 'compose_queue_action.dart';
 
 class ComposeScreen extends ConsumerStatefulWidget {
@@ -66,8 +67,9 @@ Takeaway:
         : ref.watch(draftVariantsStreamProvider(_draftId!));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Compose'),
+      appBar: buildHubAppBar(
+        context: context,
+        title: 'Compose',
         actions: [
           IconButton(
             onPressed: (_draftId == null || _generatingVariants)

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
+import '../widgets/hub_app_bar.dart';
 
 class BundleBuilderScreen extends ConsumerStatefulWidget {
   const BundleBuilderScreen({super.key});
@@ -35,8 +36,9 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
     final sourceItemsAsync = ref.watch(sourceItemsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bundle Builder'),
+      appBar: buildHubAppBar(
+        context: context,
+        title: 'Bundle Builder',
         actions: [
           IconButton(
             tooltip: 'Bundle checklist',

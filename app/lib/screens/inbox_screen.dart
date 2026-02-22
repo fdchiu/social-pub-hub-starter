@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
+import '../widgets/hub_app_bar.dart';
 
 class InboxScreen extends ConsumerStatefulWidget {
   const InboxScreen({super.key});
@@ -19,8 +20,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final sourceItemsAsync = ref.watch(sourceItemsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inbox'),
+      appBar: buildHubAppBar(
+        context: context,
+        title: 'Inbox',
         actions: [
           IconButton(
             onPressed: _createDraftFromSelectedStub,

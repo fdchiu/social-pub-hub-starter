@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
+import '../widgets/hub_app_bar.dart';
 
 class SyncConflictsScreen extends ConsumerWidget {
   const SyncConflictsScreen({super.key});
@@ -13,7 +14,10 @@ class SyncConflictsScreen extends ConsumerWidget {
     final conflictsAsync = ref.watch(openSyncConflictsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Sync conflicts')),
+      appBar: buildHubAppBar(
+        context: context,
+        title: 'Sync conflicts',
+      ),
       body: conflictsAsync.when(
         data: (conflicts) {
           if (conflicts.isEmpty) {

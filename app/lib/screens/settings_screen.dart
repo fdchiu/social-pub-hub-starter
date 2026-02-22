@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../data/sync/sync_service.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
+import '../widgets/hub_app_bar.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -29,7 +30,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: buildHubAppBar(
+        context: context,
+        title: 'Settings',
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

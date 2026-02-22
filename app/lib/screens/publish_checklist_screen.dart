@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
+import '../widgets/hub_app_bar.dart';
 
 class PublishChecklistScreen extends ConsumerWidget {
   const PublishChecklistScreen({super.key});
@@ -10,7 +11,10 @@ class PublishChecklistScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Publish checklist')),
+      appBar: buildHubAppBar(
+        context: context,
+        title: 'Publish checklist',
+      ),
       body: FutureBuilder<Draft?>(
         future: ref.read(draftRepoProvider).getLatestDraft(),
         builder: (context, snapshot) {

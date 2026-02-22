@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/repo_providers.dart';
+import '../widgets/hub_app_bar.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key});
@@ -12,7 +13,10 @@ class AnalyticsScreen extends ConsumerWidget {
     final queueAsync = ref.watch(scheduledPostsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Analytics')),
+      appBar: buildHubAppBar(
+        context: context,
+        title: 'Analytics',
+      ),
       body: logsAsync.when(
         data: (logs) => queueAsync.when(
           data: (queueItems) {

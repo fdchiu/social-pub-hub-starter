@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/repo_providers.dart';
+import '../widgets/hub_app_bar.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({
@@ -36,7 +37,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final logsAsync = ref.watch(publishLogsStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('History')),
+      appBar: buildHubAppBar(
+        context: context,
+        title: 'History',
+      ),
       body: logsAsync.when(
         data: (logs) {
           if (logs.isEmpty) {

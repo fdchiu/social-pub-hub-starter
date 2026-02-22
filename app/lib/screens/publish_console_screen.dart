@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
+import '../widgets/hub_app_bar.dart';
 
 class PublishConsoleScreen extends ConsumerStatefulWidget {
   const PublishConsoleScreen({super.key, this.initialBundleId});
@@ -36,7 +37,10 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
     final bundlesAsync = ref.watch(bundlesStreamProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Publish Console')),
+      appBar: buildHubAppBar(
+        context: context,
+        title: 'Publish Console',
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
