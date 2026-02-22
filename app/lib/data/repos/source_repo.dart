@@ -14,6 +14,14 @@ class SourceRepo {
     return query.watch();
   }
 
+  Future<SourceItem?> getLatestUnbundledSource() {
+    final query = _db.select(_db.sourceItems)
+      ..where((t) => t.bundleId.isNull())
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+      ..limit(1);
+    return query.getSingleOrNull();
+  }
+
   Future<String> createSourceItem({
     required String type,
     String? url,

@@ -14,6 +14,11 @@ class BundleRepo {
     return query.watch();
   }
 
+  Future<Bundle?> getBundleById(String bundleId) {
+    final query = _db.select(_db.bundles)..where((t) => t.id.equals(bundleId));
+    return query.getSingleOrNull();
+  }
+
   Future<String> createBundle({
     required String name,
     required String anchorType,
@@ -37,5 +42,26 @@ class BundleRepo {
           ),
         );
     return id;
+  }
+
+  Future<void> addRelatedVariantIds({
+    required String bundleId,
+    required List<String> variantIds,
+  }) async {
+    if (variantIds.isEmpty) {
+      return;
+    }
+    final bundle = await getBundleById(bundleId);
+    if (bundle == null) {
+      return;
+    }
+    final merged =
+        <String>{...bundle.relatedVariantIds, ...variantIds}.toList();
+    await (_db.update(_db.bundles)..where((t) => t.id.equals(bundleId))).write(
+      BundlesCompanion(
+        relatedVariantIds: Value(merged),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
   }
 }

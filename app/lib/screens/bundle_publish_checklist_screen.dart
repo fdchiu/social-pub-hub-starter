@@ -8,6 +8,14 @@ import '../providers/repo_providers.dart';
 class BundlePublishChecklistScreen extends ConsumerWidget {
   const BundlePublishChecklistScreen({super.key});
 
+  static const List<String> _targetPlatforms = <String>[
+    'x',
+    'linkedin',
+    'reddit',
+    'facebook',
+    'youtube',
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bundlesAsync = ref.watch(bundlesStreamProvider);
@@ -54,7 +62,19 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
                             variantById: variantById,
                             logs: logs,
                           );
-                          return _BundleChecklistCard(report: report);
+                          return _BundleChecklistCard(
+                            report: report,
+                            onAttachSource: () => _attachLatestSourceToBundle(
+                              context: context,
+                              ref: ref,
+                              report: report,
+                            ),
+                            onBackfillVariants: () => _backfillBundleVariants(
+                              context: context,
+                              ref: ref,
+                              report: report,
+                            ),
+                          );
                         },
                       );
                     },
@@ -130,6 +150,11 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
         postedLogs.map((row) => row.variantId).whereType<String>().toSet();
 
     final uniquePlatforms = resolvedVariants.map((row) => row.platform).toSet();
+    final missingPlatforms = _targetPlatforms
+        .where((platform) => !uniquePlatforms.contains(platform))
+        .toList(growable: false);
+    final referenceDraftId =
+        resolvedVariants.isEmpty ? null : resolvedVariants.first.draftId;
 
     final checks = <_ChecklistLine>[
       _ChecklistLine(
@@ -177,14 +202,125 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
       variantCount: relatedVariantIds.length,
       postedCount: postedVariantIds.length,
       missingVariantCount: missingVariantIds.length,
+      missingPlatforms: missingPlatforms,
+      referenceDraftId: referenceDraftId,
     );
+  }
+
+  Future<void> _attachLatestSourceToBundle({
+    required BuildContext context,
+    required WidgetRef ref,
+    required _BundleReport report,
+  }) async {
+    final sourceRepo = ref.read(sourceRepoProvider);
+    final existing = await sourceRepo.getLatestUnbundledSource();
+    if (existing != null) {
+      await sourceRepo.assignBundle(
+        sourceId: existing.id,
+        bundleId: report.bundle.id,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Attached source ${existing.id.substring(0, 8)}')),
+        );
+      }
+      return;
+    }
+
+    final createdId = await sourceRepo.createSourceItem(
+      type: 'note',
+      userNote: 'Seed source for bundle: ${report.bundle.name}',
+      tags: const <String>['bundle', 'seed'],
+      bundleId: report.bundle.id,
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Seed source ${createdId.substring(0, 8)} created')),
+      );
+    }
+  }
+
+  Future<void> _backfillBundleVariants({
+    required BuildContext context,
+    required WidgetRef ref,
+    required _BundleReport report,
+  }) async {
+    if (report.missingPlatforms.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No missing platforms to backfill')),
+        );
+      }
+      return;
+    }
+
+    var draftId = report.referenceDraftId;
+    if (draftId == null || draftId.isEmpty) {
+      final latestDraft = await ref.read(draftRepoProvider).getLatestDraft();
+      draftId = latestDraft?.id;
+    }
+    if (draftId == null || draftId.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No draft found to backfill variants')),
+        );
+      }
+      return;
+    }
+
+    final variantRepo = ref.read(variantRepoProvider);
+    final createdIds = <String>[];
+    for (final platform in report.missingPlatforms) {
+      final variantId = await variantRepo.createVariant(
+        draftId: draftId,
+        platform: platform,
+        body: _variantTemplate(platform),
+      );
+      createdIds.add(variantId);
+    }
+    await ref.read(bundleRepoProvider).addRelatedVariantIds(
+          bundleId: report.bundle.id,
+          variantIds: createdIds,
+        );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backfilled ${createdIds.length} variants')),
+      );
+    }
+  }
+
+  String _variantTemplate(String platform) {
+    if (platform == 'x') {
+      return 'Quick build update:\n- What changed\n- Tradeoff\nWhat would you test next?';
+    }
+    if (platform == 'linkedin') {
+      return 'Build note:\n• Context\n• Decision\n• Result to watch\nHow would you approach this?';
+    }
+    if (platform == 'reddit') {
+      return 'Context + tradeoff:\nI tried a lightweight path and got mixed results.\nWhat would you change first?';
+    }
+    if (platform == 'facebook') {
+      return 'Sharing a practical update from this build cycle.\nWhat do you think?';
+    }
+    if (platform == 'youtube') {
+      return 'Title: Practical breakdown\nDescription:\n- Context\n- Tradeoff\n- Next step\nPinned comment: What should I test next?';
+    }
+    return 'Platform variant draft';
   }
 }
 
 class _BundleChecklistCard extends StatelessWidget {
-  const _BundleChecklistCard({required this.report});
+  const _BundleChecklistCard({
+    required this.report,
+    required this.onAttachSource,
+    required this.onBackfillVariants,
+  });
 
   final _BundleReport report;
+  final Future<void> Function() onAttachSource;
+  final Future<void> Function() onBackfillVariants;
 
   @override
   Widget build(BuildContext context) {
@@ -218,6 +354,24 @@ class _BundleChecklistCard extends StatelessWidget {
                 'Missing local variants: ${report.missingVariantCount}',
                 style: const TextStyle(color: Colors.orange),
               ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (report.sourceCount == 0)
+                  FilledButton.tonal(
+                    onPressed: onAttachSource,
+                    child: const Text('Attach latest source'),
+                  ),
+                if (report.missingPlatforms.isNotEmpty)
+                  FilledButton.tonal(
+                    onPressed: onBackfillVariants,
+                    child: Text(
+                        'Backfill ${report.missingPlatforms.length} platforms'),
+                  ),
+              ],
+            ),
             const SizedBox(height: 10),
             Text(
               'Readiness ${report.passedChecks}/${report.totalChecks}',
@@ -261,6 +415,8 @@ class _BundleReport {
     required this.variantCount,
     required this.postedCount,
     required this.missingVariantCount,
+    required this.missingPlatforms,
+    required this.referenceDraftId,
   });
 
   final Bundle bundle;
@@ -271,6 +427,8 @@ class _BundleReport {
   final int variantCount;
   final int postedCount;
   final int missingVariantCount;
+  final List<String> missingPlatforms;
+  final String? referenceDraftId;
 }
 
 class _ChecklistLine {
