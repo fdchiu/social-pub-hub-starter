@@ -103,6 +103,11 @@ Takeaway:
                 : const Icon(Icons.auto_awesome),
           ),
           IconButton(
+            onPressed: _draftId == null ? null : _exportVariantsCsv,
+            tooltip: 'Export variants CSV',
+            icon: const Icon(Icons.download_outlined),
+          ),
+          IconButton(
             onPressed: _draftId == null ? null : _openPublishChecklist,
             tooltip: 'Open publish checklist',
             icon: const Icon(Icons.checklist_outlined),
@@ -248,6 +253,29 @@ Takeaway:
                                             },
                                           );
                                         },
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                              'Visible variants: ${filtered.length}'),
+                                          const Spacer(),
+                                          FilledButton.tonal(
+                                            onPressed: filtered.isEmpty
+                                                ? null
+                                                : () =>
+                                                    _humanizeVisibleVariants(
+                                                      filtered,
+                                                    ),
+                                            child:
+                                                const Text('Humanize visible'),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     const SizedBox(height: 8),
@@ -596,6 +624,13 @@ Takeaway:
   }
 
   Future<void> _humanizeVariant(Variant variant) async {
+    await _humanizeVariantInternal(variant, showSuccessSnackBar: true);
+  }
+
+  Future<bool> _humanizeVariantInternal(
+    Variant variant, {
+    required bool showSuccessSnackBar,
+  }) async {
     setState(() {
       _humanizingVariantIds.add(variant.id);
     });
@@ -629,20 +664,25 @@ Takeaway:
           );
 
       if (!mounted) {
-        return;
+        return true;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Humanized ${variant.platform.toUpperCase()} variant'),
-        ),
-      );
+      if (showSuccessSnackBar) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Humanized ${variant.platform.toUpperCase()} variant'),
+          ),
+        );
+      }
+      return true;
     } catch (e) {
       if (!mounted) {
-        return;
+        return false;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Humanize failed: $e')),
       );
+      return false;
     } finally {
       if (mounted) {
         setState(() {
@@ -650,6 +690,40 @@ Takeaway:
         });
       }
     }
+  }
+
+  Future<void> _humanizeVisibleVariants(List<Variant> variants) async {
+    final toHumanize = variants
+        .where((variant) => !_humanizingVariantIds.contains(variant.id))
+        .toList(growable: false);
+    if (toHumanize.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No visible variants available to humanize')),
+      );
+      return;
+    }
+
+    var successCount = 0;
+    for (final variant in toHumanize) {
+      final ok =
+          await _humanizeVariantInternal(variant, showSuccessSnackBar: false);
+      if (ok) {
+        successCount += 1;
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Humanized $successCount/${toHumanize.length} visible variants'),
+      ),
+    );
   }
 
   Future<void> _openComposerForVariant({
@@ -752,5 +826,47 @@ Takeaway:
     }
     final encoded = Uri.encodeQueryComponent(draftId);
     context.go('/publish-checklist?draftId=$encoded');
+  }
+
+  Future<void> _exportVariantsCsv() async {
+    final draftId = _draftId;
+    if (draftId == null) {
+      return;
+    }
+    final variants = ref.read(draftVariantsStreamProvider(draftId)).valueOrNull;
+    if (variants == null || variants.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No variants to export')),
+      );
+      return;
+    }
+    final lines = <String>[
+      'id,draft_id,platform,body,created_at,updated_at',
+      ...variants.map((variant) {
+        return [
+          _csv(variant.id),
+          _csv(variant.draftId),
+          _csv(variant.platform),
+          _csv(variant.body),
+          _csv(variant.createdAt.toUtc().toIso8601String()),
+          _csv(variant.updatedAt.toUtc().toIso8601String()),
+        ].join(',');
+      }),
+    ];
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied ${variants.length} variants as CSV')),
+    );
+  }
+
+  String _csv(String value) {
+    final escaped = value.replaceAll('"', '""');
+    return '"$escaped"';
   }
 }
