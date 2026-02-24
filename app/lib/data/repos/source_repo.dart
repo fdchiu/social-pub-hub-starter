@@ -87,4 +87,37 @@ class SourceRepo {
       ),
     );
   }
+
+  Future<void> updateSourceItem({
+    required String sourceId,
+    required String type,
+    String? url,
+    String? title,
+    String? userNote,
+    List<String>? tags,
+  }) async {
+    final normalizedTags = tags
+        ?.map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList(growable: false);
+    await (_db.update(_db.sourceItems)..where((t) => t.id.equals(sourceId)))
+        .write(
+      SourceItemsCompanion(
+        type: Value(type),
+        url: Value(url?.trim().isEmpty ?? true ? null : url?.trim()),
+        title: Value(title?.trim().isEmpty ?? true ? null : title?.trim()),
+        userNote:
+            Value(userNote?.trim().isEmpty ?? true ? null : userNote?.trim()),
+        tags: normalizedTags == null
+            ? const Value.absent()
+            : Value(normalizedTags),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
+
+  Future<void> deleteSourceItemById(String sourceId) async {
+    await (_db.delete(_db.sourceItems)..where((t) => t.id.equals(sourceId)))
+        .go();
+  }
 }

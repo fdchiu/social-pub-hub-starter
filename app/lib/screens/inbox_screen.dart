@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -14,6 +15,12 @@ class InboxScreen extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<InboxScreen> createState() => _InboxScreenState();
+}
+
+enum _InboxAction {
+  copyUrl,
+  edit,
+  delete,
 }
 
 class _InboxScreenState extends ConsumerState<InboxScreen> {
@@ -176,6 +183,33 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                             },
                             title: Text(item.title ?? item.type.toUpperCase()),
                             subtitle: Text(secondary),
+                            secondary: PopupMenuButton<_InboxAction>(
+                              onSelected: (action) async {
+                                if (action == _InboxAction.copyUrl) {
+                                  await _copySourceUrl(item);
+                                  return;
+                                }
+                                if (action == _InboxAction.edit) {
+                                  await _editSource(item);
+                                  return;
+                                }
+                                await _deleteSource(item);
+                              },
+                              itemBuilder: (context) => const [
+                                PopupMenuItem(
+                                  value: _InboxAction.copyUrl,
+                                  child: Text('Copy URL'),
+                                ),
+                                PopupMenuItem(
+                                  value: _InboxAction.edit,
+                                  child: Text('Edit source'),
+                                ),
+                                PopupMenuItem(
+                                  value: _InboxAction.delete,
+                                  child: Text('Delete source'),
+                                ),
+                              ],
+                            ),
                             controlAffinity: ListTileControlAffinity.leading,
                             isThreeLine: secondary.length > 80,
                           );
@@ -249,6 +283,176 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         }
       }
     });
+  }
+
+  Future<void> _copySourceUrl(SourceItem item) async {
+    final url = item.url?.trim();
+    if (url == null || url.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No URL on this source')),
+      );
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('URL copied')),
+    );
+  }
+
+  Future<void> _editSource(SourceItem item) async {
+    final typeController = TextEditingController(text: item.type);
+    final titleController = TextEditingController(text: item.title ?? '');
+    final urlController = TextEditingController(text: item.url ?? '');
+    final noteController = TextEditingController(text: item.userNote ?? '');
+    final tagsController = TextEditingController(text: item.tags.join(', '));
+
+    final shouldSave = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Edit source ${item.id.substring(0, 8)}'),
+            content: SizedBox(
+              width: 460,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: typeController,
+                      decoration: const InputDecoration(labelText: 'Type'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Title'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: urlController,
+                      decoration: const InputDecoration(labelText: 'URL'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteController,
+                      minLines: 2,
+                      maxLines: 5,
+                      decoration: const InputDecoration(labelText: 'Note'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: tagsController,
+                      decoration: const InputDecoration(
+                        labelText: 'Tags',
+                        hintText: 'ai, product, launch',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldSave) {
+      typeController.dispose();
+      titleController.dispose();
+      urlController.dispose();
+      noteController.dispose();
+      tagsController.dispose();
+      return;
+    }
+
+    final type = typeController.text.trim();
+    if (type.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Type is required')),
+        );
+      }
+      typeController.dispose();
+      titleController.dispose();
+      urlController.dispose();
+      noteController.dispose();
+      tagsController.dispose();
+      return;
+    }
+
+    final tags = tagsController.text
+        .split(',')
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList(growable: false);
+    await ref.read(sourceRepoProvider).updateSourceItem(
+          sourceId: item.id,
+          type: type,
+          title: titleController.text,
+          url: urlController.text,
+          userNote: noteController.text,
+          tags: tags,
+        );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Source updated')),
+      );
+    }
+
+    typeController.dispose();
+    titleController.dispose();
+    urlController.dispose();
+    noteController.dispose();
+    tagsController.dispose();
+  }
+
+  Future<void> _deleteSource(SourceItem item) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Delete source ${item.id.substring(0, 8)}?'),
+            content: const Text('This permanently removes the source item.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) {
+      return;
+    }
+
+    await ref.read(sourceRepoProvider).deleteSourceItemById(item.id);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedIds.remove(item.id);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Source deleted')),
+    );
   }
 
   Future<void> _showAddSourceDialog() async {
