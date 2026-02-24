@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -514,6 +515,17 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
           ),
         ),
         actions: [
+          FilledButton.tonal(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: text));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Wave preview copied')),
+                );
+              }
+            },
+            child: const Text('Copy'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Close'),
@@ -540,6 +552,17 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
           ),
         ),
         actions: [
+          FilledButton.tonal(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: text));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('YouTube metadata copied')),
+                );
+              }
+            },
+            child: const Text('Copy'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Close'),
