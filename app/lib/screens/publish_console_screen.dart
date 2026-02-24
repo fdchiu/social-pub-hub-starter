@@ -21,15 +21,26 @@ class PublishConsoleScreen extends ConsumerStatefulWidget {
 
 class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
   static const String _allBundlesValue = '__all_bundles__';
+  final TextEditingController _queryController = TextEditingController();
   String? _selectedBundleId;
+  String _statusFilter = 'all';
+  String _query = '';
 
   @override
   void initState() {
     super.initState();
+    _queryController.addListener(_onQueryChanged);
     final initialBundleId = widget.initialBundleId?.trim();
     if (initialBundleId != null && initialBundleId.isNotEmpty) {
       _selectedBundleId = initialBundleId;
     }
+  }
+
+  @override
+  void dispose() {
+    _queryController.removeListener(_onQueryChanged);
+    _queryController.dispose();
+    super.dispose();
   }
 
   @override
@@ -165,9 +176,23 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                   const SizedBox(height: 8),
                   logsAsync.when(
                     data: (logs) {
-                      final filteredLogs =
+                      final bundleFilteredLogs =
                           _filterLogsForBundle(logs, selectedBundle);
-                      if (filteredLogs.isEmpty) {
+                      final statusOptions = <String>{
+                        'all',
+                        ...bundleFilteredLogs
+                            .map((row) => row.status.toLowerCase()),
+                      }.toList(growable: false)
+                        ..sort();
+                      final selectedStatus =
+                          statusOptions.contains(_statusFilter)
+                              ? _statusFilter
+                              : 'all';
+                      final filteredLogs = _applyLogFilters(
+                        bundleFilteredLogs,
+                        selectedStatus: selectedStatus,
+                      );
+                      if (bundleFilteredLogs.isEmpty) {
                         if (selectedBundle == null) {
                           return const Text('No publish logs yet.');
                         }
@@ -177,68 +202,121 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                       final recent =
                           filteredLogs.take(20).toList(growable: false);
                       return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (final log in recent)
-                            Card(
-                              child: ListTile(
-                                title: Text(
-                                  '${log.platform.toUpperCase()} · ${log.status}',
-                                ),
-                                subtitle: Text(
-                                  'mode=${log.mode} · postedAt=${log.postedAt?.toLocal().toIso8601String() ?? '-'}',
-                                ),
-                                trailing: PopupMenuButton<_LogAction>(
-                                  onSelected: (action) {
-                                    if (action == _LogAction.openHistory &&
-                                        log.variantId != null &&
-                                        log.variantId!.isNotEmpty) {
-                                      final encoded = Uri.encodeQueryComponent(
-                                        log.variantId!,
-                                      );
-                                      context.go('/history?variantId=$encoded');
+                          TextField(
+                            controller: _queryController,
+                            decoration: InputDecoration(
+                              labelText: 'Search logs',
+                              hintText: 'platform, status, mode, variant id',
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: _query.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      onPressed: () => _queryController.clear(),
+                                      icon: const Icon(Icons.clear),
+                                    ),
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 42,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: statusOptions.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final status = statusOptions[index];
+                                return ChoiceChip(
+                                  label: Text(
+                                    status == 'all'
+                                        ? 'ALL'
+                                        : status.toUpperCase(),
+                                  ),
+                                  selected: selectedStatus == status,
+                                  onSelected: (selected) {
+                                    if (!selected) {
                                       return;
                                     }
-                                    if (action == _LogAction.openExternal &&
-                                        log.externalUrl != null &&
-                                        log.externalUrl!.trim().isNotEmpty) {
-                                      _openExternalUrl(log.externalUrl!);
-                                    }
+                                    setState(() {
+                                      _statusFilter = status;
+                                    });
                                   },
-                                  itemBuilder: (context) {
-                                    final items =
-                                        <PopupMenuEntry<_LogAction>>[];
-                                    if (log.variantId != null &&
-                                        log.variantId!.isNotEmpty) {
-                                      items.add(
-                                        const PopupMenuItem(
-                                          value: _LogAction.openHistory,
-                                          child: Text('Open in history'),
-                                        ),
-                                      );
-                                    }
-                                    if (log.externalUrl != null &&
-                                        log.externalUrl!.trim().isNotEmpty) {
-                                      items.add(
-                                        const PopupMenuItem(
-                                          value: _LogAction.openExternal,
-                                          child: Text('Open external URL'),
-                                        ),
-                                      );
-                                    }
-                                    if (items.isEmpty) {
-                                      items.add(
-                                        const PopupMenuItem(
-                                          enabled: false,
-                                          value: _LogAction.openHistory,
-                                          child: Text('No actions'),
-                                        ),
-                                      );
-                                    }
-                                    return items;
-                                  },
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text('Visible: ${filteredLogs.length}'),
+                          const SizedBox(height: 8),
+                          if (recent.isEmpty)
+                            const Text('No logs match current filters.')
+                          else
+                            for (final log in recent)
+                              Card(
+                                child: ListTile(
+                                  title: Text(
+                                    '${log.platform.toUpperCase()} · ${log.status}',
+                                  ),
+                                  subtitle: Text(
+                                    'mode=${log.mode} · postedAt=${log.postedAt?.toLocal().toIso8601String() ?? '-'}',
+                                  ),
+                                  trailing: PopupMenuButton<_LogAction>(
+                                    onSelected: (action) {
+                                      if (action == _LogAction.openHistory &&
+                                          log.variantId != null &&
+                                          log.variantId!.isNotEmpty) {
+                                        final encoded =
+                                            Uri.encodeQueryComponent(
+                                          log.variantId!,
+                                        );
+                                        context
+                                            .go('/history?variantId=$encoded');
+                                        return;
+                                      }
+                                      if (action == _LogAction.openExternal &&
+                                          log.externalUrl != null &&
+                                          log.externalUrl!.trim().isNotEmpty) {
+                                        _openExternalUrl(log.externalUrl!);
+                                      }
+                                    },
+                                    itemBuilder: (context) {
+                                      final items =
+                                          <PopupMenuEntry<_LogAction>>[];
+                                      if (log.variantId != null &&
+                                          log.variantId!.isNotEmpty) {
+                                        items.add(
+                                          const PopupMenuItem(
+                                            value: _LogAction.openHistory,
+                                            child: Text('Open in history'),
+                                          ),
+                                        );
+                                      }
+                                      if (log.externalUrl != null &&
+                                          log.externalUrl!.trim().isNotEmpty) {
+                                        items.add(
+                                          const PopupMenuItem(
+                                            value: _LogAction.openExternal,
+                                            child: Text('Open external URL'),
+                                          ),
+                                        );
+                                      }
+                                      if (items.isEmpty) {
+                                        items.add(
+                                          const PopupMenuItem(
+                                            enabled: false,
+                                            value: _LogAction.openHistory,
+                                            child: Text('No actions'),
+                                          ),
+                                        );
+                                      }
+                                      return items;
+                                    },
+                                  ),
                                 ),
                               ),
-                            ),
                         ],
                       );
                     },
@@ -285,6 +363,27 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
     }).toList(growable: false);
   }
 
+  List<PublishLog> _applyLogFilters(
+    List<PublishLog> logs, {
+    required String selectedStatus,
+  }) {
+    final needle = _query.toLowerCase();
+    return logs.where((row) {
+      final statusMatches =
+          selectedStatus == 'all' || row.status.toLowerCase() == selectedStatus;
+      final queryMatches = needle.isEmpty ||
+          [
+            row.platform,
+            row.status,
+            row.mode,
+            row.variantId ?? '',
+            row.externalUrl ?? '',
+            row.postedAt?.toIso8601String() ?? '',
+          ].join(' ').toLowerCase().contains(needle);
+      return statusMatches && queryMatches;
+    }).toList(growable: false);
+  }
+
   String _capabilityText(Map<String, dynamic> capabilities) {
     final enabled = <String>[];
     capabilities.forEach((key, value) {
@@ -314,7 +413,17 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
 
     final bundle =
         _findBundleById(bundles ?? const <Bundle>[], _selectedBundleId);
-    final filtered = _filterLogsForBundle(logs, bundle);
+    final bundleFiltered = _filterLogsForBundle(logs, bundle);
+    final statusOptions = <String>{
+      'all',
+      ...bundleFiltered.map((row) => row.status.toLowerCase()),
+    };
+    final selectedStatus =
+        statusOptions.contains(_statusFilter) ? _statusFilter : 'all';
+    final filtered = _applyLogFilters(
+      bundleFiltered,
+      selectedStatus: selectedStatus,
+    );
     if (filtered.isEmpty) {
       if (!mounted) {
         return;
@@ -373,6 +482,16 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
   String _csv(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
+  }
+
+  void _onQueryChanged() {
+    final next = _queryController.text.trim();
+    if (next == _query) {
+      return;
+    }
+    setState(() {
+      _query = next;
+    });
   }
 }
 
