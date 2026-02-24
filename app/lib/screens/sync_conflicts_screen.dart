@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_db.dart';
@@ -15,7 +18,22 @@ class SyncConflictsScreen extends ConsumerStatefulWidget {
 }
 
 class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
+  final TextEditingController _queryController = TextEditingController();
+  String _query = '';
   bool _resolvingAll = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController.addListener(_onQueryChanged);
+  }
+
+  @override
+  void dispose() {
+    _queryController.removeListener(_onQueryChanged);
+    _queryController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +61,11 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
             onPressed: _resolvingAll ? null : () => _resolveAll(useLocal: true),
             icon: const Icon(Icons.edit_note_outlined),
           ),
+          IconButton(
+            tooltip: 'Export conflicts JSON',
+            onPressed: _exportConflictsJson,
+            icon: const Icon(Icons.download_outlined),
+          ),
         ],
       ),
       body: conflictsAsync.when(
@@ -50,14 +73,50 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
           if (conflicts.isEmpty) {
             return const Center(child: Text('No open sync conflicts.'));
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: conflicts.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final conflict = conflicts[index];
-              return _ConflictCard(conflict: conflict);
-            },
+          final filtered = _filterConflicts(conflicts);
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                child: TextField(
+                  controller: _queryController,
+                  decoration: InputDecoration(
+                    labelText: 'Search conflicts',
+                    hintText: 'entity id/type/status/voice',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () => _queryController.clear(),
+                            icon: const Icon(Icons.clear),
+                          ),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child:
+                      Text('Visible: ${filtered.length}/${conflicts.length}'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: filtered.isEmpty
+                    ? const Center(child: Text('No conflicts match search.'))
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final conflict = filtered[index];
+                          return _ConflictCard(conflict: conflict);
+                        },
+                      ),
+              ),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -134,6 +193,86 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
         });
       }
     }
+  }
+
+  void _onQueryChanged() {
+    final next = _queryController.text.trim();
+    if (next == _query) {
+      return;
+    }
+    setState(() {
+      _query = next;
+    });
+  }
+
+  List<SyncConflict> _filterConflicts(List<SyncConflict> conflicts) {
+    final needle = _query.toLowerCase();
+    if (needle.isEmpty) {
+      return conflicts;
+    }
+    return conflicts.where((row) {
+      final haystack = [
+        row.entityType,
+        row.entityId,
+        row.localPayload['status']?.toString() ?? '',
+        row.remotePayload['status']?.toString() ?? '',
+        row.localPayload['voice_name']?.toString() ?? '',
+        row.remotePayload['voice_name']?.toString() ?? '',
+        row.detectedAt.toIso8601String(),
+      ].join(' ').toLowerCase();
+      return haystack.contains(needle);
+    }).toList(growable: false);
+  }
+
+  Future<void> _exportConflictsJson() async {
+    final conflicts = ref.read(openSyncConflictsStreamProvider).valueOrNull;
+    if (conflicts == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Conflicts still loading')),
+      );
+      return;
+    }
+    final filtered = _filterConflicts(conflicts);
+    if (filtered.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No conflicts to export')),
+      );
+      return;
+    }
+
+    final payload = {
+      'generated_at': DateTime.now().toUtc().toIso8601String(),
+      'count': filtered.length,
+      'conflicts': filtered
+          .map(
+            (row) => {
+              'id': row.id,
+              'entity_type': row.entityType,
+              'entity_id': row.entityId,
+              'detected_at': row.detectedAt.toUtc().toIso8601String(),
+              'resolved_at': row.resolvedAt?.toUtc().toIso8601String(),
+              'local_payload': row.localPayload,
+              'remote_payload': row.remotePayload,
+            },
+          )
+          .toList(growable: false),
+    };
+
+    await Clipboard.setData(
+      ClipboardData(text: const JsonEncoder.withIndent('  ').convert(payload)),
+    );
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied ${filtered.length} conflicts as JSON')),
+    );
   }
 }
 
