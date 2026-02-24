@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
 
@@ -19,6 +21,8 @@ class HistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
+  final TextEditingController _queryController = TextEditingController();
+  String _query = '';
   String _platformFilter = 'all';
   String _statusFilter = 'all';
   String? _variantFilterId;
@@ -26,10 +30,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _queryController.addListener(_onQueryChanged);
     final initialVariantId = widget.initialVariantId?.trim();
     if (initialVariantId != null && initialVariantId.isNotEmpty) {
       _variantFilterId = initialVariantId;
     }
+  }
+
+  @override
+  void dispose() {
+    _queryController.removeListener(_onQueryChanged);
+    _queryController.dispose();
+    super.dispose();
   }
 
   @override
@@ -40,6 +52,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       appBar: buildHubAppBar(
         context: context,
         title: 'History',
+        actions: [
+          IconButton(
+            tooltip: 'Export filtered CSV',
+            onPressed: _exportFilteredCsv,
+            icon: const Icon(Icons.download_outlined),
+          ),
+        ],
       ),
       body: logsAsync.when(
         data: (logs) {
@@ -57,15 +76,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           }.toList()
             ..sort();
 
-          final filtered = logs.where((row) {
-            final platformMatches = _platformFilter == 'all' ||
-                row.platform.toLowerCase() == _platformFilter;
-            final statusMatches = _statusFilter == 'all' ||
-                row.status.toLowerCase() == _statusFilter;
-            final variantMatches =
-                _variantFilterId == null || row.variantId == _variantFilterId;
-            return platformMatches && statusMatches && variantMatches;
-          }).toList();
+          final filtered = _filterLogs(logs);
 
           String labelFor(String value) {
             if (value == 'all') {
@@ -78,6 +89,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: TextField(
+                  controller: _queryController,
+                  decoration: InputDecoration(
+                    labelText: 'Search logs',
+                    hintText: 'platform, status, variant id, url',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () => _queryController.clear(),
+                            icon: const Icon(Icons.clear),
+                          ),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Row(
                   children: [
                     Expanded(
@@ -286,6 +315,92 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       return id;
     }
     return id.substring(0, 8);
+  }
+
+  void _onQueryChanged() {
+    final next = _queryController.text.trim();
+    if (next == _query) {
+      return;
+    }
+    setState(() {
+      _query = next;
+    });
+  }
+
+  List<PublishLog> _filterLogs(List<PublishLog> logs) {
+    final needle = _query.toLowerCase();
+    return logs.where((row) {
+      final platformMatches = _platformFilter == 'all' ||
+          row.platform.toLowerCase() == _platformFilter;
+      final statusMatches =
+          _statusFilter == 'all' || row.status.toLowerCase() == _statusFilter;
+      final variantMatches =
+          _variantFilterId == null || row.variantId == _variantFilterId;
+      final queryMatches = needle.isEmpty ||
+          [
+            row.platform,
+            row.status,
+            row.mode,
+            row.variantId ?? '',
+            row.externalUrl ?? '',
+            row.postedAt?.toIso8601String() ?? '',
+          ].join(' ').toLowerCase().contains(needle);
+      return platformMatches && statusMatches && variantMatches && queryMatches;
+    }).toList(growable: false);
+  }
+
+  Future<void> _exportFilteredCsv() async {
+    final logs = ref.read(publishLogsStreamProvider).valueOrNull;
+    if (logs == null || logs.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No logs to export')),
+      );
+      return;
+    }
+
+    final filtered = _filterLogs(logs);
+    if (filtered.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No filtered logs to export')),
+      );
+      return;
+    }
+
+    final lines = <String>[
+      'id,platform,status,mode,variant_id,external_url,posted_at,created_at',
+      ...filtered.map((row) {
+        return [
+          _csv(row.id),
+          _csv(row.platform),
+          _csv(row.status),
+          _csv(row.mode),
+          _csv(row.variantId ?? ''),
+          _csv(row.externalUrl ?? ''),
+          _csv(row.postedAt?.toUtc().toIso8601String() ?? ''),
+          _csv(row.createdAt.toUtc().toIso8601String()),
+        ].join(',');
+      }),
+    ];
+    final csv = lines.join('\n');
+    await Clipboard.setData(ClipboardData(text: csv));
+
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied ${filtered.length} logs as CSV')),
+    );
+  }
+
+  String _csv(String value) {
+    final escaped = value.replaceAll('"', '""');
+    return '"$escaped"';
   }
 }
 
