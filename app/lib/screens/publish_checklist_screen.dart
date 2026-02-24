@@ -141,6 +141,14 @@ class _PublishChecklistScreenState
                         ),
                         child: const Text('Copy report'),
                       ),
+                      FilledButton.tonal(
+                        onPressed: () => _copyRevisionPrompt(
+                          draft: selectedDraft,
+                          checks: checks,
+                          styleProfile: styleProfile,
+                        ),
+                        child: const Text('Copy revision prompt'),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -359,6 +367,69 @@ class _PublishChecklistScreenState
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Checklist report copied')),
     );
+  }
+
+  Future<void> _copyRevisionPrompt({
+    required Draft draft,
+    required List<_ChecklistResult> checks,
+    required StyleProfile? styleProfile,
+  }) async {
+    final failedChecks =
+        checks.where((row) => !row.passed).toList(growable: false);
+    final banned = styleProfile?.bannedPhrases ?? const <String>[];
+    final bannedText = banned.isEmpty ? '(none)' : banned.join(', ');
+    final intent = draft.intent?.trim().isEmpty ?? true ? 'n/a' : draft.intent!;
+    final audience =
+        draft.audience?.trim().isEmpty ?? true ? 'n/a' : draft.audience!;
+    final voice = styleProfile?.voiceName.trim().isEmpty ?? true
+        ? 'default'
+        : styleProfile!.voiceName;
+
+    final prompt = StringBuffer()
+      ..writeln('Rewrite this draft to pass a publish checklist.')
+      ..writeln('Keep claims accurate. Keep original meaning.')
+      ..writeln('style_voice=$voice')
+      ..writeln('intent=$intent audience=$audience')
+      ..writeln('banned_phrases=$bannedText')
+      ..writeln()
+      ..writeln('failed_checks=${failedChecks.length}');
+    if (failedChecks.isEmpty) {
+      prompt.writeln('- No failed checks. Tighten language only.');
+    } else {
+      for (final row in failedChecks) {
+        prompt.writeln('- ${row.label}: ${row.detail}');
+      }
+    }
+    prompt
+      ..writeln()
+      ..writeln('return_format:')
+      ..writeln('1) revised_markdown')
+      ..writeln('2) checklist_fix_summary (one line per failed check)')
+      ..writeln()
+      ..writeln('draft_markdown:')
+      ..writeln(_clipDraft(draft.canonicalMarkdown));
+
+    await Clipboard.setData(ClipboardData(text: prompt.toString()));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          failedChecks.isEmpty
+              ? 'Revision prompt copied (no failed checks)'
+              : 'Revision prompt copied (${failedChecks.length} failed checks)',
+        ),
+      ),
+    );
+  }
+
+  String _clipDraft(String text) {
+    final trimmed = text.trim();
+    if (trimmed.length <= 4000) {
+      return trimmed;
+    }
+    return '${trimmed.substring(0, 4000)}\n...[truncated]';
   }
 }
 
