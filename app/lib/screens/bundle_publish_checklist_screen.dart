@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -30,6 +31,11 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
         title: 'Bundle Publish Checklist',
         actions: [
           IconButton(
+            tooltip: 'Export checklist CSV',
+            onPressed: () => _exportChecklistCsv(context, ref),
+            icon: const Icon(Icons.download_outlined),
+          ),
+          IconButton(
             tooltip: 'Open bundles',
             onPressed: () => context.go('/bundles'),
             icon: const Icon(Icons.view_kanban_outlined),
@@ -52,44 +58,94 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
                       final variantById = <String, Variant>{
                         for (final row in variants) row.id: row,
                       };
-                      return ListView.separated(
+                      final reports = bundles
+                          .map(
+                            (bundle) => _buildReport(
+                              bundle: bundle,
+                              sources: sources,
+                              variantById: variantById,
+                              logs: logs,
+                            ),
+                          )
+                          .toList(growable: false);
+                      reports.sort((a, b) {
+                        final aProgress = a.totalChecks == 0
+                            ? 0.0
+                            : a.passedChecks / a.totalChecks;
+                        final bProgress = b.totalChecks == 0
+                            ? 0.0
+                            : b.passedChecks / b.totalChecks;
+                        return aProgress.compareTo(bProgress);
+                      });
+
+                      final readyCount = reports
+                          .where((row) => row.passedChecks >= row.totalChecks)
+                          .length;
+                      final needsWorkCount = reports.length - readyCount;
+                      final totalMissingPlatforms = reports.fold<int>(
+                        0,
+                        (sum, row) => sum + row.missingPlatforms.length,
+                      );
+                      final totalMissingVariants = reports.fold<int>(
+                        0,
+                        (sum, row) => sum + row.missingVariantCount,
+                      );
+
+                      return ListView(
                         padding: const EdgeInsets.all(16),
-                        itemCount: bundles.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final bundle = bundles[index];
-                          final report = _buildReport(
-                            bundle: bundle,
-                            sources: sources,
-                            variantById: variantById,
-                            logs: logs,
-                          );
-                          return _BundleChecklistCard(
-                            report: report,
-                            onGenerateCanonicalDraft: () =>
-                                _generateCanonicalDraftFromSources(
-                              context: context,
-                              ref: ref,
-                              report: report,
+                        children: [
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Wrap(
+                                spacing: 12,
+                                runSpacing: 8,
+                                children: [
+                                  Text('Bundles: ${reports.length}'),
+                                  Text('Ready: $readyCount'),
+                                  Text('Needs work: $needsWorkCount'),
+                                  Text(
+                                      'Missing platforms: $totalMissingPlatforms'),
+                                  Text(
+                                      'Missing variants: $totalMissingVariants'),
+                                ],
+                              ),
                             ),
-                            onAttachSource: () => _attachLatestSourceToBundle(
-                              context: context,
-                              ref: ref,
-                              report: report,
+                          ),
+                          const SizedBox(height: 12),
+                          ...reports.map(
+                            (report) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _BundleChecklistCard(
+                                report: report,
+                                onGenerateCanonicalDraft: () =>
+                                    _generateCanonicalDraftFromSources(
+                                  context: context,
+                                  ref: ref,
+                                  report: report,
+                                ),
+                                onAttachSource: () =>
+                                    _attachLatestSourceToBundle(
+                                  context: context,
+                                  ref: ref,
+                                  report: report,
+                                ),
+                                onBackfillVariants: () =>
+                                    _backfillBundleVariants(
+                                  context: context,
+                                  ref: ref,
+                                  report: report,
+                                ),
+                                onCleanMissingVariants: () =>
+                                    _cleanMissingVariantRefs(
+                                  context: context,
+                                  ref: ref,
+                                  report: report,
+                                ),
+                              ),
                             ),
-                            onBackfillVariants: () => _backfillBundleVariants(
-                              context: context,
-                              ref: ref,
-                              report: report,
-                            ),
-                            onCleanMissingVariants: () =>
-                                _cleanMissingVariantRefs(
-                              context: context,
-                              ref: ref,
-                              report: report,
-                            ),
-                          );
-                        },
+                          ),
+                        ],
                       );
                     },
                     loading: () =>
@@ -421,6 +477,82 @@ Draft shape:
 
 Takeaway: Start with a concrete step and ask for feedback.
 ''';
+  }
+
+  Future<void> _exportChecklistCsv(BuildContext context, WidgetRef ref) async {
+    final bundles = ref.read(bundlesStreamProvider).valueOrNull;
+    final sources = ref.read(sourceItemsStreamProvider).valueOrNull;
+    final variants = ref.read(allVariantsStreamProvider).valueOrNull;
+    final logs = ref.read(publishLogsStreamProvider).valueOrNull;
+
+    if (bundles == null ||
+        sources == null ||
+        variants == null ||
+        logs == null) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Checklist still loading')),
+      );
+      return;
+    }
+
+    final variantById = {for (final row in variants) row.id: row};
+    final reports = bundles
+        .map(
+          (bundle) => _buildReport(
+            bundle: bundle,
+            sources: sources,
+            variantById: variantById,
+            logs: logs,
+          ),
+        )
+        .toList(growable: false);
+    if (reports.isEmpty) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No bundles to export')),
+      );
+      return;
+    }
+
+    final lines = <String>[
+      'bundle_id,bundle_name,readiness_score,passed_checks,total_checks,source_count,variant_count,posted_count,missing_variant_count,missing_platforms,reference_draft_id',
+      ...reports.map((report) {
+        final readiness = report.totalChecks == 0
+            ? 0.0
+            : report.passedChecks / report.totalChecks;
+        return [
+          _csv(report.bundle.id),
+          _csv(report.bundle.name),
+          _csv(readiness.toStringAsFixed(3)),
+          _csv('${report.passedChecks}'),
+          _csv('${report.totalChecks}'),
+          _csv('${report.sourceCount}'),
+          _csv('${report.variantCount}'),
+          _csv('${report.postedCount}'),
+          _csv('${report.missingVariantCount}'),
+          _csv(report.missingPlatforms.join('|')),
+          _csv(report.referenceDraftId ?? ''),
+        ].join(',');
+      }),
+    ];
+
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied ${reports.length} bundle checklist rows')),
+    );
+  }
+
+  String _csv(String value) {
+    final escaped = value.replaceAll('"', '""');
+    return '"$escaped"';
   }
 }
 
