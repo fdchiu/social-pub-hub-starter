@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
@@ -134,6 +135,27 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     _MetricCard(
                       label: 'Overdue queue',
                       value: '$overdueCount',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.tonal(
+                      onPressed: () => context.go('/queue'),
+                      child: const Text('Open queue'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: () => context.go('/history'),
+                      child: const Text('Open history'),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: _window == _AnalyticsWindow.all
+                          ? null
+                          : () => _copyWindowHint(_window),
+                      child: const Text('Copy window hint'),
                     ),
                   ],
                 ),
@@ -337,6 +359,24 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   String _csv(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
+  }
+
+  Future<void> _copyWindowHint(_AnalyticsWindow window) async {
+    final now = DateTime.now().toUtc();
+    final since = _sinceForWindow(now, window);
+    if (since == null) {
+      return;
+    }
+    final text = 'Window filter: ${_windowLabel(window)}\n'
+        'Since UTC: ${since.toIso8601String()}\n'
+        'Use this when reviewing history/exports.';
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Window hint copied')),
+    );
   }
 }
 
