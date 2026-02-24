@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -119,12 +122,26 @@ class _PublishChecklistScreenState
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
                   const SizedBox(height: 12),
-                  FilledButton.tonal(
-                    onPressed: () {
-                      final encoded = Uri.encodeQueryComponent(draftId);
-                      context.go('/compose?draftId=$encoded');
-                    },
-                    child: const Text('Open in compose'),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.tonal(
+                        onPressed: () {
+                          final encoded = Uri.encodeQueryComponent(draftId);
+                          context.go('/compose?draftId=$encoded');
+                        },
+                        child: const Text('Open in compose'),
+                      ),
+                      FilledButton.tonal(
+                        onPressed: () => _copyChecklistReport(
+                          draft: selectedDraft,
+                          checks: checks,
+                          passedChecks: passedChecks,
+                        ),
+                        child: const Text('Copy report'),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 20),
                   Text(
@@ -289,6 +306,59 @@ class _PublishChecklistScreenState
             : 'Detected: ${foundBanned.join(', ')}',
       ),
     ];
+  }
+
+  Future<void> _copyChecklistReport({
+    required Draft draft,
+    required List<_ChecklistResult> checks,
+    required int passedChecks,
+  }) async {
+    final failedChecks =
+        checks.where((row) => !row.passed).toList(growable: false);
+    final payload = <String, dynamic>{
+      'draft_id': draft.id,
+      'generated_at': DateTime.now().toUtc().toIso8601String(),
+      'score': {'passed': passedChecks, 'total': checks.length},
+      'intent': draft.intent,
+      'audience': draft.audience,
+      'failed_checks': failedChecks
+          .map((row) => {'label': row.label, 'detail': row.detail})
+          .toList(growable: false),
+      'checks': checks
+          .map(
+            (row) => {
+              'label': row.label,
+              'passed': row.passed,
+              'detail': row.detail,
+            },
+          )
+          .toList(growable: false),
+    };
+
+    final summary = StringBuffer()
+      ..writeln('Publish Checklist Report')
+      ..writeln('draft=${draft.id}')
+      ..writeln('score=$passedChecks/${checks.length}')
+      ..writeln(
+          'intent=${draft.intent ?? 'n/a'} audience=${draft.audience ?? 'n/a'}')
+      ..writeln('generated_at=${DateTime.now().toUtc().toIso8601String()}')
+      ..writeln()
+      ..writeln('failed_checks=${failedChecks.length}');
+    for (final row in failedChecks) {
+      summary.writeln('- ${row.label}: ${row.detail}');
+    }
+    summary
+      ..writeln()
+      ..writeln('json:')
+      ..writeln(const JsonEncoder.withIndent('  ').convert(payload));
+
+    await Clipboard.setData(ClipboardData(text: summary.toString()));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Checklist report copied')),
+    );
   }
 }
 
