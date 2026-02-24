@@ -25,6 +25,13 @@ class DraftRepo {
     return query.watchSingleOrNull();
   }
 
+  Stream<List<Draft>> watchRecentDrafts({int limit = 50}) {
+    final query = _db.select(_db.drafts)
+      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
+      ..limit(limit);
+    return query.watch();
+  }
+
   Future<String> createDraft({
     String? id,
     String canonicalMarkdown = '',

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
@@ -100,6 +101,11 @@ Takeaway:
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.auto_awesome),
+          ),
+          IconButton(
+            onPressed: _draftId == null ? null : _openPublishChecklist,
+            tooltip: 'Open publish checklist',
+            icon: const Icon(Icons.checklist_outlined),
           ),
           if (_saveError != null)
             Padding(
@@ -737,5 +743,14 @@ Takeaway:
     );
     controller.dispose();
     return value?.isEmpty ?? true ? null : value;
+  }
+
+  void _openPublishChecklist() {
+    final draftId = _draftId;
+    if (draftId == null || draftId.isEmpty) {
+      return;
+    }
+    final encoded = Uri.encodeQueryComponent(draftId);
+    context.go('/publish-checklist?draftId=$encoded');
   }
 }

@@ -60,6 +60,10 @@ final draftVariantsStreamProvider =
   return ref.watch(variantRepoProvider).watchVariantsForDraft(draftId);
 });
 
+final draftsStreamProvider = StreamProvider<List<Draft>>((ref) {
+  return ref.watch(draftRepoProvider).watchRecentDrafts();
+});
+
 final allVariantsStreamProvider = StreamProvider<List<Variant>>((ref) {
   return ref.watch(variantRepoProvider).watchAllVariants();
 });

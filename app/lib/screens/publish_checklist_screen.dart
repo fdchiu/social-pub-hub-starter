@@ -1,102 +1,218 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
 
-class PublishChecklistScreen extends ConsumerWidget {
-  const PublishChecklistScreen({super.key});
+class PublishChecklistScreen extends ConsumerStatefulWidget {
+  const PublishChecklistScreen({
+    super.key,
+    this.initialDraftId,
+  });
+
+  final String? initialDraftId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PublishChecklistScreen> createState() =>
+      _PublishChecklistScreenState();
+}
+
+class _PublishChecklistScreenState
+    extends ConsumerState<PublishChecklistScreen> {
+  String? _selectedDraftId;
+  late final Future<StyleProfile> _styleProfileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialDraftId = widget.initialDraftId?.trim();
+    if (initialDraftId != null && initialDraftId.isNotEmpty) {
+      _selectedDraftId = initialDraftId;
+    }
+    _styleProfileFuture =
+        ref.read(styleProfileRepoProvider).getOrCreateDefault();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final draftsAsync = ref.watch(draftsStreamProvider);
+
     return Scaffold(
       appBar: buildHubAppBar(
         context: context,
         title: 'Publish checklist',
       ),
-      body: FutureBuilder<Draft?>(
-        future: ref.read(draftRepoProvider).getLatestDraft(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-                child: Text('Failed loading draft: ${snapshot.error}'));
-          }
-
-          final draft = snapshot.data;
-          if (draft == null) {
+      body: draftsAsync.when(
+        data: (drafts) {
+          if (drafts.isEmpty) {
             return const Center(
                 child: Text('No draft found. Create one first.'));
           }
 
-          final checks = _evaluateDraft(draft.canonicalMarkdown);
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(
-                'Latest draft: ${draft.id.substring(0, 8)}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Intent: ${draft.intent ?? 'n/a'}  •  Audience: ${draft.audience ?? 'n/a'}',
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Human-sounding rubric',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              for (final check in checks)
-                Card(
-                  child: ListTile(
-                    leading: Icon(
-                      check.passed ? Icons.check_circle : Icons.error_outline,
-                      color: check.passed ? Colors.green : Colors.orange,
+          final selectedDraft = _resolveSelectedDraft(drafts);
+          final draftId = selectedDraft.id;
+          final selectedValue = _selectedDraftId == null
+              ? draftId
+              : (drafts.any((row) => row.id == _selectedDraftId)
+                  ? _selectedDraftId!
+                  : draftId);
+
+          return FutureBuilder<StyleProfile>(
+            future: _styleProfileFuture,
+            builder: (context, styleSnapshot) {
+              if (styleSnapshot.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (styleSnapshot.hasError) {
+                return Center(
+                  child: Text(
+                      'Failed loading style profile: ${styleSnapshot.error}'),
+                );
+              }
+              final styleProfile = styleSnapshot.data;
+              final checks = _evaluateDraft(
+                markdown: selectedDraft.canonicalMarkdown,
+                bannedPhrases: styleProfile?.bannedPhrases ?? const <String>[],
+              );
+              final passedChecks = checks.where((row) => row.passed).length;
+
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: selectedValue,
+                    decoration: const InputDecoration(
+                      labelText: 'Draft',
+                      border: OutlineInputBorder(),
                     ),
-                    title: Text(check.label),
-                    subtitle: Text(check.detail),
+                    items: drafts
+                        .map(
+                          (row) => DropdownMenuItem<String>(
+                            value: row.id,
+                            child: Text(_draftLabel(row)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() {
+                        _selectedDraftId = value;
+                      });
+                    },
                   ),
-                ),
-              const SizedBox(height: 20),
-              Text(
-                'Assisted publish flow',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              const Card(
-                child: ListTile(
-                  leading: Icon(Icons.copy),
-                  title: Text('Copy variant text'),
-                  subtitle: Text('Use Compose → variant actions'),
-                ),
-              ),
-              const Card(
-                child: ListTile(
-                  leading: Icon(Icons.open_in_new),
-                  title: Text('Open platform composer'),
-                  subtitle: Text('Use Compose → open composer button'),
-                ),
-              ),
-              const Card(
-                child: ListTile(
-                  leading: Icon(Icons.check_circle_outline),
-                  title: Text('Confirm posted and log URL'),
-                  subtitle: Text('Use Compose → confirm posted'),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 10),
+                  Text(
+                    'Draft: ${selectedDraft.id.substring(0, 8)}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Intent: ${selectedDraft.intent ?? 'n/a'}  •  Audience: ${selectedDraft.audience ?? 'n/a'}',
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Score: $passedChecks/${checks.length}',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.tonal(
+                    onPressed: () {
+                      final encoded = Uri.encodeQueryComponent(draftId);
+                      context.go('/compose?draftId=$encoded');
+                    },
+                    child: const Text('Open in compose'),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Human-sounding rubric',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  for (final check in checks)
+                    Card(
+                      child: ListTile(
+                        leading: Icon(
+                          check.passed
+                              ? Icons.check_circle
+                              : Icons.error_outline,
+                          color: check.passed ? Colors.green : Colors.orange,
+                        ),
+                        title: Text(check.label),
+                        subtitle: Text(check.detail),
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Assisted publish flow',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  const Card(
+                    child: ListTile(
+                      leading: Icon(Icons.copy),
+                      title: Text('Copy variant text'),
+                      subtitle: Text('Use Compose → variant actions'),
+                    ),
+                  ),
+                  const Card(
+                    child: ListTile(
+                      leading: Icon(Icons.open_in_new),
+                      title: Text('Open platform composer'),
+                      subtitle: Text('Use Compose → open composer button'),
+                    ),
+                  ),
+                  const Card(
+                    child: ListTile(
+                      leading: Icon(Icons.check_circle_outline),
+                      title: Text('Confirm posted and log URL'),
+                      subtitle: Text('Use Compose → confirm posted'),
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) =>
+            Center(child: Text('Failed loading drafts: $error')),
       ),
     );
   }
 
-  List<_ChecklistResult> _evaluateDraft(String markdown) {
+  Draft _resolveSelectedDraft(List<Draft> drafts) {
+    final selectedDraftId = _selectedDraftId;
+    if (selectedDraftId != null) {
+      for (final draft in drafts) {
+        if (draft.id == selectedDraftId) {
+          return draft;
+        }
+      }
+    }
+    return drafts.first;
+  }
+
+  String _draftLabel(Draft draft) {
+    final snippet = draft.canonicalMarkdown
+        .replaceAll('\n', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final shortSnippet = snippet.isEmpty
+        ? '(empty)'
+        : (snippet.length > 64 ? '${snippet.substring(0, 64)}...' : snippet);
+    return '${draft.id.substring(0, 8)}  $shortSnippet';
+  }
+
+  List<_ChecklistResult> _evaluateDraft({
+    required String markdown,
+    required List<String> bannedPhrases,
+  }) {
     final text = markdown.trim();
+    final lowerText = text.toLowerCase();
     final lines =
         text.split('\n').map((line) => line.trim()).where((l) => l.isNotEmpty);
     final firstLine = lines.isEmpty ? '' : lines.first;
@@ -112,11 +228,22 @@ class PublishChecklistScreen extends ConsumerWidget {
     final hasHook = firstLine.length >= 20;
     final shortSentences = avgWordsPerSentence <= 18;
     final hasSpecificDetail = RegExp(r'\b\d+\b').hasMatch(text) ||
-        text.toLowerCase().contains('tradeoff') ||
-        text.toLowerCase().contains('constraint');
-    final hasStance =
-        RegExp(r'\b(i|my|we)\b', caseSensitive: false).hasMatch(text);
+        lowerText.contains('tradeoff') ||
+        lowerText.contains('constraint');
+    final hasStance = RegExp(r'\b(i|my|we)\b', caseSensitive: false).hasMatch(
+      text,
+    );
     final hasQuestion = text.contains('?');
+
+    final normalizedBanned = bannedPhrases
+        .map((phrase) => phrase.trim())
+        .where((phrase) => phrase.isNotEmpty)
+        .map((phrase) => phrase.toLowerCase())
+        .toSet();
+    final foundBanned = normalizedBanned
+        .where((phrase) => lowerText.contains(phrase))
+        .toList(growable: false)
+      ..sort();
 
     return [
       _ChecklistResult(
@@ -153,6 +280,13 @@ class PublishChecklistScreen extends ConsumerWidget {
         detail: hasQuestion
             ? 'Question detected.'
             : 'Close with a genuine question or CTA.',
+      ),
+      _ChecklistResult(
+        label: 'No banned phrases',
+        passed: foundBanned.isEmpty,
+        detail: foundBanned.isEmpty
+            ? 'No banned phrases detected.'
+            : 'Detected: ${foundBanned.join(', ')}',
       ),
     ];
   }

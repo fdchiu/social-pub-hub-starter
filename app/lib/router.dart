@@ -41,8 +41,10 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '/publish-checklist',
-      builder: (c, s) =>
-          const HubShellScreen(currentPage: HubPage.publishChecklist),
+      builder: (c, s) => HubShellScreen(
+        currentPage: HubPage.publishChecklist,
+        initialPublishChecklistDraftId: s.uri.queryParameters['draftId'],
+      ),
     ),
     GoRoute(
       path: '/sync-conflicts',

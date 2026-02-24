@@ -34,12 +34,14 @@ class HubShellScreen extends StatelessWidget {
     this.initialDraftId,
     this.initialBundleId,
     this.initialVariantId,
+    this.initialPublishChecklistDraftId,
   });
 
   final HubPage currentPage;
   final String? initialDraftId;
   final String? initialBundleId;
   final String? initialVariantId;
+  final String? initialPublishChecklistDraftId;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +69,8 @@ class HubShellScreen extends StatelessWidget {
       HubPage.bundles => const BundleBuilderScreen(),
       HubPage.bundleChecklist => const BundlePublishChecklistScreen(),
       HubPage.publish => PublishConsoleScreen(initialBundleId: initialBundleId),
-      HubPage.publishChecklist => const PublishChecklistScreen(),
+      HubPage.publishChecklist =>
+        PublishChecklistScreen(initialDraftId: initialPublishChecklistDraftId),
       HubPage.queue => const QueueScreen(),
       HubPage.syncConflicts => const SyncConflictsScreen(),
       HubPage.history => HistoryScreen(initialVariantId: initialVariantId),
