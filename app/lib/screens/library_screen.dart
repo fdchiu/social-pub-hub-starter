@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
@@ -40,6 +42,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       appBar: buildHubAppBar(
         context: context,
         title: 'Library',
+        actions: [
+          IconButton(
+            tooltip: 'Export filtered CSV',
+            onPressed: _exportFilteredCsv,
+            icon: const Icon(Icons.download_outlined),
+          ),
+        ],
       ),
       body: sourceItemsAsync.when(
         data: (items) {
@@ -129,6 +138,68 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   await _createDraftFromSource(item);
                                   return;
                                 }
+                                if (action == _LibraryAction.openUrl) {
+                                  final url = item.url?.trim();
+                                  if (url == null || url.isEmpty) {
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('No URL on this source'),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+                                  final uri = Uri.tryParse(url);
+                                  if (uri == null) {
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Invalid URL'),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+                                  final launched = await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                  if (!launched && mounted) {
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Unable to open URL'),
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+                                if (action == _LibraryAction.copyUrl) {
+                                  final url = item.url?.trim();
+                                  if (url == null || url.isEmpty) {
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('No URL on this source'),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+                                  await Clipboard.setData(
+                                    ClipboardData(text: url),
+                                  );
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('URL copied'),
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
                                 if (action == _LibraryAction.addToBundle) {
                                   await _showAssignBundleDialog(
                                     item: item,
@@ -156,6 +227,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   const PopupMenuItem(
                                     value: _LibraryAction.createDraft,
                                     child: Text('Create draft'),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: _LibraryAction.openUrl,
+                                    child: Text('Open URL'),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: _LibraryAction.copyUrl,
+                                    child: Text('Copy URL'),
                                   ),
                                   const PopupMenuItem(
                                     value: _LibraryAction.addToBundle,
@@ -335,10 +414,66 @@ Takeaway: Start with one clear point, then iterate.
       SnackBar(content: Text('Added to bundle: ${chosen.name}')),
     );
   }
+
+  Future<void> _exportFilteredCsv() async {
+    final items = ref.read(sourceItemsStreamProvider).valueOrNull;
+    if (items == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Library still loading')),
+      );
+      return;
+    }
+    final filtered =
+        items.where((item) => _matches(item)).toList(growable: false);
+    if (filtered.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No filtered rows to export')),
+      );
+      return;
+    }
+
+    final lines = <String>[
+      'id,type,title,url,user_note,tags,bundle_id,created_at,updated_at',
+      ...filtered.map((item) {
+        return [
+          _csv(item.id),
+          _csv(item.type),
+          _csv(item.title ?? ''),
+          _csv(item.url ?? ''),
+          _csv(item.userNote ?? ''),
+          _csv(item.tags.join('|')),
+          _csv(item.bundleId ?? ''),
+          _csv(item.createdAt.toUtc().toIso8601String()),
+          _csv(item.updatedAt.toUtc().toIso8601String()),
+        ].join(',');
+      }),
+    ];
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied ${filtered.length} library rows as CSV')),
+    );
+  }
+
+  String _csv(String value) {
+    final escaped = value.replaceAll('"', '""');
+    return '"$escaped"';
+  }
 }
 
 enum _LibraryAction {
   createDraft,
+  openUrl,
+  copyUrl,
   addToBundle,
   clearBundle,
 }
