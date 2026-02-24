@@ -340,6 +340,11 @@ class _ConflictCard extends ConsumerWidget {
                   },
                   child: const Text('Use local'),
                 ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () => _showPayloadComparison(context),
+                  child: const Text('Compare payloads'),
+                ),
               ],
             ),
           ],
@@ -357,6 +362,57 @@ class _ConflictCard extends ConsumerWidget {
       return value;
     }
     return parsed.toIso8601String();
+  }
+
+  Future<void> _showPayloadComparison(BuildContext context) async {
+    const pretty = JsonEncoder.withIndent('  ');
+    final localJson = pretty.convert(conflict.localPayload);
+    final remoteJson = pretty.convert(conflict.remotePayload);
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Compare ${conflict.entityType} payloads'),
+        content: SizedBox(
+          width: 760,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Local',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 6),
+                SelectableText(
+                  localJson,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
+                      ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Remote',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 6),
+                SelectableText(
+                  remoteJson,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   String? _summaryForConflict(SyncConflict row) {
