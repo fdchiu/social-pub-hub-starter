@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import os
 from datetime import datetime, timezone
 from typing import Any
@@ -36,7 +37,17 @@ from .schemas import (
     VariantSyncItem,
 )
 
-app = FastAPI(title="Social Pub Hub API")
+
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    with SessionLocal() as db:
+        _ensure_sync_counter(db)
+        db.commit()
+    yield
+
+
+app = FastAPI(title="Social Pub Hub API", lifespan=_lifespan)
 
 
 def _to_utc(value: datetime | None) -> datetime:
@@ -472,14 +483,6 @@ def _polish_with_llm(
         return text, model, None
     except Exception as exc:  # pragma: no cover - network/runtime dependent
         return None, model, f"{exc}"
-
-
-@app.on_event("startup")
-def startup() -> None:
-    Base.metadata.create_all(bind=engine)
-    with SessionLocal() as db:
-        _ensure_sync_counter(db)
-        db.commit()
 
 
 @app.get("/health")

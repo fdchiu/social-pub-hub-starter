@@ -215,3 +215,68 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
     assert changes_response.status_code == 200
     logs = changes_response.json()["upserts"]["publish_logs"]
     assert any(log["external_url"] == external_url for log in logs)
+
+
+def test_sync_scheduled_posts_and_deletes(client: TestClient) -> None:
+    row_id = "sched_case_1"
+    now = datetime.now(timezone.utc)
+
+    create_payload = {
+        "upserts": {
+            "drafts": [],
+            "variants": [],
+            "publish_logs": [],
+            "style_profiles": [],
+            "scheduled_posts": [
+                {
+                    "id": row_id,
+                    "platform": "x",
+                    "content": "Ship update tonight",
+                    "status": "queued",
+                    "scheduled_for": now.isoformat(),
+                    "created_at": now.isoformat(),
+                    "updated_at": now.isoformat(),
+                }
+            ],
+        },
+        "deletes": {
+            "drafts": [],
+            "variants": [],
+            "publish_logs": [],
+            "style_profiles": [],
+            "scheduled_posts": [],
+        },
+    }
+    push_create = client.post("/sync/push", json=create_payload)
+    assert push_create.status_code == 200
+    first_cursor = push_create.json()["cursor"]
+
+    changes_after_create = client.get("/sync/changes", params={"since": 0})
+    assert changes_after_create.status_code == 200
+    scheduled = changes_after_create.json()["upserts"]["scheduled_posts"]
+    assert any(row["id"] == row_id and row["status"] == "queued" for row in scheduled)
+
+    delete_payload = {
+        "upserts": {
+            "drafts": [],
+            "variants": [],
+            "publish_logs": [],
+            "style_profiles": [],
+            "scheduled_posts": [],
+        },
+        "deletes": {
+            "drafts": [],
+            "variants": [],
+            "publish_logs": [],
+            "style_profiles": [],
+            "scheduled_posts": [row_id],
+        },
+    }
+    push_delete = client.post("/sync/push", json=delete_payload)
+    assert push_delete.status_code == 200
+    second_cursor = push_delete.json()["cursor"]
+    assert second_cursor > first_cursor
+
+    delta = client.get("/sync/changes", params={"since": first_cursor})
+    assert delta.status_code == 200
+    assert row_id in delta.json()["deletes"]["scheduled_posts"]

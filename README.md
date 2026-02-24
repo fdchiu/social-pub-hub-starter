@@ -22,8 +22,12 @@ Next steps:
 2. `cd app && flutter run -d macos`
 
 Testing:
-1. Flutter: `cd app && flutter analyze && flutter test`
-2. Backend: `cd backend && ./.venv/bin/pip install -r requirements.txt && ./.venv/bin/python -m pytest -q`
+1. Full gate (recommended): `./scripts/gate.sh`
+2. Flutter only: `cd app && flutter analyze && flutter test`
+3. Backend only: `cd backend && ./.venv/bin/pip install -r requirements.txt && ./.venv/bin/python -m pytest -q`
+
+CI:
+1. GitHub Actions workflow: `.github/workflows/ci.yml`
 
 Key workflow:
 1. Open Inbox, select source items, click "Create draft from selected".
