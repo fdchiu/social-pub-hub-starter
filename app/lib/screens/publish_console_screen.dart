@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/repo_providers.dart';
@@ -40,6 +42,13 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
       appBar: buildHubAppBar(
         context: context,
         title: 'Publish Console',
+        actions: [
+          IconButton(
+            tooltip: 'Export filtered logs CSV',
+            onPressed: _exportFilteredLogsCsv,
+            icon: const Icon(Icons.download_outlined),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -178,6 +187,56 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                                 subtitle: Text(
                                   'mode=${log.mode} · postedAt=${log.postedAt?.toLocal().toIso8601String() ?? '-'}',
                                 ),
+                                trailing: PopupMenuButton<_LogAction>(
+                                  onSelected: (action) {
+                                    if (action == _LogAction.openHistory &&
+                                        log.variantId != null &&
+                                        log.variantId!.isNotEmpty) {
+                                      final encoded = Uri.encodeQueryComponent(
+                                        log.variantId!,
+                                      );
+                                      context.go('/history?variantId=$encoded');
+                                      return;
+                                    }
+                                    if (action == _LogAction.openExternal &&
+                                        log.externalUrl != null &&
+                                        log.externalUrl!.trim().isNotEmpty) {
+                                      _openExternalUrl(log.externalUrl!);
+                                    }
+                                  },
+                                  itemBuilder: (context) {
+                                    final items =
+                                        <PopupMenuEntry<_LogAction>>[];
+                                    if (log.variantId != null &&
+                                        log.variantId!.isNotEmpty) {
+                                      items.add(
+                                        const PopupMenuItem(
+                                          value: _LogAction.openHistory,
+                                          child: Text('Open in history'),
+                                        ),
+                                      );
+                                    }
+                                    if (log.externalUrl != null &&
+                                        log.externalUrl!.trim().isNotEmpty) {
+                                      items.add(
+                                        const PopupMenuItem(
+                                          value: _LogAction.openExternal,
+                                          child: Text('Open external URL'),
+                                        ),
+                                      );
+                                    }
+                                    if (items.isEmpty) {
+                                      items.add(
+                                        const PopupMenuItem(
+                                          enabled: false,
+                                          value: _LogAction.openHistory,
+                                          child: Text('No actions'),
+                                        ),
+                                      );
+                                    }
+                                    return items;
+                                  },
+                                ),
                               ),
                             ),
                         ],
@@ -238,4 +297,86 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
     }
     return 'Capabilities: ${enabled.join(', ')}';
   }
+
+  Future<void> _exportFilteredLogsCsv() async {
+    final logs = ref.read(publishLogsStreamProvider).valueOrNull;
+    final bundles = ref.read(bundlesStreamProvider).valueOrNull;
+
+    if (logs == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Publish logs are still loading')),
+      );
+      return;
+    }
+
+    final bundle =
+        _findBundleById(bundles ?? const <Bundle>[], _selectedBundleId);
+    final filtered = _filterLogsForBundle(logs, bundle);
+    if (filtered.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No logs to export for current filter')),
+      );
+      return;
+    }
+
+    final lines = <String>[
+      'id,platform,status,mode,variant_id,external_url,posted_at,created_at',
+      ...filtered.map((row) {
+        return [
+          _csv(row.id),
+          _csv(row.platform),
+          _csv(row.status),
+          _csv(row.mode),
+          _csv(row.variantId ?? ''),
+          _csv(row.externalUrl ?? ''),
+          _csv(row.postedAt?.toUtc().toIso8601String() ?? ''),
+          _csv(row.createdAt.toUtc().toIso8601String()),
+        ].join(',');
+      }),
+    ];
+    final csv = lines.join('\n');
+    await Clipboard.setData(ClipboardData(text: csv));
+
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied ${filtered.length} logs as CSV')),
+    );
+  }
+
+  Future<void> _openExternalUrl(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid URL')),
+      );
+      return;
+    }
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open URL')),
+      );
+    }
+  }
+
+  String _csv(String value) {
+    final escaped = value.replaceAll('"', '""');
+    return '"$escaped"';
+  }
+}
+
+enum _LogAction {
+  openHistory,
+  openExternal,
 }
