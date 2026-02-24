@@ -17,8 +17,24 @@ class InboxScreen extends ConsumerStatefulWidget {
 }
 
 class _InboxScreenState extends ConsumerState<InboxScreen> {
+  final TextEditingController _queryController = TextEditingController();
   final Set<String> _selectedIds = <String>{};
+  String _query = '';
+  String _typeFilter = 'all';
   bool _creatingDraft = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController.addListener(_onQueryChanged);
+  }
+
+  @override
+  void dispose() {
+    _queryController.removeListener(_onQueryChanged);
+    _queryController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +45,27 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         context: context,
         title: 'Inbox',
         actions: [
+          sourceItemsAsync.maybeWhen(
+            data: (items) {
+              final filtered = _filterItems(items);
+              final allVisibleSelected = filtered.isNotEmpty &&
+                  filtered.every((item) => _selectedIds.contains(item.id));
+              return IconButton(
+                onPressed: filtered.isEmpty
+                    ? null
+                    : () => _toggleSelectVisible(filtered, allVisibleSelected),
+                icon: Icon(
+                  allVisibleSelected
+                      ? Icons.deselect_outlined
+                      : Icons.select_all_outlined,
+                ),
+                tooltip: allVisibleSelected
+                    ? 'Clear visible selection'
+                    : 'Select all visible',
+              );
+            },
+            orElse: () => const SizedBox.shrink(),
+          ),
           IconButton(
             onPressed: _creatingDraft ? null : _createDraftFromSelected,
             icon: _creatingDraft
@@ -54,32 +91,98 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               child: Text('No source items yet. Add one to start drafting.'),
             );
           }
+          final typeOptions = <String>{'all', ...items.map((i) => i.type)}
+              .toList(growable: false)
+            ..sort();
+          final filtered = _filterItems(items);
 
-          return ListView.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final checked = _selectedIds.contains(item.id);
-              final secondary = _sourceSummary(item);
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: TextField(
+                  controller: _queryController,
+                  decoration: InputDecoration(
+                    labelText: 'Search inbox',
+                    hintText: 'title, note, url, tag',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () => _queryController.clear(),
+                            icon: const Icon(Icons.clear),
+                          ),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 48,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  children: [
+                    for (final type in typeOptions)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ChoiceChip(
+                          label: Text(type == 'all' ? 'All types' : type),
+                          selected: _typeFilter == type,
+                          onSelected: (selected) {
+                            if (!selected) {
+                              return;
+                            }
+                            setState(() {
+                              _typeFilter = type;
+                            });
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Visible: ${filtered.length}  •  Selected: ${_selectedIds.length}',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Expanded(
+                child: filtered.isEmpty
+                    ? const Center(child: Text('No sources match filters.'))
+                    : ListView.separated(
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final item = filtered[index];
+                          final checked = _selectedIds.contains(item.id);
+                          final secondary = _sourceSummary(item);
 
-              return CheckboxListTile(
-                value: checked,
-                onChanged: (_) {
-                  setState(() {
-                    if (checked) {
-                      _selectedIds.remove(item.id);
-                    } else {
-                      _selectedIds.add(item.id);
-                    }
-                  });
-                },
-                title: Text(item.title ?? item.type.toUpperCase()),
-                subtitle: Text(secondary),
-                controlAffinity: ListTileControlAffinity.leading,
-                isThreeLine: secondary.length > 80,
-              );
-            },
+                          return CheckboxListTile(
+                            value: checked,
+                            onChanged: (_) {
+                              setState(() {
+                                if (checked) {
+                                  _selectedIds.remove(item.id);
+                                } else {
+                                  _selectedIds.add(item.id);
+                                }
+                              });
+                            },
+                            title: Text(item.title ?? item.type.toUpperCase()),
+                            subtitle: Text(secondary),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            isThreeLine: secondary.length > 80,
+                          );
+                        },
+                      ),
+              ),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -105,6 +208,47 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       return item.type;
     }
     return parts.join('  •  ');
+  }
+
+  void _onQueryChanged() {
+    final next = _queryController.text.trim();
+    if (next == _query) {
+      return;
+    }
+    setState(() {
+      _query = next;
+    });
+  }
+
+  List<SourceItem> _filterItems(List<SourceItem> items) {
+    final needle = _query.toLowerCase();
+    return items.where((item) {
+      final typeMatches = _typeFilter == 'all' || item.type == _typeFilter;
+      final queryMatches = needle.isEmpty ||
+          [
+            item.type,
+            item.title ?? '',
+            item.url ?? '',
+            item.userNote ?? '',
+            ...item.tags,
+          ].join(' ').toLowerCase().contains(needle);
+      return typeMatches && queryMatches;
+    }).toList(growable: false);
+  }
+
+  void _toggleSelectVisible(
+      List<SourceItem> filtered, bool allVisibleSelected) {
+    setState(() {
+      if (allVisibleSelected) {
+        for (final item in filtered) {
+          _selectedIds.remove(item.id);
+        }
+      } else {
+        for (final item in filtered) {
+          _selectedIds.add(item.id);
+        }
+      }
+    });
   }
 
   Future<void> _showAddSourceDialog() async {
