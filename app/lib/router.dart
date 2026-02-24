@@ -1,53 +1,72 @@
 import 'package:go_router/go_router.dart';
-import 'screens/home_screen.dart';
-import 'screens/inbox_screen.dart';
-import 'screens/library_screen.dart';
-import 'screens/analytics_screen.dart';
-import 'screens/bundle_builder_screen.dart';
-import 'screens/bundle_publish_checklist_screen.dart';
-import 'screens/compose_screen.dart';
-import 'screens/history_screen.dart';
-import 'screens/publish_console_screen.dart';
-import 'screens/publish_checklist_screen.dart';
-import 'screens/queue_screen.dart';
-import 'screens/settings_screen.dart';
-import 'screens/sync_conflicts_screen.dart';
+import 'screens/hub_pages.dart';
+import 'screens/hub_shell_screen.dart';
 
 final router = GoRouter(
   routes: [
-    GoRoute(path: '/', builder: (c, s) => const HomeScreen()),
-    GoRoute(path: '/inbox', builder: (c, s) => const InboxScreen()),
-    GoRoute(path: '/library', builder: (c, s) => const LibraryScreen()),
-    GoRoute(path: '/bundles', builder: (c, s) => const BundleBuilderScreen()),
+    GoRoute(
+      path: '/',
+      builder: (c, s) => const HubShellScreen(currentPage: HubPage.inbox),
+    ),
+    GoRoute(
+      path: '/inbox',
+      builder: (c, s) => const HubShellScreen(currentPage: HubPage.inbox),
+    ),
+    GoRoute(
+      path: '/library',
+      builder: (c, s) => const HubShellScreen(currentPage: HubPage.library),
+    ),
+    GoRoute(
+      path: '/bundles',
+      builder: (c, s) => const HubShellScreen(currentPage: HubPage.bundles),
+    ),
     GoRoute(
       path: '/bundle-checklist',
-      builder: (c, s) => const BundlePublishChecklistScreen(),
+      builder: (c, s) =>
+          const HubShellScreen(currentPage: HubPage.bundleChecklist),
     ),
     GoRoute(
       path: '/publish',
-      builder: (c, s) => PublishConsoleScreen(
-          initialBundleId: s.uri.queryParameters['bundleId']),
+      builder: (c, s) => HubShellScreen(
+        currentPage: HubPage.publish,
+        initialBundleId: s.uri.queryParameters['bundleId'],
+      ),
     ),
     GoRoute(
       path: '/compose',
-      builder: (c, s) =>
-          ComposeScreen(initialDraftId: s.uri.queryParameters['draftId']),
+      builder: (c, s) => HubShellScreen(
+        currentPage: HubPage.compose,
+        initialDraftId: s.uri.queryParameters['draftId'],
+      ),
     ),
     GoRoute(
       path: '/publish-checklist',
-      builder: (c, s) => const PublishChecklistScreen(),
+      builder: (c, s) =>
+          const HubShellScreen(currentPage: HubPage.publishChecklist),
     ),
     GoRoute(
       path: '/sync-conflicts',
-      builder: (c, s) => const SyncConflictsScreen(),
+      builder: (c, s) =>
+          const HubShellScreen(currentPage: HubPage.syncConflicts),
     ),
-    GoRoute(path: '/queue', builder: (c, s) => const QueueScreen()),
-    GoRoute(path: '/analytics', builder: (c, s) => const AnalyticsScreen()),
+    GoRoute(
+      path: '/queue',
+      builder: (c, s) => const HubShellScreen(currentPage: HubPage.queue),
+    ),
+    GoRoute(
+      path: '/analytics',
+      builder: (c, s) => const HubShellScreen(currentPage: HubPage.analytics),
+    ),
     GoRoute(
       path: '/history',
-      builder: (c, s) =>
-          HistoryScreen(initialVariantId: s.uri.queryParameters['variantId']),
+      builder: (c, s) => HubShellScreen(
+        currentPage: HubPage.history,
+        initialVariantId: s.uri.queryParameters['variantId'],
+      ),
     ),
-    GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen()),
+    GoRoute(
+      path: '/settings',
+      builder: (c, s) => const HubShellScreen(currentPage: HubPage.settings),
+    ),
   ],
 );
