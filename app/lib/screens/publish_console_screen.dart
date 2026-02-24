@@ -24,6 +24,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
   final TextEditingController _queryController = TextEditingController();
   String? _selectedBundleId;
   String _statusFilter = 'all';
+  String _modeFilter = 'all';
   String _query = '';
 
   @override
@@ -184,13 +185,23 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                             .map((row) => row.status.toLowerCase()),
                       }.toList(growable: false)
                         ..sort();
+                      final modeOptions = <String>{
+                        'all',
+                        ...bundleFilteredLogs
+                            .map((row) => row.mode.toLowerCase()),
+                      }.toList(growable: false)
+                        ..sort();
                       final selectedStatus =
                           statusOptions.contains(_statusFilter)
                               ? _statusFilter
                               : 'all';
+                      final selectedMode = modeOptions.contains(_modeFilter)
+                          ? _modeFilter
+                          : 'all';
                       final filteredLogs = _applyLogFilters(
                         bundleFilteredLogs,
                         selectedStatus: selectedStatus,
+                        selectedMode: selectedMode,
                       );
                       if (bundleFilteredLogs.isEmpty) {
                         if (selectedBundle == null) {
@@ -249,6 +260,32 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
+                          SizedBox(
+                            height: 42,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: modeOptions.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final mode = modeOptions[index];
+                                return ChoiceChip(
+                                  label:
+                                      Text(mode == 'all' ? 'MODE: ALL' : mode),
+                                  selected: selectedMode == mode,
+                                  onSelected: (selected) {
+                                    if (!selected) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _modeFilter = mode;
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           Text('Visible: ${filteredLogs.length}'),
                           const SizedBox(height: 8),
                           if (recent.isEmpty)
@@ -265,15 +302,8 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                                   ),
                                   trailing: PopupMenuButton<_LogAction>(
                                     onSelected: (action) {
-                                      if (action == _LogAction.openHistory &&
-                                          log.variantId != null &&
-                                          log.variantId!.isNotEmpty) {
-                                        final encoded =
-                                            Uri.encodeQueryComponent(
-                                          log.variantId!,
-                                        );
-                                        context
-                                            .go('/history?variantId=$encoded');
+                                      if (action == _LogAction.openHistory) {
+                                        _openHistoryForLog(log);
                                         return;
                                       }
                                       if (action == _LogAction.openExternal &&
@@ -284,16 +314,12 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                                     },
                                     itemBuilder: (context) {
                                       final items =
-                                          <PopupMenuEntry<_LogAction>>[];
-                                      if (log.variantId != null &&
-                                          log.variantId!.isNotEmpty) {
-                                        items.add(
-                                          const PopupMenuItem(
-                                            value: _LogAction.openHistory,
-                                            child: Text('Open in history'),
-                                          ),
-                                        );
-                                      }
+                                          <PopupMenuEntry<_LogAction>>[
+                                        const PopupMenuItem(
+                                          value: _LogAction.openHistory,
+                                          child: Text('Open in history'),
+                                        ),
+                                      ];
                                       if (log.externalUrl != null &&
                                           log.externalUrl!.trim().isNotEmpty) {
                                         items.add(
@@ -366,11 +392,14 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
   List<PublishLog> _applyLogFilters(
     List<PublishLog> logs, {
     required String selectedStatus,
+    required String selectedMode,
   }) {
     final needle = _query.toLowerCase();
     return logs.where((row) {
       final statusMatches =
           selectedStatus == 'all' || row.status.toLowerCase() == selectedStatus;
+      final modeMatches =
+          selectedMode == 'all' || row.mode.toLowerCase() == selectedMode;
       final queryMatches = needle.isEmpty ||
           [
             row.platform,
@@ -380,7 +409,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
             row.externalUrl ?? '',
             row.postedAt?.toIso8601String() ?? '',
           ].join(' ').toLowerCase().contains(needle);
-      return statusMatches && queryMatches;
+      return statusMatches && modeMatches && queryMatches;
     }).toList(growable: false);
   }
 
@@ -420,9 +449,16 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
     };
     final selectedStatus =
         statusOptions.contains(_statusFilter) ? _statusFilter : 'all';
+    final modeOptions = <String>{
+      'all',
+      ...bundleFiltered.map((row) => row.mode.toLowerCase()),
+    };
+    final selectedMode =
+        modeOptions.contains(_modeFilter) ? _modeFilter : 'all';
     final filtered = _applyLogFilters(
       bundleFiltered,
       selectedStatus: selectedStatus,
+      selectedMode: selectedMode,
     );
     if (filtered.isEmpty) {
       if (!mounted) {
@@ -482,6 +518,20 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
   String _csv(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
+  }
+
+  void _openHistoryForLog(PublishLog log) {
+    final query = <String, String>{
+      'platform': log.platform.toLowerCase(),
+      'status': log.status.toLowerCase(),
+      'mode': log.mode.toLowerCase(),
+    };
+    final variantId = log.variantId?.trim();
+    if (variantId != null && variantId.isNotEmpty) {
+      query['variantId'] = variantId;
+    }
+    final uri = Uri(path: '/history', queryParameters: query);
+    context.go(uri.toString());
   }
 
   void _onQueryChanged() {
