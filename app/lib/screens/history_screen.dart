@@ -12,9 +12,17 @@ class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({
     super.key,
     this.initialVariantId,
+    this.initialPlatform,
+    this.initialStatus,
+    this.initialMode,
+    this.initialWindow,
   });
 
   final String? initialVariantId;
+  final String? initialPlatform;
+  final String? initialStatus;
+  final String? initialMode;
+  final String? initialWindow;
 
   @override
   ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
@@ -25,6 +33,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   String _query = '';
   String _platformFilter = 'all';
   String _statusFilter = 'all';
+  String _modeFilter = 'all';
   _HistoryWindow _window = _HistoryWindow.all;
   String? _variantFilterId;
 
@@ -35,6 +44,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final initialVariantId = widget.initialVariantId?.trim();
     if (initialVariantId != null && initialVariantId.isNotEmpty) {
       _variantFilterId = initialVariantId;
+    }
+    final initialPlatform = widget.initialPlatform?.trim().toLowerCase();
+    if (initialPlatform != null && initialPlatform.isNotEmpty) {
+      _platformFilter = initialPlatform;
+    }
+    final initialStatus = widget.initialStatus?.trim().toLowerCase();
+    if (initialStatus != null && initialStatus.isNotEmpty) {
+      _statusFilter = initialStatus;
+    }
+    final initialMode = widget.initialMode?.trim().toLowerCase();
+    if (initialMode != null && initialMode.isNotEmpty) {
+      _modeFilter = initialMode;
+    }
+    final initialWindow = _parseWindow(widget.initialWindow);
+    if (initialWindow != null) {
+      _window = initialWindow;
     }
   }
 
@@ -76,8 +101,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ...logs.map((row) => row.status.toLowerCase()),
           }.toList()
             ..sort();
-
-          final filtered = _filterLogs(logs);
+          final modeOptions = <String>{
+            'all',
+            ...logs.map((row) => row.mode.toLowerCase()),
+          }.toList()
+            ..sort();
+          final platformFilter =
+              _normalizeFilter(_platformFilter, platformOptions);
+          final statusFilter = _normalizeFilter(_statusFilter, statusOptions);
+          final modeFilter = _normalizeFilter(_modeFilter, modeOptions);
+          final filtered = _filterLogs(
+            logs,
+            platformFilter: platformFilter,
+            statusFilter: statusFilter,
+            modeFilter: modeFilter,
+          );
 
           String labelFor(String value) {
             if (value == 'all') {
@@ -139,11 +177,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               const SizedBox(height: 6),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Row(
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
-                    Expanded(
+                    SizedBox(
+                      width: 220,
                       child: DropdownButtonFormField<String>(
-                        value: _platformFilter,
+                        value: platformFilter,
                         decoration:
                             const InputDecoration(labelText: 'Platform'),
                         items: platformOptions
@@ -164,10 +205,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
+                    SizedBox(
+                      width: 220,
                       child: DropdownButtonFormField<String>(
-                        value: _statusFilter,
+                        value: statusFilter,
                         decoration: const InputDecoration(labelText: 'Status'),
                         items: statusOptions
                             .map(
@@ -183,6 +224,29 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           }
                           setState(() {
                             _statusFilter = value;
+                          });
+                        },
+                      ),
+                    ),
+                    SizedBox(
+                      width: 220,
+                      child: DropdownButtonFormField<String>(
+                        value: modeFilter,
+                        decoration: const InputDecoration(labelText: 'Mode'),
+                        items: modeOptions
+                            .map(
+                              (value) => DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(labelFor(value)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          setState(() {
+                            _modeFilter = value;
                           });
                         },
                       ),
@@ -359,7 +423,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     });
   }
 
-  List<PublishLog> _filterLogs(List<PublishLog> logs) {
+  List<PublishLog> _filterLogs(
+    List<PublishLog> logs, {
+    required String platformFilter,
+    required String statusFilter,
+    required String modeFilter,
+  }) {
     final needle = _query.toLowerCase();
     final now = DateTime.now().toUtc();
     final since = switch (_window) {
@@ -369,10 +438,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       _HistoryWindow.all => null,
     };
     return logs.where((row) {
-      final platformMatches = _platformFilter == 'all' ||
-          row.platform.toLowerCase() == _platformFilter;
+      final platformMatches = platformFilter == 'all' ||
+          row.platform.toLowerCase() == platformFilter;
       final statusMatches =
-          _statusFilter == 'all' || row.status.toLowerCase() == _statusFilter;
+          statusFilter == 'all' || row.status.toLowerCase() == statusFilter;
+      final modeMatches =
+          modeFilter == 'all' || row.mode.toLowerCase() == modeFilter;
       final variantMatches =
           _variantFilterId == null || row.variantId == _variantFilterId;
       final windowMatches = since == null || row.createdAt.isAfter(since);
@@ -387,6 +458,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ].join(' ').toLowerCase().contains(needle);
       return platformMatches &&
           statusMatches &&
+          modeMatches &&
           variantMatches &&
           windowMatches &&
           queryMatches;
@@ -405,7 +477,27 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       return;
     }
 
-    final filtered = _filterLogs(logs);
+    final platformOptions = <String>{
+      'all',
+      ...logs.map((row) => row.platform.toLowerCase()),
+    }.toList()
+      ..sort();
+    final statusOptions = <String>{
+      'all',
+      ...logs.map((row) => row.status.toLowerCase()),
+    }.toList()
+      ..sort();
+    final modeOptions = <String>{
+      'all',
+      ...logs.map((row) => row.mode.toLowerCase()),
+    }.toList()
+      ..sort();
+    final filtered = _filterLogs(
+      logs,
+      platformFilter: _normalizeFilter(_platformFilter, platformOptions),
+      statusFilter: _normalizeFilter(_statusFilter, statusOptions),
+      modeFilter: _normalizeFilter(_modeFilter, modeOptions),
+    );
     if (filtered.isEmpty) {
       if (!mounted) {
         return;
@@ -445,6 +537,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   String _csv(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
+  }
+
+  String _normalizeFilter(String value, List<String> options) {
+    return options.contains(value) ? value : 'all';
+  }
+
+  _HistoryWindow? _parseWindow(String? raw) {
+    final normalized = raw?.trim().toLowerCase();
+    return switch (normalized) {
+      '7d' => _HistoryWindow.days7,
+      '30d' => _HistoryWindow.days30,
+      '90d' => _HistoryWindow.days90,
+      'all' => _HistoryWindow.all,
+      _ => null,
+    };
   }
 }
 

@@ -171,10 +171,18 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   ...platformRows.map(
                     (entry) => Card(
                       child: ListTile(
+                        onTap: () => _openHistoryDrilldown(platform: entry.key),
                         title: Text(entry.key.toUpperCase()),
-                        trailing: Text(
-                          '${entry.value}',
-                          style: Theme.of(context).textTheme.titleMedium,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${entry.value}',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.chevron_right),
+                          ],
                         ),
                       ),
                     ),
@@ -191,10 +199,18 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   ...modeRows.map(
                     (entry) => Card(
                       child: ListTile(
+                        onTap: () => _openHistoryDrilldown(mode: entry.key),
                         title: Text(entry.key.toUpperCase()),
-                        trailing: Text(
-                          '${entry.value}',
-                          style: Theme.of(context).textTheme.titleMedium,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${entry.value}',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.chevron_right),
+                          ],
                         ),
                       ),
                     ),
@@ -377,6 +393,38 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Window hint copied')),
     );
+  }
+
+  void _openHistoryDrilldown({
+    String? platform,
+    String? mode,
+  }) {
+    final query = <String, String>{
+      'status': 'posted',
+    };
+    final normalizedPlatform = platform?.trim().toLowerCase();
+    if (normalizedPlatform != null && normalizedPlatform.isNotEmpty) {
+      query['platform'] = normalizedPlatform;
+    }
+    final normalizedMode = mode?.trim().toLowerCase();
+    if (normalizedMode != null && normalizedMode.isNotEmpty) {
+      query['mode'] = normalizedMode;
+    }
+    final window = _windowQuery(_window);
+    if (window != null) {
+      query['window'] = window;
+    }
+    final uri = Uri(path: '/history', queryParameters: query);
+    context.go(uri.toString());
+  }
+
+  String? _windowQuery(_AnalyticsWindow window) {
+    return switch (window) {
+      _AnalyticsWindow.days7 => '7d',
+      _AnalyticsWindow.days30 => '30d',
+      _AnalyticsWindow.days90 => '90d',
+      _AnalyticsWindow.all => null,
+    };
   }
 }
 

@@ -64,6 +64,10 @@ final router = GoRouter(
       builder: (c, s) => HubShellScreen(
         currentPage: HubPage.history,
         initialVariantId: s.uri.queryParameters['variantId'],
+        initialHistoryPlatform: s.uri.queryParameters['platform'],
+        initialHistoryStatus: s.uri.queryParameters['status'],
+        initialHistoryMode: s.uri.queryParameters['mode'],
+        initialHistoryWindow: s.uri.queryParameters['window'],
       ),
     ),
     GoRoute(

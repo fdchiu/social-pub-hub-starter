@@ -35,6 +35,10 @@ class HubShellScreen extends StatelessWidget {
     this.initialBundleId,
     this.initialVariantId,
     this.initialPublishChecklistDraftId,
+    this.initialHistoryPlatform,
+    this.initialHistoryStatus,
+    this.initialHistoryMode,
+    this.initialHistoryWindow,
   });
 
   final HubPage currentPage;
@@ -42,6 +46,10 @@ class HubShellScreen extends StatelessWidget {
   final String? initialBundleId;
   final String? initialVariantId;
   final String? initialPublishChecklistDraftId;
+  final String? initialHistoryPlatform;
+  final String? initialHistoryStatus;
+  final String? initialHistoryMode;
+  final String? initialHistoryWindow;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +81,13 @@ class HubShellScreen extends StatelessWidget {
         PublishChecklistScreen(initialDraftId: initialPublishChecklistDraftId),
       HubPage.queue => const QueueScreen(),
       HubPage.syncConflicts => const SyncConflictsScreen(),
-      HubPage.history => HistoryScreen(initialVariantId: initialVariantId),
+      HubPage.history => HistoryScreen(
+          initialVariantId: initialVariantId,
+          initialPlatform: initialHistoryPlatform,
+          initialStatus: initialHistoryStatus,
+          initialMode: initialHistoryMode,
+          initialWindow: initialHistoryWindow,
+        ),
       HubPage.analytics => const AnalyticsScreen(),
       HubPage.settings => const SettingsScreen(),
     };
