@@ -31,6 +31,20 @@ Key workflow:
 3. Filter variants by platform, run Humanize, then copy/open composer/queue/confirm post.
 4. Use Settings to tune style profile and run sync.
 
+Navigation menu (home side menu equivalent):
+1. Inbox: capture source items, select items, create grounded draft.
+2. Library: search/filter sources; create drafts; attach sources to bundles.
+3. Compose: write draft, LLM polish, generate/humanize variants, publish actions.
+4. Bundles: build YouTube/social bundle with anchor + linked variants.
+5. Bundle Checklist: readiness checks, backfill variants, canonical linking.
+6. Publish: integration status + recent publish logs, with bundle filter.
+7. Publish Checklist: pre-publish human-sounding rubric checks.
+8. Queue: manage scheduled posts and mark posted/canceled.
+9. Sync Conflicts: resolve local-vs-remote data collisions.
+10. History: timeline of publish logs, filters, clone variant to new draft.
+11. Analytics: posted counts, queue health, platform breakdown.
+12. Settings: sync now, style profile controls, integration refresh.
+
 Optional LLM config (backend):
 1. `OPENAI_API_KEY=<your key>`
 2. `OPENAI_MODEL=gpt-5.3-codex` (or another model)

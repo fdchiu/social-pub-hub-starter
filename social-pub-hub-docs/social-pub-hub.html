@@ -1,0 +1,1359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Social Pub Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0e0f14;
+      --sidebar: #13141a;
+      --panel: #191b23;
+      --card: #1f2130;
+      --card-hover: #252840;
+      --border: rgba(255,255,255,0.07);
+      --border-hover: rgba(255,255,255,0.15);
+      --text: #edf0f7;
+      --muted: #6b7280;
+      --soft: #9ca3af;
+      --accent: #6c7cff;
+      --accent2: #a78bfa;
+      --accent3: #34d399;
+      --accent4: #f59e0b;
+      --accent5: #f87171;
+      --glow: rgba(108,124,255,0.15);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 240px;
+      min-width: 240px;
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .sidebar::-webkit-scrollbar { display: none; }
+
+    .brand {
+      padding: 22px 20px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-icon {
+      width: 34px; height: 34px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 9px;
+      display: grid; place-items: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .brand-name {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+    .brand-tag {
+      font-size: 10px;
+      color: var(--accent);
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .nav-section {
+      padding: 14px 10px 6px;
+    }
+    .nav-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 10px;
+      margin-bottom: 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      color: var(--soft);
+      font-size: 13.5px;
+      font-weight: 500;
+      position: relative;
+      margin-bottom: 2px;
+    }
+    .nav-item:hover {
+      background: var(--card);
+      color: var(--text);
+    }
+    .nav-item.active {
+      background: linear-gradient(135deg, rgba(108,124,255,0.18), rgba(167,139,250,0.1));
+      color: var(--text);
+      box-shadow: inset 0 0 0 1px rgba(108,124,255,0.3);
+    }
+    .nav-item.active .nav-icon { color: var(--accent); }
+    .nav-icon {
+      width: 18px;
+      text-align: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--accent5);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 20px;
+      min-width: 18px;
+      text-align: center;
+    }
+    .nav-badge.green { background: var(--accent3); color: #0a2e22; }
+    .nav-badge.amber { background: var(--accent4); color: #3d2600; }
+    .nav-badge.muted { background: var(--card); color: var(--soft); }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 14px 10px;
+      border-top: 1px solid var(--border);
+    }
+    .user-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 9px; cursor: pointer;
+    }
+    .user-row:hover { background: var(--card); }
+    .avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg,#a78bfa,#6c7cff);
+      display: grid; place-items: center; font-size: 13px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .user-name { font-size: 13px; font-weight: 600; line-height: 1.2; }
+    .user-role { font-size: 11px; color: var(--muted); }
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      background: var(--bg);
+    }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      height: 58px;
+      background: rgba(14,15,20,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 28px;
+    }
+    .topbar-title {
+      font-size: 17px; font-weight: 700; letter-spacing: -0.3px;
+    }
+    .topbar-route {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      background: rgba(108,124,255,0.1);
+      padding: 3px 8px; border-radius: 5px;
+      border: 1px solid rgba(108,124,255,0.2);
+    }
+    .topbar-actions { margin-left: auto; display: flex; gap: 8px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 14px; border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: none; transition: all 0.18s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #7c8eff; }
+    .btn-ghost {
+      background: var(--card);
+      color: var(--soft);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--border-hover); color: var(--text); }
+
+    .page { display: none; padding: 28px; animation: fadeIn 0.25s ease; }
+    .page.active { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px);} to {opacity:1;transform:translateY(0);} }
+
+    /* ── CARDS ── */
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 14px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 18px 14px;
+      transition: border-color 0.18s;
+    }
+    .stat-card:hover { border-color: var(--border-hover); }
+    .stat-label { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 8px; }
+    .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+    .stat-sub { font-size: 12px; color: var(--soft); margin-top: 5px; }
+    .stat-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+
+    .section-title {
+      font-size: 14px; font-weight: 700; color: var(--soft);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      margin-bottom: 14px; margin-top: 6px;
+    }
+
+    .item-list { display: grid; gap: 10px; }
+    .item-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: flex; align-items: center; gap: 16px;
+      transition: all 0.18s;
+      cursor: pointer;
+    }
+    .item-card:hover {
+      border-color: var(--border-hover);
+      background: var(--card-hover);
+      transform: translateX(2px);
+    }
+    .item-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: grid; place-items: center; font-size: 17px;
+      flex-shrink: 0;
+    }
+    .item-body { flex: 1; min-width: 0; }
+    .item-title { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+    .item-desc { font-size: 12.5px; color: var(--soft); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-meta { font-size: 11px; color: var(--muted); margin-top: 4px; display: flex; gap: 10px; }
+    .item-action { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+    .tag {
+      font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px;
+    }
+    .tag-blue { background: rgba(108,124,255,0.15); color: #a5b0ff; }
+    .tag-green { background: rgba(52,211,153,0.12); color: #34d399; }
+    .tag-amber { background: rgba(245,158,11,0.12); color: #f59e0b; }
+    .tag-red { background: rgba(248,113,113,0.12); color: #f87171; }
+    .tag-purple { background: rgba(167,139,250,0.12); color: #a78bfa; }
+    .tag-gray { background: var(--card); color: var(--muted); border: 1px solid var(--border); }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    @media(max-width:760px) { .two-col, .three-col { grid-template-columns: 1fr; } }
+
+    .panel-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px;
+    }
+    .panel-card-title { font-size: 13px; font-weight: 700; color: var(--soft); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* compose editor */
+    .editor-area {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--text);
+      resize: vertical;
+      min-height: 140px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.18s;
+    }
+    .editor-area:focus { border-color: var(--accent); }
+
+    .platform-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .pchip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+      color: var(--soft);
+    }
+    .pchip.on { border-color: var(--accent); background: rgba(108,124,255,0.1); color: var(--text); }
+
+    /* timeline */
+    .timeline { display: grid; gap: 0; }
+    .tl-item {
+      display: flex; gap: 14px; padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .tl-item:last-child { border-bottom: none; }
+    .tl-dot {
+      width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0;
+    }
+    .tl-body { flex: 1; }
+    .tl-title { font-size: 13.5px; font-weight: 600; }
+    .tl-time { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+    /* progress bar */
+    .progress-bar { height: 6px; background: var(--panel); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+    .progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+    /* checklist */
+    .check-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .check-row:last-child { border-bottom: none; }
+    .check-box {
+      width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--border);
+      display: grid; place-items: center; flex-shrink: 0; cursor: pointer;
+    }
+    .check-box.checked { background: var(--accent3); border-color: var(--accent3); }
+    .check-label { font-size: 13.5px; font-weight: 500; }
+    .check-label.done { text-decoration: line-through; color: var(--muted); }
+    .check-hint { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+    /* conflict */
+    .conflict-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 12px;
+    }
+    .conflict-header {
+      padding: 12px 16px; background: rgba(248,113,113,0.06); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600;
+    }
+    .conflict-cols { display: grid; grid-template-columns: 1fr 1fr; }
+    .conflict-col { padding: 14px 16px; font-size: 12.5px; color: var(--soft); line-height: 1.5; }
+    .conflict-col:first-child { border-right: 1px solid var(--border); }
+    .conflict-col-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+    .conflict-actions { padding: 10px 16px; display: flex; gap: 8px; border-top: 1px solid var(--border); }
+
+    /* analytics chart fake */
+    .chart-bars { display: flex; align-items: flex-end; gap: 5px; height: 80px; margin-top: 12px; }
+    .bar {
+      flex: 1; border-radius: 4px 4px 0 0;
+      background: linear-gradient(180deg, var(--accent) 0%, rgba(108,124,255,0.3) 100%);
+      transition: opacity 0.2s;
+    }
+    .bar:hover { opacity: 0.7; }
+
+    /* queue item */
+    .queue-card {
+      display: grid; grid-template-columns: auto 1fr auto;
+      gap: 14px; align-items: center;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+      margin-bottom: 10px; cursor: pointer;
+      transition: all 0.18s;
+    }
+    .queue-card:hover { border-color: var(--border-hover); background: var(--card-hover); }
+    .queue-time { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); font-weight: 500; white-space: nowrap; }
+    .queue-text { font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+    .queue-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+
+    /* empty state */
+    .empty { text-align: center; padding: 48px 24px; color: var(--muted); }
+    .empty-icon { font-size: 36px; margin-bottom: 14px; }
+    .empty-title { font-size: 15px; font-weight: 600; color: var(--soft); margin-bottom: 6px; }
+
+    /* Search bar */
+    .search-bar {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 14px;
+      margin-bottom: 18px;
+    }
+    .search-bar input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13.5px;
+    }
+    .search-bar input::placeholder { color: var(--muted); }
+
+    .filter-row { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+    .filter-btn {
+      padding: 6px 13px; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--card); color: var(--soft); font-size: 12.5px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+    }
+    .filter-btn:hover, .filter-btn.on { border-color: var(--accent); color: var(--accent); background: rgba(108,124,255,0.08); }
+
+    .divider { height: 1px; background: var(--border); margin: 22px 0; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-icon">📡</div>
+    <div>
+      <div class="brand-name">Social Pub Hub</div>
+      <div class="brand-tag">Pro Workspace</div>
+    </div>
+  </div>
+
+  <nav>
+    <div class="nav-section">
+      <div class="nav-label">Capture</div>
+      <div class="nav-item active" data-page="inbox" onclick="nav(this)">
+        <span class="nav-icon">📥</span> Inbox
+        <span class="nav-badge">3</span>
+      </div>
+      <div class="nav-item" data-page="library" onclick="nav(this)">
+        <span class="nav-icon">🗂</span> Library
+        <span class="nav-badge muted">48</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Create</div>
+      <div class="nav-item" data-page="compose" onclick="nav(this)">
+        <span class="nav-icon">✏️</span> Compose
+      </div>
+      <div class="nav-item" data-page="bundles" onclick="nav(this)">
+        <span class="nav-icon">📦</span> Bundles
+        <span class="nav-badge amber">2</span>
+      </div>
+      <div class="nav-item" data-page="bundle-checklist" onclick="nav(this)">
+        <span class="nav-icon">✅</span> Bundle Checklist
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Publish</div>
+      <div class="nav-item" data-page="publish" onclick="nav(this)">
+        <span class="nav-icon">🚀</span> Publish
+        <span class="nav-badge green">On</span>
+      </div>
+      <div class="nav-item" data-page="publish-checklist" onclick="nav(this)">
+        <span class="nav-icon">📋</span> Pub Checklist
+      </div>
+      <div class="nav-item" data-page="queue" onclick="nav(this)">
+        <span class="nav-icon">🕐</span> Queue
+        <span class="nav-badge">7</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Monitor</div>
+      <div class="nav-item" data-page="sync-conflicts" onclick="nav(this)">
+        <span class="nav-icon">⚡</span> Sync Conflicts
+        <span class="nav-badge">1</span>
+      </div>
+      <div class="nav-item" data-page="history" onclick="nav(this)">
+        <span class="nav-icon">🕓</span> History
+      </div>
+      <div class="nav-item" data-page="analytics" onclick="nav(this)">
+        <span class="nav-icon">📊</span> Analytics
+      </div>
+      <div class="nav-item" data-page="settings" onclick="nav(this)">
+        <span class="nav-icon">⚙️</span> Settings
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-row">
+      <div class="avatar">JM</div>
+      <div>
+        <div class="user-name">Jamie Morgan</div>
+        <div class="user-role">Content Manager</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+  <!-- ── INBOX ── -->
+  <div id="page-inbox" class="page active">
+    <div class="topbar">
+      <div class="topbar-title">Inbox</div>
+      <span class="topbar-route">/inbox</span>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">Filter</button>
+        <button class="btn btn-primary">+ Capture Source</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-label">New Items</div>
+          <div class="stat-value" style="color:#6c7cff">3</div>
+          <div class="stat-sub">Since last session</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Ready to Draft</div>
+          <div class="stat-value" style="color:#34d399">12</div>
+          <div class="stat-sub">Selected items</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Captured Today</div>
+          <div class="stat-value">7</div>
+          <div class="stat-sub">Across all sources</div>
+        </div>
+      </div>
+
+      <div class="section-title">Unprocessed Sources</div>
+      <div class="item-list">
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(108,124,255,0.12)">🔗</div>
+          <div class="item-body">
+            <div class="item-title">TechCrunch – AI Funding Rounds Q1 2025</div>
+            <div class="item-desc">Exclusive: 14 AI startups raised $2.3B combined in the first quarter...</div>
+            <div class="item-meta"><span>techcrunch.com</span><span>2h ago</span></div>
+          </div>
+          <div class="item-action">
+            <span class="tag tag-blue">Article</span>
+            <button class="btn btn-primary" style="padding:6px 12px;font-size:12px">Create Draft</button>
+          </div>
+        </div>
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(167,139,250,0.12)">🐦</div>
+          <div class="item-body">
+            <div class="item-title">@sama tweet thread – on reasoning models</div>
+            <div class="item-desc">A new class of models that can plan, reason, and reflect before answering...</div>
+            <div class="item-meta"><span>twitter.com</span><span>4h ago</span></div>
+          </div>
+          <div class="item-action">
+            <span class="tag tag-purple">Thread</span>
+            <button class="btn btn-primary" style="padding:6px 12px;font-size:12px">Create Draft</button>
+          </div>
+        </div>
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(52,211,153,0.1)">📄</div>
+          <div class="item-body">
+            <div class="item-title">Internal brief – Product launch messaging</div>
+            <div class="item-desc">Key talking points for the upcoming v3 feature rollout across platforms...</div>
+            <div class="item-meta"><span>Uploaded file</span><span>1d ago</span></div>
+          </div>
+          <div class="item-action">
+            <span class="tag tag-green">Brief</span>
+            <button class="btn btn-primary" style="padding:6px 12px;font-size:12px">Create Draft</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── LIBRARY ── -->
+  <div id="page-library" class="page">
+    <div class="topbar">
+      <div class="topbar-title">Library</div>
+      <span class="topbar-route">/library</span>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">Export</button>
+        <button class="btn btn-primary">Create Draft</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="search-bar">
+        <span style="color:var(--muted)">🔍</span>
+        <input type="text" placeholder="Search sources by title, tag, or platform…">
+        <span class="tag tag-gray">48 saved</span>
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn on">All</button>
+        <button class="filter-btn">Articles</button>
+        <button class="filter-btn">Threads</button>
+        <button class="filter-btn">Briefs</button>
+        <button class="filter-btn">Videos</button>
+        <button class="filter-btn">🏷 Bundles</button>
+      </div>
+      <div class="section-title">Saved Sources</div>
+      <div class="item-list">
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(108,124,255,0.12)">🔗</div>
+          <div class="item-body">
+            <div class="item-title">State of AI Report 2025</div>
+            <div class="item-desc">Comprehensive annual survey of AI adoption, investment, and capabilities.</div>
+            <div class="item-meta"><span>Bundle: AI Trends</span><span>Saved 3d ago</span></div>
+          </div>
+          <div class="item-action">
+            <span class="tag tag-purple">Bundle</span>
+            <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px">Open</button>
+          </div>
+        </div>
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(245,158,11,0.1)">🎬</div>
+          <div class="item-body">
+            <div class="item-title">YT: How to build a second brain</div>
+            <div class="item-desc">Ali Abdaal's breakdown of his entire note-taking workflow and PKM system.</div>
+            <div class="item-meta"><span>youtube.com</span><span>1w ago</span></div>
+          </div>
+          <div class="item-action">
+            <span class="tag tag-amber">Video</span>
+            <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px">Draft</button>
+          </div>
+        </div>
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(52,211,153,0.1)">📰</div>
+          <div class="item-body">
+            <div class="item-title">The Verge – Apple Intelligence Recap</div>
+            <div class="item-desc">Everything Apple announced about on-device AI features in iOS 18.4.</div>
+            <div class="item-meta"><span>theverge.com</span><span>5d ago</span></div>
+          </div>
+          <div class="item-action">
+            <span class="tag tag-green">Article</span>
+            <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px">Draft</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── COMPOSE ── -->
+  <div id="page-compose" class="page">
+    <div class="topbar">
+      <div class="topbar-title">Compose</div>
+      <span class="topbar-route">/compose</span>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">Save Draft</button>
+        <button class="btn btn-primary">🚀 Publish</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="two-col">
+        <div>
+          <div class="section-title">Draft Editor</div>
+          <div class="panel-card">
+            <textarea class="editor-area" rows="6">AI funding hit a record $2.3B in Q1 2025 — here's what it means for the ecosystem and why this wave is different from 2021…</textarea>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 11px">✨ Polish with AI</button>
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 11px">🔀 Humanize</button>
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 11px">📏 Shorten</button>
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 11px">+ Variant</button>
+            </div>
+            <div class="divider"></div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">PUBLISH TO</div>
+            <div class="platform-chips">
+              <div class="pchip on">𝕏 Twitter/X</div>
+              <div class="pchip on">in LinkedIn</div>
+              <div class="pchip">f Facebook</div>
+              <div class="pchip">▶ Threads</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Variants</div>
+          <div class="item-list">
+            <div class="item-card" style="flex-direction:column;align-items:flex-start;">
+              <div style="display:flex;width:100%;align-items:center;margin-bottom:8px;">
+                <span class="tag tag-blue">Twitter — Long</span>
+                <span style="margin-left:auto;font-size:12px;color:var(--muted)">240 chars</span>
+              </div>
+              <div style="font-size:13px;color:var(--soft);line-height:1.5">AI funding hit a record $2.3B in Q1 2025. Here's what that means for the ecosystem 🧵</div>
+            </div>
+            <div class="item-card" style="flex-direction:column;align-items:flex-start;">
+              <div style="display:flex;width:100%;align-items:center;margin-bottom:8px;">
+                <span class="tag tag-purple">LinkedIn — Pro</span>
+                <span style="margin-left:auto;font-size:12px;color:var(--muted)">580 chars</span>
+              </div>
+              <div style="font-size:13px;color:var(--soft);line-height:1.5">The AI funding wave of 2025 is fundamentally different from 2021. Here's why…</div>
+            </div>
+          </div>
+
+          <div class="section-title" style="margin-top:22px;">Source Reference</div>
+          <div class="panel-card" style="font-size:13px;color:var(--soft);line-height:1.6;">
+            <div style="font-weight:600;color:var(--text);margin-bottom:6px;">TechCrunch – AI Funding Rounds Q1 2025</div>
+            "Exclusive: 14 AI startups raised $2.3B combined in the first quarter…"
+            <div style="margin-top:8px;"><span class="tag tag-gray">techcrunch.com</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BUNDLES ── -->
+  <div id="page-bundles" class="page">
+    <div class="topbar">
+      <div class="topbar-title">Bundles</div>
+      <span class="topbar-route">/bundles</span>
+      <div class="topbar-actions">
+        <button class="btn btn-primary">+ New Bundle</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-label">Active Bundles</div><div class="stat-value" style="color:var(--accent)">5</div></div>
+        <div class="stat-card"><div class="stat-label">Pending Variants</div><div class="stat-value" style="color:var(--accent4)">11</div></div>
+        <div class="stat-card"><div class="stat-label">Published</div><div class="stat-value" style="color:var(--accent3)">29</div></div>
+      </div>
+      <div class="section-title">Bundle Plans</div>
+      <div class="item-list">
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(108,124,255,0.12)">📦</div>
+          <div class="item-body">
+            <div class="item-title">AI Trends — May 2025</div>
+            <div class="item-desc">Anchor: AI funding deep-dive · 4 variants ready · 2 missing</div>
+            <div class="item-meta"><span>Created May 3</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:67%"></div></div>
+          </div>
+          <div class="item-action">
+            <span class="tag tag-amber">In Progress</span>
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 11px">Edit</button>
+          </div>
+        </div>
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(52,211,153,0.1)">📦</div>
+          <div class="item-body">
+            <div class="item-title">Product Launch Week</div>
+            <div class="item-desc">Anchor: v3 announcement · 6 variants · All approved</div>
+            <div class="item-meta"><span>Created Apr 28</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:100%;background:linear-gradient(90deg,#34d399,#10b981)"></div></div>
+          </div>
+          <div class="item-action">
+            <span class="tag tag-green">Ready</span>
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 11px">View</button>
+          </div>
+        </div>
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(167,139,250,0.12)">📦</div>
+          <div class="item-body">
+            <div class="item-title">Thought Leadership – Q2</div>
+            <div class="item-desc">Anchor: Industry opinion piece · 3 variants · Planning phase</div>
+            <div class="item-meta"><span>Created May 1</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:25%"></div></div>
+          </div>
+          <div class="item-action">
+            <span class="tag tag-gray">Draft</span>
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 11px">Edit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BUNDLE CHECKLIST ── -->
+  <div id="page-bundle-checklist" class="page">
+    <div class="topbar">
+      <div class="topbar-title">Bundle Checklist</div>
+      <span class="topbar-route">/bundle-checklist</span>
+      <div class="topbar-actions">
+        <button class="btn btn-primary">Backfill Missing</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="two-col">
+        <div>
+          <div class="section-title">Bundle: AI Trends — May 2025</div>
+          <div class="panel-card">
+            <div class="panel-card-title">Readiness Checklist</div>
+            <div class="check-row">
+              <div class="check-box checked">✓</div>
+              <div class="check-label done">Anchor post written</div>
+              <div class="check-hint"><span class="tag tag-green">Done</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box checked">✓</div>
+              <div class="check-label done">Twitter variant approved</div>
+              <div class="check-hint"><span class="tag tag-green">Done</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box checked">✓</div>
+              <div class="check-label done">LinkedIn variant approved</div>
+              <div class="check-hint"><span class="tag tag-green">Done</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box"></div>
+              <div class="check-label">Threads variant needed</div>
+              <div class="check-hint"><span class="tag tag-red">Missing</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box"></div>
+              <div class="check-label">Facebook variant needed</div>
+              <div class="check-hint"><span class="tag tag-red">Missing</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box checked">✓</div>
+              <div class="check-label done">Publish window set</div>
+              <div class="check-hint"><span class="tag tag-green">Done</span></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Bundle Status</div>
+          <div class="panel-card">
+            <div class="panel-card-title">Completion</div>
+            <div style="font-size:32px;font-weight:700;color:var(--accent)">67%</div>
+            <div class="progress-bar" style="height:10px;margin-top:12px;"><div class="progress-fill" style="width:67%"></div></div>
+            <div style="font-size:12px;color:var(--muted);margin-top:10px;">4 of 6 items complete</div>
+            <div class="divider"></div>
+            <div style="font-size:13px;color:var(--soft);line-height:1.6">
+              <div style="margin-bottom:6px;">🚨 <strong style="color:var(--accent5)">2 variants missing</strong> — bundle not ready to publish</div>
+              <div>📅 Publish window: <strong style="color:var(--text)">May 12 at 9:00 AM</strong></div>
+            </div>
+            <button class="btn btn-primary" style="margin-top:14px;width:100%;justify-content:center;">Generate Missing Variants</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PUBLISH ── -->
+  <div id="page-publish" class="page">
+    <div class="topbar">
+      <div class="topbar-title">Publish</div>
+      <span class="topbar-route">/publish</span>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">Sync Integrations</button>
+        <button class="btn btn-primary">Publish Bundle</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-label">Integration Status</div>
+          <div class="stat-value" style="color:var(--accent3)">4/4</div>
+          <div class="stat-sub"><span class="stat-dot" style="background:var(--accent3)"></span>All connected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Published Today</div>
+          <div class="stat-value">6</div>
+          <div class="stat-sub">Posts live</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Last Sync</div>
+          <div class="stat-value" style="font-size:18px">4m ago</div>
+          <div class="stat-sub"><span class="stat-dot" style="background:var(--accent3)"></span>Healthy</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="section-title">Platform Integrations</div>
+          <div class="item-list">
+            <div class="item-card">
+              <div class="item-icon" style="background:#0f172a;border:1px solid #1e3a5f">𝕏</div>
+              <div class="item-body"><div class="item-title">Twitter / X</div><div class="item-desc">@jamie_morgan · API v2</div></div>
+              <span class="tag tag-green">Active</span>
+            </div>
+            <div class="item-card">
+              <div class="item-icon" style="background:#0a1628">in</div>
+              <div class="item-body"><div class="item-title">LinkedIn</div><div class="item-desc">Jamie Morgan · Page connected</div></div>
+              <span class="tag tag-green">Active</span>
+            </div>
+            <div class="item-card">
+              <div class="item-icon" style="background:#1a0a28">▶</div>
+              <div class="item-body"><div class="item-title">Threads</div><div class="item-desc">@jamie · Meta integration</div></div>
+              <span class="tag tag-green">Active</span>
+            </div>
+            <div class="item-card">
+              <div class="item-icon" style="background:#0a1a28">f</div>
+              <div class="item-body"><div class="item-title">Facebook</div><div class="item-desc">Business Page · Graph API</div></div>
+              <span class="tag tag-green">Active</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Recent Publish Log</div>
+          <div class="panel-card">
+            <div class="timeline">
+              <div class="tl-item">
+                <div class="tl-dot" style="background:var(--accent3)"></div>
+                <div class="tl-body">
+                  <div class="tl-title">AI Trends – Twitter variant</div>
+                  <div class="tl-time">Today, 9:05 AM · Twitter/X</div>
+                </div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot" style="background:var(--accent3)"></div>
+                <div class="tl-body">
+                  <div class="tl-title">AI Trends – LinkedIn anchor</div>
+                  <div class="tl-time">Today, 9:00 AM · LinkedIn</div>
+                </div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot" style="background:var(--accent4)"></div>
+                <div class="tl-body">
+                  <div class="tl-title">Product Launch – Threads</div>
+                  <div class="tl-time">Yesterday, 6:30 PM · Threads</div>
+                </div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot" style="background:var(--accent5)"></div>
+                <div class="tl-body">
+                  <div class="tl-title">Facebook sync error – retrying</div>
+                  <div class="tl-time">Yesterday, 2:14 PM · Facebook</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PUBLISH CHECKLIST ── -->
+  <div id="page-publish-checklist" class="page">
+    <div class="topbar">
+      <div class="topbar-title">Publish Checklist</div>
+      <span class="topbar-route">/publish-checklist</span>
+      <div class="topbar-actions">
+        <button class="btn btn-primary">Run All Checks</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="two-col">
+        <div>
+          <div class="section-title">Human-Sounding Rubric</div>
+          <div class="panel-card">
+            <div class="check-row">
+              <div class="check-box checked">✓</div>
+              <div class="check-label done">No AI filler phrases detected</div>
+              <div class="check-hint"><span class="tag tag-green">Pass</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box checked">✓</div>
+              <div class="check-label done">Reading level: Grade 9 (target)</div>
+              <div class="check-hint"><span class="tag tag-green">Pass</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box checked">✓</div>
+              <div class="check-label done">Sentence variety score: 78/100</div>
+              <div class="check-hint"><span class="tag tag-green">Pass</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box"></div>
+              <div class="check-label">Repetition score: 2 flagged phrases</div>
+              <div class="check-hint"><span class="tag tag-amber">Review</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box checked">✓</div>
+              <div class="check-label done">Tone matches style profile</div>
+              <div class="check-hint"><span class="tag tag-green">Pass</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box checked">✓</div>
+              <div class="check-label done">Character limits within range</div>
+              <div class="check-hint"><span class="tag tag-green">Pass</span></div>
+            </div>
+            <div class="check-row">
+              <div class="check-box"></div>
+              <div class="check-label">Hashtag count: 6 (recommended ≤4)</div>
+              <div class="check-hint"><span class="tag tag-amber">Review</span></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Rubric Score</div>
+          <div class="panel-card">
+            <div style="font-size:48px;font-weight:700;letter-spacing:-2px;color:var(--accent4)">82<span style="font-size:22px;color:var(--muted)">/100</span></div>
+            <div style="font-size:13px;color:var(--soft);margin-top:4px;margin-bottom:12px;">Good · 2 items need review</div>
+            <div class="progress-bar" style="height:10px"><div class="progress-fill" style="width:82%;background:linear-gradient(90deg,var(--accent4),#f59e0b88)"></div></div>
+            <div class="divider"></div>
+            <div style="font-size:13px;color:var(--soft);line-height:1.7">
+              <div>⚠️ <strong style="color:var(--accent4)">Repetition:</strong> "innovative" appears 3×</div>
+              <div>⚠️ <strong style="color:var(--accent4)">Hashtags:</strong> reduce from 6 → 4</div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px;">
+              <button class="btn btn-ghost" style="flex:1;justify-content:center;font-size:13px">✨ Auto-fix</button>
+              <button class="btn btn-primary" style="flex:1;justify-content:center;font-size:13px">Approve</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── QUEUE ── -->
+  <div id="page-queue" class="page">
+    <div class="topbar">
+      <div class="topbar-title">Queue</div>
+      <span class="topbar-route">/queue</span>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">Filter</button>
+        <button class="btn btn-primary">+ Schedule Post</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-label">Scheduled</div><div class="stat-value" style="color:var(--accent)">7</div></div>
+        <div class="stat-card"><div class="stat-label">Next Post</div><div class="stat-value" style="font-size:18px">2h 14m</div><div class="stat-sub">May 9 · 12:00 PM</div></div>
+        <div class="stat-card"><div class="stat-label">Posted Today</div><div class="stat-value" style="color:var(--accent3)">4</div></div>
+      </div>
+      <div class="section-title">Scheduled Posts</div>
+      <div class="queue-card">
+        <div class="queue-time">Today<br>12:00 PM</div>
+        <div>
+          <div class="queue-text">AI funding round-up thread 🧵 — posting to Twitter/X & LinkedIn</div>
+          <div class="queue-meta">Bundle: AI Trends · 2 platforms</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px">Edit</button>
+          <span class="tag tag-blue">Scheduled</span>
+        </div>
+      </div>
+      <div class="queue-card">
+        <div class="queue-time">Today<br>3:30 PM</div>
+        <div>
+          <div class="queue-text">Product v3 launch day 🎉 — short-form reel hook</div>
+          <div class="queue-meta">Bundle: Product Launch · Threads</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px">Edit</button>
+          <span class="tag tag-blue">Scheduled</span>
+        </div>
+      </div>
+      <div class="queue-card">
+        <div class="queue-time">May 10<br>9:00 AM</div>
+        <div>
+          <div class="queue-text">Thought leadership: What most CEOs get wrong about AI adoption</div>
+          <div class="queue-meta">Bundle: Thought Leadership Q2 · LinkedIn</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px">Edit</button>
+          <span class="tag tag-purple">Pending</span>
+        </div>
+      </div>
+      <div class="queue-card" style="opacity:0.6;">
+        <div class="queue-time" style="color:var(--accent3)">Posted<br>9:05 AM</div>
+        <div>
+          <div class="queue-text">AI Trends – Twitter variant · "Here's what $2.3B in AI funding means…"</div>
+          <div class="queue-meta">Bundle: AI Trends · Twitter/X</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <span class="tag tag-green">Posted</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SYNC CONFLICTS ── -->
+  <div id="page-sync-conflicts" class="page">
+    <div class="topbar">
+      <div class="topbar-title">Sync Conflicts</div>
+      <span class="topbar-route">/sync-conflicts</span>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">Accept All Local</button>
+        <button class="btn btn-primary">Accept All Remote</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div style="padding:14px 18px;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.2);border-radius:10px;margin-bottom:22px;font-size:13.5px;color:var(--soft);">
+        ⚡ <strong style="color:var(--accent5)">1 conflict detected</strong> — a draft was edited on both your device and the server. Choose which version to keep.
+      </div>
+      <div class="conflict-card">
+        <div class="conflict-header">
+          <span style="color:var(--accent5)">⚡</span>
+          Draft conflict: "AI Trends – LinkedIn Anchor"
+          <span class="tag tag-red" style="margin-left:auto">Conflict</span>
+        </div>
+        <div class="conflict-cols">
+          <div class="conflict-col">
+            <div class="conflict-col-label">📱 Local version — 2h ago</div>
+            AI funding reached $2.3B in Q1 2025, surpassing analyst expectations. This shift marks a structural change in how enterprises are budgeting for machine learning infrastructure…
+          </div>
+          <div class="conflict-col">
+            <div class="conflict-col-label">☁️ Remote version — 3h ago</div>
+            $2.3B. That's how much AI startups raised in Q1 2025 alone. For context, that's 40% more than the same period last year — and the summer wave hasn't even begun…
+          </div>
+        </div>
+        <div class="conflict-actions">
+          <button class="btn btn-ghost" style="font-size:13px;">Keep Local</button>
+          <button class="btn btn-primary" style="font-size:13px;">Keep Remote</button>
+          <button class="btn btn-ghost" style="font-size:13px;margin-left:auto;">Merge Manually</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── HISTORY ── -->
+  <div id="page-history" class="page">
+    <div class="topbar">
+      <div class="topbar-title">History</div>
+      <span class="topbar-route">/history</span>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">Export Log</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="filter-row">
+        <button class="filter-btn on">All Time</button>
+        <button class="filter-btn">This Week</button>
+        <button class="filter-btn">Twitter/X</button>
+        <button class="filter-btn">LinkedIn</button>
+        <button class="filter-btn">Threads</button>
+      </div>
+      <div class="section-title">Publish Timeline</div>
+      <div class="item-list">
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(52,211,153,0.1)">🚀</div>
+          <div class="item-body">
+            <div class="item-title">AI Trends – Twitter variant published</div>
+            <div class="item-desc">Bundle: AI Trends · May 2025</div>
+            <div class="item-meta"><span>Twitter/X</span><span>Today, 9:05 AM</span></div>
+          </div>
+          <div class="item-action">
+            <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px">Clone to Draft</button>
+          </div>
+        </div>
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(52,211,153,0.1)">🚀</div>
+          <div class="item-body">
+            <div class="item-title">Product Launch – Threads short-form</div>
+            <div class="item-desc">Bundle: Product Launch Week</div>
+            <div class="item-meta"><span>Threads</span><span>Yesterday, 6:30 PM</span></div>
+          </div>
+          <div class="item-action">
+            <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px">Clone to Draft</button>
+          </div>
+        </div>
+        <div class="item-card">
+          <div class="item-icon" style="background:rgba(248,113,113,0.1)">⚠️</div>
+          <div class="item-body">
+            <div class="item-title">Facebook sync failed – bundle: Product Launch</div>
+            <div class="item-desc">Error: OAuth token expired. Reconnect integration.</div>
+            <div class="item-meta"><span>Facebook</span><span>Yesterday, 2:14 PM</span></div>
+          </div>
+          <div class="item-action">
+            <span class="tag tag-red">Failed</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ANALYTICS ── -->
+  <div id="page-analytics" class="page">
+    <div class="topbar">
+      <div class="topbar-title">Analytics</div>
+      <span class="topbar-route">/analytics</span>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">Export CSV</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-label">Posts This Month</div>
+          <div class="stat-value" style="color:var(--accent)">47</div>
+          <div class="stat-sub">↑ 18% vs last month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Queue Health</div>
+          <div class="stat-value" style="color:var(--accent3)">Good</div>
+          <div class="stat-sub">7 scheduled, 0 overdue</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Platforms Active</div>
+          <div class="stat-value">4</div>
+          <div class="stat-sub">All connected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Posts/Day</div>
+          <div class="stat-value">3.1</div>
+          <div class="stat-sub">Target: 3</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="section-title">Posts by Day (Last 14 Days)</div>
+          <div class="panel-card">
+            <div class="chart-bars">
+              <div class="bar" style="height:40%"></div>
+              <div class="bar" style="height:60%"></div>
+              <div class="bar" style="height:35%"></div>
+              <div class="bar" style="height:80%"></div>
+              <div class="bar" style="height:50%"></div>
+              <div class="bar" style="height:90%"></div>
+              <div class="bar" style="height:45%"></div>
+              <div class="bar" style="height:70%"></div>
+              <div class="bar" style="height:55%"></div>
+              <div class="bar" style="height:100%;background:linear-gradient(180deg,var(--accent2),rgba(167,139,250,0.3))"></div>
+              <div class="bar" style="height:60%"></div>
+              <div class="bar" style="height:75%"></div>
+              <div class="bar" style="height:85%"></div>
+              <div class="bar" style="height:65%"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--muted);">
+              <span>Apr 25</span><span>May 8</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Platform Breakdown</div>
+          <div class="panel-card">
+            <div class="timeline">
+              <div class="tl-item">
+                <div class="tl-dot" style="background:#6c7cff"></div>
+                <div class="tl-body">
+                  <div style="display:flex;justify-content:space-between;"><span class="tl-title">Twitter / X</span><span style="font-size:13px;font-weight:700;color:var(--accent)">19 posts</span></div>
+                  <div class="progress-bar" style="margin-top:6px;"><div class="progress-fill" style="width:40%"></div></div>
+                </div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot" style="background:#a78bfa"></div>
+                <div class="tl-body">
+                  <div style="display:flex;justify-content:space-between;"><span class="tl-title">LinkedIn</span><span style="font-size:13px;font-weight:700;color:var(--accent2)">14 posts</span></div>
+                  <div class="progress-bar" style="margin-top:6px;"><div class="progress-fill" style="width:30%;background:linear-gradient(90deg,var(--accent2),var(--accent))"></div></div>
+                </div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot" style="background:#34d399"></div>
+                <div class="tl-body">
+                  <div style="display:flex;justify-content:space-between;"><span class="tl-title">Threads</span><span style="font-size:13px;font-weight:700;color:var(--accent3)">9 posts</span></div>
+                  <div class="progress-bar" style="margin-top:6px;"><div class="progress-fill" style="width:19%;background:linear-gradient(90deg,var(--accent3),#10b981)"></div></div>
+                </div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot" style="background:#f59e0b"></div>
+                <div class="tl-body">
+                  <div style="display:flex;justify-content:space-between;"><span class="tl-title">Facebook</span><span style="font-size:13px;font-weight:700;color:var(--accent4)">5 posts</span></div>
+                  <div class="progress-bar" style="margin-top:6px;"><div class="progress-fill" style="width:11%;background:linear-gradient(90deg,var(--accent4),#d97706)"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SETTINGS ── -->
+  <div id="page-settings" class="page">
+    <div class="topbar">
+      <div class="topbar-title">Settings</div>
+      <span class="topbar-route">/settings</span>
+      <div class="topbar-actions">
+        <button class="btn btn-primary">Run Sync</button>
+      </div>
+    </div>
+    <div style="padding:28px;">
+      <div class="two-col">
+        <div>
+          <div class="section-title">Style Profile</div>
+          <div class="panel-card">
+            <div class="panel-card-title">Voice & Tone</div>
+            <div style="display:grid;gap:12px;font-size:13.5px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border)">
+                <div><div style="font-weight:600">Tone</div><div style="color:var(--muted);font-size:12px">Overall brand voice</div></div>
+                <span class="tag tag-blue">Professional · Witty</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border)">
+                <div><div style="font-weight:600">Reading Level</div><div style="color:var(--muted);font-size:12px">Flesch-Kincaid target</div></div>
+                <span class="tag tag-gray">Grade 9</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border)">
+                <div><div style="font-weight:600">Forbidden phrases</div><div style="color:var(--muted);font-size:12px">Auto-flagged in Compose</div></div>
+                <span class="tag tag-red">12 phrases</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div><div style="font-weight:600">Emoji usage</div></div>
+                <span class="tag tag-green">Enabled</span>
+              </div>
+            </div>
+            <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:16px;">Edit Style Profile</button>
+          </div>
+
+          <div class="section-title" style="margin-top:22px;">Data Sync</div>
+          <div class="panel-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-size:14px;font-weight:600">Last Sync</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:2px;">4 minutes ago · All clear</div>
+              </div>
+              <span class="tag tag-green">Synced</span>
+            </div>
+            <div class="divider"></div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center;">🔄 Run Manual Sync</button>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Integrations</div>
+          <div class="item-list">
+            <div class="item-card">
+              <div class="item-icon" style="background:#0f172a;border:1px solid #1e3a5f;font-size:13px;">𝕏</div>
+              <div class="item-body"><div class="item-title">Twitter / X</div><div class="item-desc">OAuth 2.0 · API v2 · @jamie_morgan</div></div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span class="tag tag-green">Active</span>
+                <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;">Revoke</button>
+              </div>
+            </div>
+            <div class="item-card">
+              <div class="item-icon" style="background:#0a1628;font-size:13px;">in</div>
+              <div class="item-body"><div class="item-title">LinkedIn</div><div class="item-desc">OAuth 2.0 · Page Manager</div></div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span class="tag tag-green">Active</span>
+                <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;">Revoke</button>
+              </div>
+            </div>
+            <div class="item-card">
+              <div class="item-icon" style="background:#1a0a28;font-size:13px;">▶</div>
+              <div class="item-body"><div class="item-title">Threads</div><div class="item-desc">Meta Graph API · @jamie</div></div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span class="tag tag-green">Active</span>
+                <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;">Revoke</button>
+              </div>
+            </div>
+            <div class="item-card">
+              <div class="item-icon" style="background:#0a1a28;font-size:13px;">f</div>
+              <div class="item-body"><div class="item-title">Facebook</div><div class="item-desc">Graph API · token expires in 7d</div></div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span class="tag tag-amber">Expiring</span>
+                <button class="btn btn-primary" style="font-size:11px;padding:4px 9px;">Refresh</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  function nav(el) {
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    const page = el.dataset.page;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+  }
+
+  // Platform chip toggle
+  document.querySelectorAll('.pchip').forEach(c => {
+    c.addEventListener('click', () => c.classList.toggle('on'));
+  });
+
+  // Checklist toggle
+  document.querySelectorAll('.check-box').forEach(box => {
+    box.addEventListener('click', () => {
+      box.classList.toggle('checked');
+      box.textContent = box.classList.contains('checked') ? '✓' : '';
+      const label = box.nextElementSibling;
+      if(label) label.classList.toggle('done');
+    });
+  });
+
+  // Filter buttons toggle
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.closest('.filter-row').querySelectorAll('.filter-btn').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+    });
+  });
+</script>
+</body>
+</html>

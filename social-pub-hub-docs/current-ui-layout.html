@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Social Pub Hub - Current UI Layout</title>
+    <style>
+      :root {
+        --bg: #f3f5f8;
+        --card: #ffffff;
+        --text: #101828;
+        --muted: #475467;
+        --line: #d0d5dd;
+        --brand: #2e90fa;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "SF Pro Text", "Segoe UI", sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 35%);
+      }
+
+      .frame {
+        width: min(900px, calc(100vw - 32px));
+        margin: 24px auto;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--card);
+        box-shadow: 0 12px 36px rgba(16, 24, 40, 0.08);
+      }
+
+      .appbar {
+        height: 64px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 18px;
+        border-bottom: 1px solid var(--line);
+        background: #ffffff;
+      }
+
+      .leading {
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+      }
+
+      .title {
+        font-size: 20px;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .content {
+        padding: 20px 16px 24px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 19px;
+      }
+
+      .subhead {
+        margin: 8px 0 16px;
+        color: var(--muted);
+      }
+
+      .list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .menu-card {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 14px 14px 12px;
+      }
+
+      .menu-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 650;
+      }
+
+      .menu-subtitle {
+        margin: 6px 0 0;
+        font-size: 14px;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+
+      .chevron {
+        color: #98a2b3;
+        font-size: 22px;
+        padding-left: 8px;
+      }
+
+      .quick {
+        margin-top: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        border: none;
+        border-radius: 10px;
+        padding: 0 16px;
+        background: var(--brand);
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .note {
+        margin-top: 18px;
+        border-top: 1px dashed var(--line);
+        padding-top: 14px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="frame">
+      <header class="appbar">
+        <div class="leading" aria-hidden="true">⌂</div>
+        <h1 class="title">Social Pub Hub</h1>
+      </header>
+
+      <section class="content">
+        <h2>Navigation menu</h2>
+        <p class="subhead">Each menu item opens a focused workflow.</p>
+
+        <div class="list">
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Inbox</p>
+              <p class="menu-subtitle">Capture source items and create a draft from selected items.</p>
+              <p class="meta">Route: <code>/inbox</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Library</p>
+              <p class="menu-subtitle">Search/filter saved sources, create draft, and assign bundles.</p>
+              <p class="meta">Route: <code>/library</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Compose</p>
+              <p class="menu-subtitle">Edit draft, polish with LLM, generate/humanize variants, publish.</p>
+              <p class="meta">Route: <code>/compose</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Bundles</p>
+              <p class="menu-subtitle">Create bundle plans with anchors and related variants.</p>
+              <p class="meta">Route: <code>/bundles</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Bundle Checklist</p>
+              <p class="menu-subtitle">Validate bundle readiness and backfill missing pieces.</p>
+              <p class="meta">Route: <code>/bundle-checklist</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Publish</p>
+              <p class="menu-subtitle">View integration status and recent publish logs by bundle.</p>
+              <p class="meta">Route: <code>/publish</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Publish Checklist</p>
+              <p class="menu-subtitle">Run human-sounding rubric checks before posting.</p>
+              <p class="meta">Route: <code>/publish-checklist</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Queue</p>
+              <p class="menu-subtitle">Manage scheduled posts: filter, open composer, mark posted.</p>
+              <p class="meta">Route: <code>/queue</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Sync Conflicts</p>
+              <p class="menu-subtitle">Resolve sync collisions by choosing local or remote.</p>
+              <p class="meta">Route: <code>/sync-conflicts</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">History</p>
+              <p class="menu-subtitle">Review publish timeline, filter logs, clone variants into draft.</p>
+              <p class="meta">Route: <code>/history</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Analytics</p>
+              <p class="menu-subtitle">See posted totals, queue health, and platform breakdown.</p>
+              <p class="meta">Route: <code>/analytics</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+
+          <article class="menu-card">
+            <div>
+              <p class="menu-title">Settings</p>
+              <p class="menu-subtitle">Run sync, edit style profile, and inspect integrations.</p>
+              <p class="meta">Route: <code>/settings</code></p>
+            </div>
+            <span class="chevron">›</span>
+          </article>
+        </div>
+
+        <button class="quick" type="button">Quick start: Compose</button>
+
+        <p class="note">
+          Static layout snapshot for design handoff. Current app behavior: tapping a card navigates to the route above.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
