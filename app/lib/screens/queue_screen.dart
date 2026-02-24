@@ -30,6 +30,11 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
         title: 'Schedule Queue',
         actions: [
           IconButton(
+            tooltip: 'Schedule post',
+            onPressed: _showScheduleDialog,
+            icon: const Icon(Icons.add_alarm_outlined),
+          ),
+          IconButton(
             tooltip: 'Open compose',
             onPressed: () => context.go('/compose'),
             icon: const Icon(Icons.edit_outlined),
@@ -167,6 +172,150 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
             Center(child: Text('Failed loading queue: $error')),
       ),
     );
+  }
+
+  Future<void> _showScheduleDialog() async {
+    final contentController = TextEditingController();
+    String platform = 'x';
+    DateTime scheduledFor = DateTime.now().add(const Duration(hours: 1));
+
+    final shouldCreate = await showDialog<bool>(
+          context: context,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setLocalState) => AlertDialog(
+              title: const Text('Schedule post'),
+              content: SizedBox(
+                width: 460,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: platform,
+                      decoration: const InputDecoration(labelText: 'Platform'),
+                      items: const [
+                        DropdownMenuItem(value: 'x', child: Text('X')),
+                        DropdownMenuItem(
+                            value: 'linkedin', child: Text('LinkedIn')),
+                        DropdownMenuItem(
+                            value: 'reddit', child: Text('Reddit')),
+                        DropdownMenuItem(
+                            value: 'facebook', child: Text('Facebook')),
+                        DropdownMenuItem(
+                            value: 'youtube', child: Text('YouTube')),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setLocalState(() {
+                          platform = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: contentController,
+                      minLines: 3,
+                      maxLines: 6,
+                      decoration: const InputDecoration(
+                        labelText: 'Content',
+                        hintText: 'Write queued post content',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Scheduled for'),
+                      subtitle: Text(_formatDateTime(scheduledFor)),
+                      trailing: FilledButton.tonal(
+                        onPressed: () async {
+                          final picked = await _pickScheduledTime(scheduledFor);
+                          if (picked == null) {
+                            return;
+                          }
+                          setLocalState(() {
+                            scheduledFor = picked;
+                          });
+                        },
+                        child: const Text('Change'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Queue'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+
+    if (!shouldCreate) {
+      contentController.dispose();
+      return;
+    }
+
+    final content = contentController.text.trim();
+    contentController.dispose();
+    if (content.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Content is required')),
+      );
+      return;
+    }
+
+    await ref.read(scheduledPostRepoProvider).createScheduledPost(
+          platform: platform,
+          content: content,
+          scheduledFor: scheduledFor.toUtc(),
+        );
+
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Scheduled post added')),
+    );
+  }
+
+  String _formatDateTime(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$month/$day ${value.year} $hour:$minute';
+  }
+
+  Future<DateTime?> _pickScheduledTime(DateTime initial) async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) {
+      return null;
+    }
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null) {
+      return null;
+    }
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 }
 
