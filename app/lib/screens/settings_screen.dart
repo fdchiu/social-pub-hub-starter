@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -19,6 +22,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   SyncSummary? _lastSummary;
   String? _lastError;
   DateTime? _lastRunAt;
+  final List<_SyncRunEntry> _syncRuns = <_SyncRunEntry>[];
   final TextEditingController _voiceController = TextEditingController();
   final TextEditingController _bannedPhrasesController =
       TextEditingController();
@@ -47,6 +51,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final integrationsAsync = ref.watch(integrationsProvider);
     final conflictsAsync = ref.watch(openSyncConflictsStreamProvider);
+    final sourceCount =
+        ref.watch(sourceItemsStreamProvider).valueOrNull?.length;
+    final draftCount = ref.watch(draftsStreamProvider).valueOrNull?.length;
+    final variantCount =
+        ref.watch(allVariantsStreamProvider).valueOrNull?.length;
+    final bundleCount = ref.watch(bundlesStreamProvider).valueOrNull?.length;
+    final publishLogCount =
+        ref.watch(publishLogsStreamProvider).valueOrNull?.length;
+    final queueCount =
+        ref.watch(scheduledPostsStreamProvider).valueOrNull?.length;
+    final integrationCount = integrationsAsync.valueOrNull?.length;
+    final connectedIntegrations =
+        integrationsAsync.valueOrNull?.where((row) => row.connected).length;
     final openConflictCount = conflictsAsync.maybeWhen(
       data: (rows) => rows.length,
       orElse: () => 0,
@@ -87,6 +104,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.only(top: 12),
               child: Text(_summaryText(_lastSummary!)),
             ),
+          const SizedBox(height: 16),
+          _buildDebugCard(
+            sourceCount: sourceCount,
+            draftCount: draftCount,
+            variantCount: variantCount,
+            bundleCount: bundleCount,
+            publishLogCount: publishLogCount,
+            queueCount: queueCount,
+            openConflictCount: openConflictCount,
+            integrationCount: integrationCount,
+            connectedIntegrationCount: connectedIntegrations,
+          ),
           const SizedBox(height: 16),
           Card(
             child: ListTile(
@@ -157,6 +186,88 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDebugCard({
+    required int? sourceCount,
+    required int? draftCount,
+    required int? variantCount,
+    required int? bundleCount,
+    required int? publishLogCount,
+    required int? queueCount,
+    required int openConflictCount,
+    required int? integrationCount,
+    required int? connectedIntegrationCount,
+  }) {
+    String showCount(int? value) => value == null ? '...' : '$value';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Diagnostics',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'sources=${showCount(sourceCount)}  drafts=${showCount(draftCount)}  '
+              'variants=${showCount(variantCount)}  bundles=${showCount(bundleCount)}',
+            ),
+            Text(
+              'logs=${showCount(publishLogCount)}  queue=${showCount(queueCount)}  '
+              'conflicts=$openConflictCount',
+            ),
+            Text(
+              'integrations=${showCount(integrationCount)}  '
+              'connected=${showCount(connectedIntegrationCount)}',
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonal(
+                  onPressed: () => _copyDiagnosticsSnapshot(
+                    sourceCount: sourceCount,
+                    draftCount: draftCount,
+                    variantCount: variantCount,
+                    bundleCount: bundleCount,
+                    publishLogCount: publishLogCount,
+                    queueCount: queueCount,
+                    openConflictCount: openConflictCount,
+                    integrationCount: integrationCount,
+                    connectedIntegrationCount: connectedIntegrationCount,
+                  ),
+                  child: const Text('Copy diagnostics JSON'),
+                ),
+                FilledButton.tonal(
+                  onPressed: _syncRuns.isEmpty ? null : _copySyncRuns,
+                  child: const Text('Copy sync runs'),
+                ),
+              ],
+            ),
+            if (_syncRuns.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Recent sync runs',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              for (final run in _syncRuns.take(5))
+                Text(
+                  '${run.at.toLocal().toIso8601String()} '
+                  '[${run.ok ? 'ok' : 'error'}] '
+                  '${run.durationMs}ms '
+                  '${run.ok ? 'cursor=${run.summary?.cursor ?? '-'}' : run.error ?? '-'}',
+                ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -292,6 +403,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _runSync() async {
+    final startedAt = DateTime.now();
     setState(() {
       _syncing = true;
       _lastError = null;
@@ -302,10 +414,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) {
         return;
       }
+      final finishedAt = DateTime.now();
       setState(() {
         _syncing = false;
         _lastSummary = summary;
-        _lastRunAt = DateTime.now();
+        _lastRunAt = finishedAt;
+        _syncRuns.insert(
+          0,
+          _SyncRunEntry(
+            at: finishedAt,
+            durationMs: finishedAt.difference(startedAt).inMilliseconds,
+            ok: true,
+            summary: summary,
+          ),
+        );
+        if (_syncRuns.length > 20) {
+          _syncRuns.removeLast();
+        }
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Sync done. Cursor ${summary.cursor}')),
@@ -315,10 +440,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) {
         return;
       }
+      final finishedAt = DateTime.now();
       setState(() {
         _syncing = false;
         _lastError = 'Sync failed: $e';
-        _lastRunAt = DateTime.now();
+        _lastRunAt = finishedAt;
+        _syncRuns.insert(
+          0,
+          _SyncRunEntry(
+            at: finishedAt,
+            durationMs: finishedAt.difference(startedAt).inMilliseconds,
+            ok: false,
+            error: '$e',
+          ),
+        );
+        if (_syncRuns.length > 20) {
+          _syncRuns.removeLast();
+        }
       });
     }
   }
@@ -411,4 +549,138 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         '${summary.deletedScheduledPosts}\n'
         'Conflicts detected: ${summary.detectedConflicts}';
   }
+
+  Future<void> _copyDiagnosticsSnapshot({
+    required int? sourceCount,
+    required int? draftCount,
+    required int? variantCount,
+    required int? bundleCount,
+    required int? publishLogCount,
+    required int? queueCount,
+    required int openConflictCount,
+    required int? integrationCount,
+    required int? connectedIntegrationCount,
+  }) async {
+    final payload = <String, dynamic>{
+      'generated_at': DateTime.now().toUtc().toIso8601String(),
+      'api_base_url': ref.read(apiBaseUrlProvider),
+      'sync': {
+        'last_run_at': _lastRunAt?.toUtc().toIso8601String(),
+        'last_error': _lastError,
+        'last_summary':
+            _lastSummary == null ? null : _summaryMap(_lastSummary!),
+      },
+      'counts': {
+        'source_items': sourceCount,
+        'drafts': draftCount,
+        'variants': variantCount,
+        'bundles': bundleCount,
+        'publish_logs': publishLogCount,
+        'scheduled_posts': queueCount,
+        'open_sync_conflicts': openConflictCount,
+        'integrations': integrationCount,
+        'connected_integrations': connectedIntegrationCount,
+      },
+      'style_profile': {
+        'id': _styleProfileId,
+        'voice_name': _voiceController.text.trim(),
+        'casual_formal': _casualFormal,
+        'punchiness': _punchiness,
+        'emoji_level': _emojiLevel,
+        'banned_phrases': _bannedPhrasesController.text
+            .split(',')
+            .map((phrase) => phrase.trim())
+            .where((phrase) => phrase.isNotEmpty)
+            .toList(growable: false),
+      },
+      'recent_sync_runs': _syncRuns
+          .map((run) => {
+                'at': run.at.toUtc().toIso8601String(),
+                'duration_ms': run.durationMs,
+                'ok': run.ok,
+                'error': run.error,
+                'summary':
+                    run.summary == null ? null : _summaryMap(run.summary!),
+              })
+          .toList(growable: false),
+    };
+
+    await Clipboard.setData(
+      ClipboardData(
+        text: const JsonEncoder.withIndent('  ').convert(payload),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Diagnostics copied as JSON')),
+    );
+  }
+
+  Future<void> _copySyncRuns() async {
+    final lines = <String>[
+      'at_utc,ok,duration_ms,cursor,error',
+      ..._syncRuns.map((run) {
+        final cursor = run.summary?.cursor ?? '';
+        final error = (run.error ?? '').replaceAll(',', ';');
+        return '${run.at.toUtc().toIso8601String()},'
+            '${run.ok},'
+            '${run.durationMs},'
+            '$cursor,'
+            '$error';
+      }),
+    ];
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied ${_syncRuns.length} sync runs')),
+    );
+  }
+
+  Map<String, dynamic> _summaryMap(SyncSummary summary) {
+    return {
+      'cursor': summary.cursor,
+      'pushed': {
+        'drafts': summary.pushedDrafts,
+        'variants': summary.pushedVariants,
+        'publish_logs': summary.pushedPublishLogs,
+        'style_profiles': summary.pushedStyleProfiles,
+        'scheduled_posts': summary.pushedScheduledPosts,
+      },
+      'pulled': {
+        'drafts': summary.pulledDrafts,
+        'variants': summary.pulledVariants,
+        'publish_logs': summary.pulledPublishLogs,
+        'style_profiles': summary.pulledStyleProfiles,
+        'scheduled_posts': summary.pulledScheduledPosts,
+      },
+      'deleted': {
+        'drafts': summary.deletedDrafts,
+        'variants': summary.deletedVariants,
+        'publish_logs': summary.deletedPublishLogs,
+        'style_profiles': summary.deletedStyleProfiles,
+        'scheduled_posts': summary.deletedScheduledPosts,
+      },
+      'detected_conflicts': summary.detectedConflicts,
+    };
+  }
+}
+
+class _SyncRunEntry {
+  const _SyncRunEntry({
+    required this.at,
+    required this.durationMs,
+    required this.ok,
+    this.summary,
+    this.error,
+  });
+
+  final DateTime at;
+  final int durationMs;
+  final bool ok;
+  final SyncSummary? summary;
+  final String? error;
 }
