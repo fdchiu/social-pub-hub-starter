@@ -475,11 +475,14 @@ class _ScheduledPostCard extends ConsumerWidget {
                   onPressed: () => _openComposer(context),
                   child: const Text('Open composer'),
                 ),
-                if (item.variantId != null && item.variantId!.isNotEmpty)
-                  FilledButton.tonal(
-                    onPressed: () => _openHistory(context, item.variantId!),
-                    child: Text('History ${_shortId(item.variantId!)}'),
+                FilledButton.tonal(
+                  onPressed: () => _openHistory(context),
+                  child: Text(
+                    item.variantId == null || item.variantId!.isEmpty
+                        ? 'History'
+                        : 'History ${_shortId(item.variantId!)}',
                   ),
+                ),
                 if (isQueued)
                   FilledButton.tonal(
                     onPressed: () => _markPosted(context, ref),
@@ -532,9 +535,20 @@ class _ScheduledPostCard extends ConsumerWidget {
     }
   }
 
-  void _openHistory(BuildContext context, String variantId) {
-    final encoded = Uri.encodeQueryComponent(variantId);
-    context.go('/history?variantId=$encoded');
+  void _openHistory(BuildContext context) {
+    final query = <String, String>{
+      'platform': item.platform.toLowerCase(),
+      'mode': 'scheduled',
+    };
+    final variantId = item.variantId?.trim();
+    if (variantId != null && variantId.isNotEmpty) {
+      query['variantId'] = variantId;
+    }
+    if (item.status.toLowerCase() == 'posted') {
+      query['status'] = 'posted';
+    }
+    final uri = Uri(path: '/history', queryParameters: query);
+    context.go(uri.toString());
   }
 
   Future<void> _markPosted(BuildContext context, WidgetRef ref) async {
