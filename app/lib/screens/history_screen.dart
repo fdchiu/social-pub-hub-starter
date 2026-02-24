@@ -30,6 +30,7 @@ class HistoryScreen extends ConsumerStatefulWidget {
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   final TextEditingController _queryController = TextEditingController();
+  final TextEditingController _variantController = TextEditingController();
   String _query = '';
   String _platformFilter = 'all';
   String _statusFilter = 'all';
@@ -44,6 +45,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final initialVariantId = widget.initialVariantId?.trim();
     if (initialVariantId != null && initialVariantId.isNotEmpty) {
       _variantFilterId = initialVariantId;
+      _variantController.text = initialVariantId;
     }
     final initialPlatform = widget.initialPlatform?.trim().toLowerCase();
     if (initialPlatform != null && initialPlatform.isNotEmpty) {
@@ -67,6 +69,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   void dispose() {
     _queryController.removeListener(_onQueryChanged);
     _queryController.dispose();
+    _variantController.dispose();
     super.dispose();
   }
 
@@ -142,6 +145,35 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           ),
                     border: const OutlineInputBorder(),
                   ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: TextField(
+                  controller: _variantController,
+                  decoration: InputDecoration(
+                    labelText: 'Variant ID (exact match)',
+                    hintText: 'Paste full variant id',
+                    prefixIcon: const Icon(Icons.tag_outlined),
+                    suffixIcon: _variantController.text.trim().isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () {
+                              _variantController.clear();
+                              setState(() {
+                                _variantFilterId = null;
+                              });
+                            },
+                            icon: const Icon(Icons.clear),
+                          ),
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: (value) {
+                    final trimmed = value.trim();
+                    setState(() {
+                      _variantFilterId = trimmed.isEmpty ? null : trimmed;
+                    });
+                  },
                 ),
               ),
               SizedBox(
@@ -266,6 +298,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       ),
                       TextButton(
                         onPressed: () {
+                          _variantController.clear();
                           setState(() {
                             _variantFilterId = null;
                           });
