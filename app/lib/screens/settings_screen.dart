@@ -374,6 +374,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     : const Icon(Icons.save),
                 label: Text(_savingStyleProfile ? 'Saving…' : 'Save profile'),
               ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.tonal(
+                    onPressed: profileId == null ? null : _copyStyleProfileJson,
+                    child: const Text('Copy JSON'),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: (profileId == null || disabled)
+                        ? null
+                        : _importStyleJson,
+                    child: const Text('Import JSON'),
+                  ),
+                ],
+              ),
               if (_styleProfileError != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -532,6 +549,163 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _styleProfileError = 'Failed saving style profile: $error';
       });
     }
+  }
+
+  Future<void> _copyStyleProfileJson() async {
+    final profileId = _styleProfileId;
+    if (profileId == null) {
+      return;
+    }
+    final payload = {
+      'id': profileId,
+      'voice_name': _voiceController.text.trim(),
+      'casual_formal': _casualFormal,
+      'punchiness': _punchiness,
+      'emoji_level': _emojiLevel,
+      'banned_phrases': _bannedPhrasesController.text
+          .split(',')
+          .map((phrase) => phrase.trim())
+          .where((phrase) => phrase.isNotEmpty)
+          .toList(growable: false),
+      'exported_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    await Clipboard.setData(
+      ClipboardData(text: const JsonEncoder.withIndent('  ').convert(payload)),
+    );
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Style profile JSON copied')),
+    );
+  }
+
+  Future<void> _importStyleJson() async {
+    final profileId = _styleProfileId;
+    if (profileId == null) {
+      return;
+    }
+    final controller = TextEditingController();
+    final raw = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import style profile JSON'),
+        content: SizedBox(
+          width: 560,
+          child: TextField(
+            controller: controller,
+            minLines: 10,
+            maxLines: 18,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: '{"voice_name":"David",...}',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        throw Exception('JSON must be an object');
+      }
+      final map = decoded.cast<String, dynamic>();
+
+      final voice =
+          ((map['voice_name'] ?? map['voiceName']) as String?)?.trim() ??
+              _voiceController.text.trim();
+      final casualFormal = _clamp01(_asDouble(
+            map['casual_formal'] ?? map['casualFormal'],
+          ) ??
+          _casualFormal);
+      final punchiness = _clamp01(_asDouble(map['punchiness']) ?? _punchiness);
+      final emojiLevel = _normalizeEmojiLevel(
+        (map['emoji_level'] ?? map['emojiLevel']) as String? ?? _emojiLevel,
+      );
+      final banned = _parseBannedPhrases(
+        map['banned_phrases'] ?? map['bannedPhrases'],
+      );
+
+      setState(() {
+        _voiceController.text = voice;
+        _casualFormal = casualFormal;
+        _punchiness = punchiness;
+        _emojiLevel = emojiLevel;
+        _bannedPhrasesController.text = banned.join(', ');
+      });
+      await _saveStyleProfile();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Import failed: $error')),
+      );
+    }
+  }
+
+  double _clamp01(double value) {
+    if (value < 0) {
+      return 0;
+    }
+    if (value > 1) {
+      return 1;
+    }
+    return value;
+  }
+
+  double? _asDouble(Object? value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
+  }
+
+  String _normalizeEmojiLevel(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (const {'none', 'light', 'medium', 'high'}.contains(normalized)) {
+      return normalized;
+    }
+    return _emojiLevel;
+  }
+
+  List<String> _parseBannedPhrases(Object? value) {
+    if (value is List) {
+      return value
+          .map((row) => row.toString().trim())
+          .where((row) => row.isNotEmpty)
+          .toList(growable: false);
+    }
+    if (value is String) {
+      return value
+          .split(',')
+          .map((row) => row.trim())
+          .where((row) => row.isNotEmpty)
+          .toList(growable: false);
+    }
+    return _bannedPhrasesController.text
+        .split(',')
+        .map((phrase) => phrase.trim())
+        .where((phrase) => phrase.isNotEmpty)
+        .toList(growable: false);
   }
 
   String _summaryText(SyncSummary summary) {
