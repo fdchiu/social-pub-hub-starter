@@ -56,6 +56,10 @@ class VariantRepo {
         .go();
   }
 
+  Future<void> deleteVariantById(String variantId) async {
+    await (_db.delete(_db.variants)..where((t) => t.id.equals(variantId))).go();
+  }
+
   Future<void> updateVariantBody({
     required String variantId,
     required String body,

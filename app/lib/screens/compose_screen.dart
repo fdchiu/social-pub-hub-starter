@@ -346,6 +346,22 @@ Takeaway:
                                                   ),
                                                 ),
                                                 IconButton(
+                                                  tooltip: 'Edit',
+                                                  onPressed: () =>
+                                                      _editVariant(variant),
+                                                  icon: const Icon(
+                                                    Icons.edit_outlined,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  tooltip: 'Delete',
+                                                  onPressed: () =>
+                                                      _deleteVariant(variant),
+                                                  icon: const Icon(
+                                                    Icons.delete_outline,
+                                                  ),
+                                                ),
+                                                IconButton(
                                                   tooltip: 'Humanize',
                                                   onPressed: humanizing
                                                       ? null
@@ -747,6 +763,96 @@ Takeaway:
         SnackBar(content: Text('Unable to open composer for $platform')),
       );
     }
+  }
+
+  Future<void> _editVariant(Variant variant) async {
+    final controller = TextEditingController(text: variant.body);
+    final nextText = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Edit ${variant.platform.toUpperCase()} variant'),
+        content: SizedBox(
+          width: 560,
+          child: TextField(
+            controller: controller,
+            minLines: 8,
+            maxLines: 16,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Variant text',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (nextText == null) {
+      return;
+    }
+    if (nextText.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Variant text cannot be empty')),
+      );
+      return;
+    }
+    await ref.read(variantRepoProvider).updateVariantBody(
+          variantId: variant.id,
+          body: nextText,
+        );
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text('Updated ${variant.platform.toUpperCase()} variant')),
+    );
+  }
+
+  Future<void> _deleteVariant(Variant variant) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Delete ${variant.platform.toUpperCase()} variant?'),
+            content: const Text(
+              'This removes the variant from local storage.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) {
+      return;
+    }
+    await ref.read(variantRepoProvider).deleteVariantById(variant.id);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text('Deleted ${variant.platform.toUpperCase()} variant')),
+    );
   }
 
   Future<void> _confirmPosted(String variantId, String platform) async {
