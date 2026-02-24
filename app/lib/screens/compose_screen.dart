@@ -46,6 +46,7 @@ Takeaway:
   String? _saveError;
   String? _variantError;
   bool _generatingVariants = false;
+  bool _regeneratingVisibleVariants = false;
   bool _polishingDraft = false;
   final Set<String> _humanizingVariantIds = <String>{};
   double _humanizeStrictness = 0.7;
@@ -90,7 +91,9 @@ Takeaway:
                 : const Icon(Icons.spellcheck),
           ),
           IconButton(
-            onPressed: (_draftId == null || _generatingVariants)
+            onPressed: (_draftId == null ||
+                    _generatingVariants ||
+                    _regeneratingVisibleVariants)
                 ? null
                 : _generateVariants,
             tooltip: 'Generate variants',
@@ -266,7 +269,8 @@ Takeaway:
                                               'Visible variants: ${filtered.length}'),
                                           const Spacer(),
                                           FilledButton.tonal(
-                                            onPressed: filtered.isEmpty
+                                            onPressed: filtered.isEmpty ||
+                                                    _regeneratingVisibleVariants
                                                 ? null
                                                 : () =>
                                                     _humanizeVisibleVariants(
@@ -274,6 +278,28 @@ Takeaway:
                                                     ),
                                             child:
                                                 const Text('Humanize visible'),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          FilledButton.tonal(
+                                            onPressed: filtered.isEmpty ||
+                                                    _regeneratingVisibleVariants
+                                                ? null
+                                                : () =>
+                                                    _regenerateVisibleVariants(
+                                                      filtered,
+                                                    ),
+                                            child: _regeneratingVisibleVariants
+                                                ? const SizedBox(
+                                                    width: 14,
+                                                    height: 14,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : const Text(
+                                                    'Regenerate visible',
+                                                  ),
                                           ),
                                         ],
                                       ),
@@ -740,6 +766,84 @@ Takeaway:
             'Humanized $successCount/${toHumanize.length} visible variants'),
       ),
     );
+  }
+
+  Future<void> _regenerateVisibleVariants(List<Variant> variants) async {
+    final draftId = _draftId;
+    if (draftId == null) {
+      return;
+    }
+    final platformSet = variants.map((row) => row.platform).toSet();
+    final platforms = platformSet.toList(growable: false)..sort();
+    if (platforms.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No visible platforms to regenerate')),
+      );
+      return;
+    }
+
+    setState(() {
+      _regeneratingVisibleVariants = true;
+      _variantError = null;
+    });
+
+    try {
+      final baseUrl = ref.read(apiBaseUrlProvider);
+      final response = await ref.read(httpClientProvider).post(
+            Uri.parse('$baseUrl/drafts/$draftId/variants'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({'platforms': platforms}),
+          );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Regenerate failed: ${response.statusCode}');
+      }
+
+      final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+      final variantsRaw = parsed['variants'];
+      final regenerated = variantsRaw is List
+          ? variantsRaw.whereType<Map>().map((e) => e.cast<String, dynamic>())
+          : const Iterable<Map<String, dynamic>>.empty();
+
+      final repo = ref.read(variantRepoProvider);
+      await repo.deleteVariantsForDraftPlatforms(
+        draftId: draftId,
+        platforms: platforms,
+      );
+      for (final variant in regenerated) {
+        await repo.createVariant(
+          id: variant['id'] as String?,
+          draftId: draftId,
+          platform: (variant['platform'] as String?) ?? 'x',
+          body: (variant['text'] as String?) ?? '',
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _regeneratingVisibleVariants = false;
+        _variantError = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Regenerated ${platforms.length} platform variants',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _regeneratingVisibleVariants = false;
+        _variantError = 'Variant regeneration failed: $e';
+      });
+    }
   }
 
   Future<void> _openComposerForVariant({

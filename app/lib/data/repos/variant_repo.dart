@@ -56,6 +56,20 @@ class VariantRepo {
         .go();
   }
 
+  Future<void> deleteVariantsForDraftPlatforms({
+    required String draftId,
+    required List<String> platforms,
+  }) async {
+    if (platforms.isEmpty) {
+      return;
+    }
+    await (_db.delete(_db.variants)
+          ..where(
+            (t) => t.draftId.equals(draftId) & t.platform.isIn(platforms),
+          ))
+        .go();
+  }
+
   Future<void> deleteVariantById(String variantId) async {
     await (_db.delete(_db.variants)..where((t) => t.id.equals(variantId))).go();
   }
