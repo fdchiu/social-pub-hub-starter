@@ -6,17 +6,44 @@ import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
 
-class SyncConflictsScreen extends ConsumerWidget {
+class SyncConflictsScreen extends ConsumerStatefulWidget {
   const SyncConflictsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SyncConflictsScreen> createState() =>
+      _SyncConflictsScreenState();
+}
+
+class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
+  bool _resolvingAll = false;
+
+  @override
+  Widget build(BuildContext context) {
     final conflictsAsync = ref.watch(openSyncConflictsStreamProvider);
 
     return Scaffold(
       appBar: buildHubAppBar(
         context: context,
         title: 'Sync conflicts',
+        actions: [
+          IconButton(
+            tooltip: 'Keep all remote',
+            onPressed:
+                _resolvingAll ? null : () => _resolveAll(useLocal: false),
+            icon: _resolvingAll
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.cloud_download_outlined),
+          ),
+          IconButton(
+            tooltip: 'Use all local',
+            onPressed: _resolvingAll ? null : () => _resolveAll(useLocal: true),
+            icon: const Icon(Icons.edit_note_outlined),
+          ),
+        ],
       ),
       body: conflictsAsync.when(
         data: (conflicts) {
@@ -38,6 +65,75 @@ class SyncConflictsScreen extends ConsumerWidget {
             Center(child: Text('Failed loading conflicts: $error')),
       ),
     );
+  }
+
+  Future<void> _resolveAll({required bool useLocal}) async {
+    final conflicts = ref.read(openSyncConflictsStreamProvider).valueOrNull;
+    if (conflicts == null || conflicts.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No open conflicts')),
+      );
+      return;
+    }
+
+    final actionLabel = useLocal ? 'Use local for all' : 'Keep remote for all';
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(actionLabel),
+            content: Text('Apply this to ${conflicts.length} open conflicts?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Apply'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) {
+      return;
+    }
+
+    setState(() {
+      _resolvingAll = true;
+    });
+    try {
+      final service = ref.read(syncServiceProvider);
+      for (final row in conflicts) {
+        if (useLocal) {
+          await service.resolveConflictUseLocal(row.id);
+        } else {
+          await service.resolveConflictKeepRemote(row.id);
+        }
+      }
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$actionLabel complete (${conflicts.length})')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Bulk resolve failed: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _resolvingAll = false;
+        });
+      }
+    }
   }
 }
 
