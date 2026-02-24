@@ -30,6 +30,11 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
         title: 'Schedule Queue',
         actions: [
           IconButton(
+            tooltip: 'Export filtered CSV',
+            onPressed: _exportFilteredCsv,
+            icon: const Icon(Icons.download_outlined),
+          ),
+          IconButton(
             tooltip: 'Schedule post',
             onPressed: _showScheduleDialog,
             icon: const Icon(Icons.add_alarm_outlined),
@@ -66,16 +71,12 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
               ? _platformFilter
               : 'all';
 
-          final filtered = items.where((row) {
-            final statusMatches =
-                selectedStatus == 'all' || row.status == selectedStatus;
-            final platformMatches = selectedPlatform == 'all' ||
-                row.platform.toLowerCase() == selectedPlatform;
-            final isOverdue =
-                row.status == 'queued' && row.scheduledFor.isBefore(now);
-            final overdueMatches = !_overdueOnly || isOverdue;
-            return statusMatches && platformMatches && overdueMatches;
-          }).toList(growable: false);
+          final filtered = _applyFilters(
+            items,
+            now: now,
+            selectedStatus: selectedStatus,
+            selectedPlatform: selectedPlatform,
+          );
 
           return Column(
             children: [
@@ -317,6 +318,105 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
     }
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
+
+  List<ScheduledPost> _applyFilters(
+    List<ScheduledPost> items, {
+    required DateTime now,
+    required String selectedStatus,
+    required String selectedPlatform,
+  }) {
+    return items.where((row) {
+      final statusMatches =
+          selectedStatus == 'all' || row.status.toLowerCase() == selectedStatus;
+      final platformMatches = selectedPlatform == 'all' ||
+          row.platform.toLowerCase() == selectedPlatform;
+      final isOverdue = row.status.toLowerCase() == 'queued' &&
+          row.scheduledFor.isBefore(now);
+      final overdueMatches = !_overdueOnly || isOverdue;
+      return statusMatches && platformMatches && overdueMatches;
+    }).toList(growable: false);
+  }
+
+  Future<void> _exportFilteredCsv() async {
+    final items = ref.read(scheduledPostsStreamProvider).valueOrNull;
+    if (items == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Queue still loading')),
+      );
+      return;
+    }
+    if (items.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No queue items to export')),
+      );
+      return;
+    }
+
+    final now = DateTime.now().toUtc();
+    final statusOptions = <String>{
+      'all',
+      ...items.map((row) => row.status.toLowerCase()),
+    };
+    final platformOptions = <String>{
+      'all',
+      ...items.map((row) => row.platform.toLowerCase()),
+    };
+    final selectedStatus =
+        statusOptions.contains(_statusFilter) ? _statusFilter : 'all';
+    final selectedPlatform =
+        platformOptions.contains(_platformFilter) ? _platformFilter : 'all';
+    final filtered = _applyFilters(
+      items,
+      now: now,
+      selectedStatus: selectedStatus,
+      selectedPlatform: selectedPlatform,
+    );
+    if (filtered.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No filtered queue rows to export')),
+      );
+      return;
+    }
+
+    final lines = <String>[
+      'id,platform,status,variant_id,scheduled_for,external_url,content,created_at,updated_at',
+      ...filtered.map((row) {
+        return [
+          _csv(row.id),
+          _csv(row.platform),
+          _csv(row.status),
+          _csv(row.variantId ?? ''),
+          _csv(row.scheduledFor.toUtc().toIso8601String()),
+          _csv(row.externalUrl ?? ''),
+          _csv(row.content),
+          _csv(row.createdAt.toUtc().toIso8601String()),
+          _csv(row.updatedAt.toUtc().toIso8601String()),
+        ].join(',');
+      }),
+    ];
+
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied ${filtered.length} queue rows as CSV')),
+    );
+  }
+
+  String _csv(String value) {
+    final escaped = value.replaceAll('"', '""');
+    return '"$escaped"';
+  }
 }
 
 class _ScheduledPostCard extends ConsumerWidget {
@@ -384,6 +484,11 @@ class _ScheduledPostCard extends ConsumerWidget {
                   FilledButton.tonal(
                     onPressed: () => _markPosted(context, ref),
                     child: const Text('Mark posted'),
+                  ),
+                if (isQueued)
+                  FilledButton.tonal(
+                    onPressed: () => _reschedule(context, ref),
+                    child: const Text('Reschedule'),
                   ),
                 if (isQueued)
                   FilledButton.tonal(
@@ -462,6 +567,26 @@ class _ScheduledPostCard extends ConsumerWidget {
     }
   }
 
+  Future<void> _reschedule(BuildContext context, WidgetRef ref) async {
+    final now = DateTime.now();
+    final initial = item.scheduledFor.toLocal().isAfter(now)
+        ? item.scheduledFor.toLocal()
+        : now.add(const Duration(hours: 1));
+    final nextTime = await _pickScheduledTime(context, initial);
+    if (nextTime == null) {
+      return;
+    }
+    await ref.read(scheduledPostRepoProvider).reschedule(
+          scheduledPostId: item.id,
+          scheduledFor: nextTime.toUtc(),
+        );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Queue item rescheduled')),
+      );
+    }
+  }
+
   String _formatDateTime(DateTime value) {
     final month = value.month.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
@@ -504,6 +629,30 @@ class _ScheduledPostCard extends ConsumerWidget {
       return id;
     }
     return id.substring(0, 8);
+  }
+
+  Future<DateTime?> _pickScheduledTime(
+    BuildContext context,
+    DateTime initial,
+  ) async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (date == null || !context.mounted) {
+      return null;
+    }
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null) {
+      return null;
+    }
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 }
 

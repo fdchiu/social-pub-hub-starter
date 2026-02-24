@@ -68,4 +68,20 @@ class ScheduledPostRepo {
       ),
     );
   }
+
+  Future<void> reschedule({
+    required String scheduledPostId,
+    required DateTime scheduledFor,
+  }) async {
+    await (_db.update(_db.scheduledPosts)
+          ..where((t) => t.id.equals(scheduledPostId)))
+        .write(
+      ScheduledPostsCompanion(
+        scheduledFor: Value(scheduledFor),
+        status: const Value('queued'),
+        updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
+      ),
+    );
+  }
 }
