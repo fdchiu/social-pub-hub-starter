@@ -25,6 +25,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   String _query = '';
   String _platformFilter = 'all';
   String _statusFilter = 'all';
+  _HistoryWindow _window = _HistoryWindow.all;
   String? _variantFilterId;
 
   @override
@@ -105,6 +106,37 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   ),
                 ),
               ),
+              SizedBox(
+                height: 42,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _HistoryWindow.values.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final option = _HistoryWindow.values[index];
+                    final label = switch (option) {
+                      _HistoryWindow.days7 => '7D',
+                      _HistoryWindow.days30 => '30D',
+                      _HistoryWindow.days90 => '90D',
+                      _HistoryWindow.all => 'All',
+                    };
+                    return ChoiceChip(
+                      label: Text(label),
+                      selected: _window == option,
+                      onSelected: (selected) {
+                        if (!selected) {
+                          return;
+                        }
+                        setState(() {
+                          _window = option;
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 6),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Row(
@@ -329,6 +361,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   List<PublishLog> _filterLogs(List<PublishLog> logs) {
     final needle = _query.toLowerCase();
+    final now = DateTime.now().toUtc();
+    final since = switch (_window) {
+      _HistoryWindow.days7 => now.subtract(const Duration(days: 7)),
+      _HistoryWindow.days30 => now.subtract(const Duration(days: 30)),
+      _HistoryWindow.days90 => now.subtract(const Duration(days: 90)),
+      _HistoryWindow.all => null,
+    };
     return logs.where((row) {
       final platformMatches = _platformFilter == 'all' ||
           row.platform.toLowerCase() == _platformFilter;
@@ -336,6 +375,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           _statusFilter == 'all' || row.status.toLowerCase() == _statusFilter;
       final variantMatches =
           _variantFilterId == null || row.variantId == _variantFilterId;
+      final windowMatches = since == null || row.createdAt.isAfter(since);
       final queryMatches = needle.isEmpty ||
           [
             row.platform,
@@ -345,7 +385,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             row.externalUrl ?? '',
             row.postedAt?.toIso8601String() ?? '',
           ].join(' ').toLowerCase().contains(needle);
-      return platformMatches && statusMatches && variantMatches && queryMatches;
+      return platformMatches &&
+          statusMatches &&
+          variantMatches &&
+          windowMatches &&
+          queryMatches;
     }).toList(growable: false);
   }
 
@@ -407,4 +451,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 enum _HistoryAction {
   cloneAsDraft,
   openExternalUrl,
+}
+
+enum _HistoryWindow {
+  days7,
+  days30,
+  days90,
+  all,
 }
