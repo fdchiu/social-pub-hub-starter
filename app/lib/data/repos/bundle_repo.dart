@@ -104,4 +104,43 @@ class BundleRepo {
       ),
     );
   }
+
+  Future<void> updateBundle({
+    required String bundleId,
+    required String name,
+    required String anchorType,
+    String? anchorRef,
+    String? notes,
+    String? canonicalDraftId,
+  }) async {
+    await (_db.update(_db.bundles)..where((t) => t.id.equals(bundleId))).write(
+      BundlesCompanion(
+        name: Value(name.trim()),
+        anchorType: Value(anchorType.trim().isEmpty ? 'youtube' : anchorType),
+        anchorRef:
+            Value(anchorRef?.trim().isEmpty ?? true ? null : anchorRef?.trim()),
+        canonicalDraftId: Value(
+          canonicalDraftId?.trim().isEmpty ?? true
+              ? null
+              : canonicalDraftId?.trim(),
+        ),
+        notes: Value(notes?.trim().isEmpty ?? true ? null : notes?.trim()),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
+
+  Future<void> deleteBundle(String bundleId) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.sourceItems)
+            ..where((t) => t.bundleId.equals(bundleId)))
+          .write(
+        SourceItemsCompanion(
+          bundleId: const Value(null),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+      await (_db.delete(_db.bundles)..where((t) => t.id.equals(bundleId))).go();
+    });
+  }
 }

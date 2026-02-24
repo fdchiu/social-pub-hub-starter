@@ -219,25 +219,36 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
                                   'variants=${bundle.relatedVariantIds.length} · '
                                   'sources=${sourceCountByBundle[bundle.id] ?? 0}',
                                 ),
-                                trailing: Wrap(
-                                  spacing: 8,
-                                  children: [
-                                    FilledButton.tonal(
-                                      onPressed: () => _showWavePreview(
-                                        context,
-                                        bundle,
-                                        byId,
-                                      ),
-                                      child: const Text('Wave'),
+                                trailing: PopupMenuButton<_BundleAction>(
+                                  onSelected: (action) => _handleBundleAction(
+                                    action: action,
+                                    bundle: bundle,
+                                    variantsById: byId,
+                                  ),
+                                  itemBuilder: (context) => const [
+                                    PopupMenuItem(
+                                      value: _BundleAction.wavePreview,
+                                      child: Text('Wave preview'),
                                     ),
-                                    FilledButton.tonal(
-                                      onPressed: () =>
-                                          _showYouTubeMetadataPreview(
-                                        context,
-                                        bundle,
-                                        byId,
-                                      ),
-                                      child: const Text('YouTube meta'),
+                                    PopupMenuItem(
+                                      value: _BundleAction.youtubeMeta,
+                                      child: Text('YouTube metadata'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: _BundleAction.openChecklist,
+                                      child: Text('Open checklist'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: _BundleAction.openPublish,
+                                      child: Text('Open publish console'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: _BundleAction.edit,
+                                      child: Text('Edit bundle'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: _BundleAction.delete,
+                                      child: Text('Delete bundle'),
                                     ),
                                   ],
                                 ),
@@ -297,6 +308,192 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Bundle ${bundleId.substring(0, 8)} created')),
+    );
+  }
+
+  Future<void> _handleBundleAction({
+    required _BundleAction action,
+    required Bundle bundle,
+    required Map<String, Variant> variantsById,
+  }) async {
+    if (action == _BundleAction.wavePreview) {
+      await _showWavePreview(context, bundle, variantsById);
+      return;
+    }
+    if (action == _BundleAction.youtubeMeta) {
+      await _showYouTubeMetadataPreview(context, bundle, variantsById);
+      return;
+    }
+    if (action == _BundleAction.openChecklist) {
+      if (!mounted) {
+        return;
+      }
+      context.go('/bundle-checklist');
+      return;
+    }
+    if (action == _BundleAction.openPublish) {
+      if (!mounted) {
+        return;
+      }
+      final encoded = Uri.encodeQueryComponent(bundle.id);
+      context.go('/publish?bundleId=$encoded');
+      return;
+    }
+    if (action == _BundleAction.edit) {
+      await _editBundle(bundle);
+      return;
+    }
+    if (action == _BundleAction.delete) {
+      await _deleteBundle(bundle);
+    }
+  }
+
+  Future<void> _editBundle(Bundle bundle) async {
+    final nameController = TextEditingController(text: bundle.name);
+    final anchorRefController =
+        TextEditingController(text: bundle.anchorRef ?? '');
+    final notesController = TextEditingController(text: bundle.notes ?? '');
+    var anchorType = bundle.anchorType;
+
+    final shouldSave = await showDialog<bool>(
+          context: context,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setLocalState) => AlertDialog(
+              title: Text('Edit bundle ${bundle.id.substring(0, 8)}'),
+              content: SizedBox(
+                width: 460,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration:
+                          const InputDecoration(labelText: 'Bundle name'),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: anchorType,
+                      decoration:
+                          const InputDecoration(labelText: 'Anchor type'),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'youtube', child: Text('YouTube')),
+                        DropdownMenuItem(
+                            value: 'social', child: Text('Social')),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setLocalState(() {
+                          anchorType = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: anchorRefController,
+                      decoration: const InputDecoration(
+                        labelText: 'Anchor ref',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notesController,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(labelText: 'Notes'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+
+    if (!shouldSave) {
+      nameController.dispose();
+      anchorRefController.dispose();
+      notesController.dispose();
+      return;
+    }
+
+    final name = nameController.text.trim();
+    if (name.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bundle name is required')),
+      );
+      nameController.dispose();
+      anchorRefController.dispose();
+      notesController.dispose();
+      return;
+    }
+
+    await ref.read(bundleRepoProvider).updateBundle(
+          bundleId: bundle.id,
+          name: name,
+          anchorType: anchorType,
+          anchorRef: anchorRefController.text,
+          notes: notesController.text,
+          canonicalDraftId: bundle.canonicalDraftId,
+        );
+
+    nameController.dispose();
+    anchorRefController.dispose();
+    notesController.dispose();
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bundle updated')),
+    );
+  }
+
+  Future<void> _deleteBundle(Bundle bundle) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Delete bundle ${bundle.id.substring(0, 8)}?'),
+            content: const Text(
+              'This will remove the bundle and unassign linked sources.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) {
+      return;
+    }
+
+    await ref.read(bundleRepoProvider).deleteBundle(bundle.id);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bundle deleted')),
     );
   }
 
@@ -441,4 +638,13 @@ Which part should I break down deeper in the next upload?
     }
     return '${value.substring(0, max)}...';
   }
+}
+
+enum _BundleAction {
+  wavePreview,
+  youtubeMeta,
+  openChecklist,
+  openPublish,
+  edit,
+  delete,
 }
