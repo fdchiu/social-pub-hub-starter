@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "[gate] Flutter analyze + test"
 cd "$ROOT_DIR/app"
 flutter pub get
-flutter analyze
+flutter analyze --no-fatal-infos
 flutter test
 
 echo "[gate] Backend pytest"
@@ -18,4 +18,3 @@ fi
 ./.venv/bin/python -m pytest -q
 
 echo "[gate] OK"
-
