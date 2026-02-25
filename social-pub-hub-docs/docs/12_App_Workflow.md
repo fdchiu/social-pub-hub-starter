@@ -67,6 +67,7 @@ Exit criteria:
 ### Bundles (`/bundles`) + Bundle Checklist (`/bundle-checklist`)
 Goal: coordinated distribution around an anchor post.
 - Bundle records now carry `post_id` and default to active post scope; use “Include all posts” for cross-post review.
+- Bundle records sync across devices with the main sync flow.
 - Create bundle (`youtube` or `social` anchor).
 - Link variants/sources.
 - Run checklist and backfill missing parts.

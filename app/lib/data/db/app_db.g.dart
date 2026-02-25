@@ -4650,6 +4650,14 @@ class $BundlesTable extends Bundles with TableInfo<$BundlesTable, Bundle> {
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('dirty'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -4661,7 +4669,8 @@ class $BundlesTable extends Bundles with TableInfo<$BundlesTable, Bundle> {
         relatedVariantIds,
         notes,
         createdAt,
-        updatedAt
+        updatedAt,
+        syncStatus
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4716,6 +4725,12 @@ class $BundlesTable extends Bundles with TableInfo<$BundlesTable, Bundle> {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
     return context;
   }
 
@@ -4746,6 +4761,8 @@ class $BundlesTable extends Bundles with TableInfo<$BundlesTable, Bundle> {
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
     );
   }
 
@@ -4769,6 +4786,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String syncStatus;
   const Bundle(
       {required this.id,
       required this.name,
@@ -4779,7 +4797,8 @@ class Bundle extends DataClass implements Insertable<Bundle> {
       required this.relatedVariantIds,
       this.notes,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      required this.syncStatus});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -4804,6 +4823,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
 
@@ -4825,6 +4845,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
     );
   }
 
@@ -4843,6 +4864,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
   @override
@@ -4859,6 +4881,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
 
@@ -4872,7 +4895,8 @@ class Bundle extends DataClass implements Insertable<Bundle> {
           List<String>? relatedVariantIds,
           Value<String?> notes = const Value.absent(),
           DateTime? createdAt,
-          DateTime? updatedAt}) =>
+          DateTime? updatedAt,
+          String? syncStatus}) =>
       Bundle(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -4886,6 +4910,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
         notes: notes.present ? notes.value : this.notes,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
       );
   Bundle copyWithCompanion(BundlesCompanion data) {
     return Bundle(
@@ -4904,6 +4929,8 @@ class Bundle extends DataClass implements Insertable<Bundle> {
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
     );
   }
 
@@ -4919,14 +4946,25 @@ class Bundle extends DataClass implements Insertable<Bundle> {
           ..write('relatedVariantIds: $relatedVariantIds, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, anchorType, anchorRef,
-      canonicalDraftId, postId, relatedVariantIds, notes, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      name,
+      anchorType,
+      anchorRef,
+      canonicalDraftId,
+      postId,
+      relatedVariantIds,
+      notes,
+      createdAt,
+      updatedAt,
+      syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4940,7 +4978,8 @@ class Bundle extends DataClass implements Insertable<Bundle> {
           other.relatedVariantIds == this.relatedVariantIds &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
 }
 
 class BundlesCompanion extends UpdateCompanion<Bundle> {
@@ -4954,6 +4993,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
   final Value<String?> notes;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
   final Value<int> rowid;
   const BundlesCompanion({
     this.id = const Value.absent(),
@@ -4966,6 +5006,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BundlesCompanion.insert({
@@ -4979,6 +5020,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name);
@@ -4993,6 +5035,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5006,6 +5049,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5021,6 +5065,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
       Value<String?>? notes,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
+      Value<String>? syncStatus,
       Value<int>? rowid}) {
     return BundlesCompanion(
       id: id ?? this.id,
@@ -5033,6 +5078,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5072,6 +5118,9 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5091,6 +5140,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8700,6 +8750,7 @@ typedef $$BundlesTableCreateCompanionBuilder = BundlesCompanion Function({
   Value<String?> notes,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 typedef $$BundlesTableUpdateCompanionBuilder = BundlesCompanion Function({
@@ -8713,6 +8764,7 @@ typedef $$BundlesTableUpdateCompanionBuilder = BundlesCompanion Function({
   Value<String?> notes,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 
@@ -8757,6 +8809,9 @@ class $$BundlesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
 }
 
 class $$BundlesTableOrderingComposer
@@ -8799,6 +8854,9 @@ class $$BundlesTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
 }
 
 class $$BundlesTableAnnotationComposer
@@ -8840,6 +8898,9 @@ class $$BundlesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
 }
 
 class $$BundlesTableTableManager extends RootTableManager<
@@ -8875,6 +8936,7 @@ class $$BundlesTableTableManager extends RootTableManager<
             Value<String?> notes = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               BundlesCompanion(
@@ -8888,6 +8950,7 @@ class $$BundlesTableTableManager extends RootTableManager<
             notes: notes,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -8901,6 +8964,7 @@ class $$BundlesTableTableManager extends RootTableManager<
             Value<String?> notes = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               BundlesCompanion.insert(
@@ -8914,6 +8978,7 @@ class $$BundlesTableTableManager extends RootTableManager<
             notes: notes,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

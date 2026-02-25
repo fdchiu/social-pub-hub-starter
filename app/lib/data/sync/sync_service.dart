@@ -12,6 +12,7 @@ class SyncSummary {
     required this.cursor,
     required this.pushedProjects,
     required this.pushedPosts,
+    required this.pushedBundles,
     required this.pushedDrafts,
     required this.pushedVariants,
     required this.pushedPublishLogs,
@@ -19,6 +20,7 @@ class SyncSummary {
     required this.pushedScheduledPosts,
     required this.pulledProjects,
     required this.pulledPosts,
+    required this.pulledBundles,
     required this.pulledDrafts,
     required this.pulledVariants,
     required this.pulledPublishLogs,
@@ -26,6 +28,7 @@ class SyncSummary {
     required this.pulledScheduledPosts,
     required this.deletedProjects,
     required this.deletedPosts,
+    required this.deletedBundles,
     required this.deletedDrafts,
     required this.deletedVariants,
     required this.deletedPublishLogs,
@@ -37,6 +40,7 @@ class SyncSummary {
   final int cursor;
   final int pushedProjects;
   final int pushedPosts;
+  final int pushedBundles;
   final int pushedDrafts;
   final int pushedVariants;
   final int pushedPublishLogs;
@@ -44,6 +48,7 @@ class SyncSummary {
   final int pushedScheduledPosts;
   final int pulledProjects;
   final int pulledPosts;
+  final int pulledBundles;
   final int pulledDrafts;
   final int pulledVariants;
   final int pulledPublishLogs;
@@ -51,6 +56,7 @@ class SyncSummary {
   final int pulledScheduledPosts;
   final int deletedProjects;
   final int deletedPosts;
+  final int deletedBundles;
   final int deletedDrafts;
   final int deletedVariants;
   final int deletedPublishLogs;
@@ -110,6 +116,7 @@ class SyncService {
 
     final pulledProjects = _asMapList(upserts['projects']);
     final pulledPosts = _asMapList(upserts['posts']);
+    final pulledBundles = _asMapList(upserts['bundles']);
     final pulledDrafts = _asMapList(upserts['drafts']);
     final pulledVariants = _asMapList(upserts['variants']);
     final pulledPublishLogs = _asMapList(upserts['publish_logs']);
@@ -118,6 +125,7 @@ class SyncService {
 
     final deletedProjects = _asStringList(deletes['projects']);
     final deletedPosts = _asStringList(deletes['posts']);
+    final deletedBundles = _asStringList(deletes['bundles']);
     final deletedDrafts = _asStringList(deletes['drafts']);
     final deletedVariants = _asStringList(deletes['variants']);
     final deletedPublishLogs = _asStringList(deletes['publish_logs']);
@@ -127,6 +135,7 @@ class SyncService {
     await _db.transaction(() async {
       await _applyProjectUpserts(pulledProjects);
       await _applyPostUpserts(pulledPosts);
+      await _applyBundleUpserts(pulledBundles);
       await _applyDraftUpserts(pulledDrafts);
       await _applyVariantUpserts(pulledVariants);
       await _applyPublishLogUpserts(pulledPublishLogs);
@@ -135,6 +144,7 @@ class SyncService {
       await _applyDeletes(
         deletedProjects: deletedProjects,
         deletedPosts: deletedPosts,
+        deletedBundles: deletedBundles,
         deletedDrafts: deletedDrafts,
         deletedVariants: deletedVariants,
         deletedPublishLogs: deletedPublishLogs,
@@ -150,6 +160,7 @@ class SyncService {
       cursor: nextCursor,
       pushedProjects: pushBatch.projectIds.length,
       pushedPosts: pushBatch.postIds.length,
+      pushedBundles: pushBatch.bundleIds.length,
       pushedDrafts: pushBatch.draftIds.length,
       pushedVariants: pushBatch.variantIds.length,
       pushedPublishLogs: pushBatch.publishLogIds.length,
@@ -157,6 +168,7 @@ class SyncService {
       pushedScheduledPosts: pushBatch.scheduledPostIds.length,
       pulledProjects: pulledProjects.length,
       pulledPosts: pulledPosts.length,
+      pulledBundles: pulledBundles.length,
       pulledDrafts: pulledDrafts.length,
       pulledVariants: pulledVariants.length,
       pulledPublishLogs: pulledPublishLogs.length,
@@ -164,6 +176,7 @@ class SyncService {
       pulledScheduledPosts: pulledScheduledPosts.length,
       deletedProjects: deletedProjects.length,
       deletedPosts: deletedPosts.length,
+      deletedBundles: deletedBundles.length,
       deletedDrafts: deletedDrafts.length,
       deletedVariants: deletedVariants.length,
       deletedPublishLogs: deletedPublishLogs.length,
@@ -178,6 +191,9 @@ class SyncService {
           ..where((t) => t.syncStatus.equals('dirty')))
         .get();
     final posts = await (_db.select(_db.posts)
+          ..where((t) => t.syncStatus.equals('dirty')))
+        .get();
+    final bundles = await (_db.select(_db.bundles)
           ..where((t) => t.syncStatus.equals('dirty')))
         .get();
     final drafts = await (_db.select(_db.drafts)
@@ -220,6 +236,22 @@ class SyncService {
                 'goal': row.goal,
                 'audience': row.audience,
                 'status': row.status,
+                'created_at': row.createdAt.toIso8601String(),
+                'updated_at': row.updatedAt.toIso8601String(),
+              },
+            )
+            .toList(),
+        'bundles': bundles
+            .map(
+              (row) => {
+                'id': row.id,
+                'name': row.name,
+                'anchor_type': row.anchorType,
+                'anchor_ref': row.anchorRef,
+                'canonical_draft_id': row.canonicalDraftId,
+                'post_id': row.postId,
+                'related_variant_ids': row.relatedVariantIds,
+                'notes': row.notes,
                 'created_at': row.createdAt.toIso8601String(),
                 'updated_at': row.updatedAt.toIso8601String(),
               },
@@ -307,6 +339,7 @@ class SyncService {
       'deletes': {
         'projects': const <String>[],
         'posts': const <String>[],
+        'bundles': const <String>[],
         'drafts': const <String>[],
         'variants': const <String>[],
         'publish_logs': const <String>[],
@@ -319,6 +352,7 @@ class SyncService {
       payload: payload,
       projectIds: projects.map((r) => r.id).toList(growable: false),
       postIds: posts.map((r) => r.id).toList(growable: false),
+      bundleIds: bundles.map((r) => r.id).toList(growable: false),
       draftIds: drafts.map((r) => r.id).toList(growable: false),
       variantIds: variants.map((r) => r.id).toList(growable: false),
       publishLogIds: publishLogs.map((r) => r.id).toList(growable: false),
@@ -337,6 +371,11 @@ class SyncService {
       if (batch.postIds.isNotEmpty) {
         await (_db.update(_db.posts)..where((t) => t.id.isIn(batch.postIds)))
             .write(const PostsCompanion(syncStatus: Value('clean')));
+      }
+      if (batch.bundleIds.isNotEmpty) {
+        await (_db.update(_db.bundles)
+              ..where((t) => t.id.isIn(batch.bundleIds)))
+            .write(const BundlesCompanion(syncStatus: Value('clean')));
       }
       if (batch.draftIds.isNotEmpty) {
         await (_db.update(_db.drafts)..where((t) => t.id.isIn(batch.draftIds)))
@@ -414,6 +453,27 @@ class SyncService {
                   goal: Value(payload['goal'] as String?),
                   audience: Value(payload['audience'] as String?),
                   status: Value((payload['status'] as String?) ?? 'active'),
+                  createdAt: Value(_asDateTime(payload['created_at']) ?? now),
+                  updatedAt: Value(now),
+                  syncStatus: const Value('dirty'),
+                ),
+              );
+          break;
+        case 'bundles':
+          await _db.into(_db.bundles).insertOnConflictUpdate(
+                BundlesCompanion(
+                  id: Value(conflict.entityId),
+                  name:
+                      Value((payload['name'] as String?) ?? 'Untitled bundle'),
+                  anchorType:
+                      Value((payload['anchor_type'] as String?) ?? 'youtube'),
+                  anchorRef: Value(payload['anchor_ref'] as String?),
+                  canonicalDraftId:
+                      Value(payload['canonical_draft_id'] as String?),
+                  postId: Value(payload['post_id'] as String?),
+                  relatedVariantIds:
+                      Value(_asStringList(payload['related_variant_ids'])),
+                  notes: Value(payload['notes'] as String?),
                   createdAt: Value(_asDateTime(payload['created_at']) ?? now),
                   updatedAt: Value(now),
                   syncStatus: const Value('dirty'),
@@ -603,6 +663,50 @@ class SyncService {
               goal: Value(row['goal'] as String?),
               audience: Value(row['audience'] as String?),
               status: Value((row['status'] as String?) ?? 'active'),
+              createdAt: Value(_asDateTime(row['created_at']) ?? now),
+              updatedAt: Value(incomingUpdatedAt),
+              syncStatus: const Value('clean'),
+            ),
+          );
+    }
+  }
+
+  Future<void> _applyBundleUpserts(List<Map<String, dynamic>> rows) async {
+    for (final row in rows) {
+      final id = row['id'] as String?;
+      if (id == null || id.isEmpty) {
+        continue;
+      }
+
+      final now = DateTime.now().toUtc();
+      final incomingUpdatedAt = _asDateTime(row['updated_at']) ?? now;
+      final existing = await (_db.select(_db.bundles)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing != null && existing.syncStatus == 'dirty') {
+        if (incomingUpdatedAt.isAfter(existing.updatedAt)) {
+          await _recordConflict(
+            entityType: 'bundles',
+            entityId: id,
+            localPayload: _bundleToPayload(existing),
+            remotePayload: row,
+          );
+        } else {
+          continue;
+        }
+      }
+
+      await _db.into(_db.bundles).insertOnConflictUpdate(
+            BundlesCompanion(
+              id: Value(id),
+              name: Value((row['name'] as String?) ?? 'Untitled bundle'),
+              anchorType: Value((row['anchor_type'] as String?) ?? 'youtube'),
+              anchorRef: Value(row['anchor_ref'] as String?),
+              canonicalDraftId: Value(row['canonical_draft_id'] as String?),
+              postId: Value(row['post_id'] as String?),
+              relatedVariantIds:
+                  Value(_asStringList(row['related_variant_ids'])),
+              notes: Value(row['notes'] as String?),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
               updatedAt: Value(incomingUpdatedAt),
               syncStatus: const Value('clean'),
@@ -832,6 +936,7 @@ class SyncService {
   Future<void> _applyDeletes({
     required List<String> deletedProjects,
     required List<String> deletedPosts,
+    required List<String> deletedBundles,
     required List<String> deletedDrafts,
     required List<String> deletedVariants,
     required List<String> deletedPublishLogs,
@@ -850,6 +955,8 @@ class SyncService {
       await (_db.update(_db.scheduledPosts)
             ..where((t) => t.postId.isIn(deletedPosts)))
           .write(const ScheduledPostsCompanion(postId: Value(null)));
+      await (_db.update(_db.bundles)..where((t) => t.postId.isIn(deletedPosts)))
+          .write(const BundlesCompanion(postId: Value(null)));
       await (_db.delete(_db.posts)..where((t) => t.id.isIn(deletedPosts))).go();
     }
 
@@ -858,6 +965,14 @@ class SyncService {
             ..where((t) => t.projectId.isIn(deletedProjects)))
           .write(const PostsCompanion(projectId: Value(null)));
       await (_db.delete(_db.projects)..where((t) => t.id.isIn(deletedProjects)))
+          .go();
+    }
+
+    if (deletedBundles.isNotEmpty) {
+      await (_db.update(_db.sourceItems)
+            ..where((t) => t.bundleId.isIn(deletedBundles)))
+          .write(const SourceItemsCompanion(bundleId: Value(null)));
+      await (_db.delete(_db.bundles)..where((t) => t.id.isIn(deletedBundles)))
           .go();
     }
 
@@ -954,6 +1069,21 @@ class SyncService {
       'goal': row.goal,
       'audience': row.audience,
       'status': row.status,
+      'created_at': row.createdAt.toIso8601String(),
+      'updated_at': row.updatedAt.toIso8601String(),
+    };
+  }
+
+  Map<String, dynamic> _bundleToPayload(Bundle row) {
+    return {
+      'id': row.id,
+      'name': row.name,
+      'anchor_type': row.anchorType,
+      'anchor_ref': row.anchorRef,
+      'canonical_draft_id': row.canonicalDraftId,
+      'post_id': row.postId,
+      'related_variant_ids': row.relatedVariantIds,
+      'notes': row.notes,
       'created_at': row.createdAt.toIso8601String(),
       'updated_at': row.updatedAt.toIso8601String(),
     };
@@ -1069,6 +1199,7 @@ class _PushBatch {
     required this.payload,
     required this.projectIds,
     required this.postIds,
+    required this.bundleIds,
     required this.draftIds,
     required this.variantIds,
     required this.publishLogIds,
@@ -1079,6 +1210,7 @@ class _PushBatch {
   final Map<String, dynamic> payload;
   final List<String> projectIds;
   final List<String> postIds;
+  final List<String> bundleIds;
   final List<String> draftIds;
   final List<String> variantIds;
   final List<String> publishLogIds;

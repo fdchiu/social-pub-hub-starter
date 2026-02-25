@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from .db import Base, SessionLocal, engine, get_db
 from .models import (
+    Bundle,
     Draft,
     Post,
     Project,
@@ -25,6 +26,7 @@ from .models import (
     utc_now,
 )
 from .schemas import (
+    BundleSyncItem,
     DraftFromSourcesRequest,
     DraftPolishRequest,
     DraftVariantsRequest,
@@ -99,6 +101,22 @@ def _serialize_post(item: Post) -> dict[str, Any]:
         "goal": item.goal,
         "audience": item.audience,
         "status": item.status,
+        "created_at": item.created_at,
+        "updated_at": item.updated_at,
+        "deleted_at": item.deleted_at,
+    }
+
+
+def _serialize_bundle(item: Bundle) -> dict[str, Any]:
+    return {
+        "id": item.id,
+        "name": item.name,
+        "anchor_type": item.anchor_type,
+        "anchor_ref": item.anchor_ref,
+        "canonical_draft_id": item.canonical_draft_id,
+        "post_id": item.post_id,
+        "related_variant_ids": item.related_variant_ids,
+        "notes": item.notes,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
         "deleted_at": item.deleted_at,
@@ -188,6 +206,8 @@ def _serialize(name: str, item: Any) -> dict[str, Any]:
         return _serialize_project(item)
     if name == "posts":
         return _serialize_post(item)
+    if name == "bundles":
+        return _serialize_bundle(item)
     if name == "drafts":
         return _serialize_draft(item)
     if name == "variants":
@@ -249,6 +269,33 @@ def _apply_post_upsert(db: Session, payload: PostSyncItem) -> None:
     item.goal = payload.goal
     item.audience = payload.audience
     item.status = payload.status
+    item.updated_at = incoming_updated_at
+    item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None
+    item.sync_cursor = _next_cursor(db)
+
+
+def _apply_bundle_upsert(db: Session, payload: BundleSyncItem) -> None:
+    now = utc_now()
+    incoming_updated_at = _to_utc(payload.updated_at)
+    item = db.get(Bundle, payload.id)
+
+    if item is not None and incoming_updated_at <= _to_utc(item.updated_at):
+        return
+
+    if item is None:
+        item = Bundle(
+            id=payload.id,
+            created_at=_to_utc(payload.created_at) if payload.created_at else now,
+        )
+        db.add(item)
+
+    item.name = payload.name
+    item.anchor_type = payload.anchor_type
+    item.anchor_ref = payload.anchor_ref
+    item.canonical_draft_id = payload.canonical_draft_id
+    item.post_id = payload.post_id
+    item.related_variant_ids = payload.related_variant_ids
+    item.notes = payload.notes
     item.updated_at = incoming_updated_at
     item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None
     item.sync_cursor = _next_cursor(db)
@@ -733,6 +780,8 @@ def sync_push(payload: SyncPushRequest, db: Session = Depends(get_db)) -> dict[s
         _apply_project_upsert(db, item)
     for item in payload.upserts.posts:
         _apply_post_upsert(db, item)
+    for item in payload.upserts.bundles:
+        _apply_bundle_upsert(db, item)
     for item in payload.upserts.drafts:
         _apply_draft_upsert(db, item)
     for item in payload.upserts.variants:
@@ -748,6 +797,8 @@ def sync_push(payload: SyncPushRequest, db: Session = Depends(get_db)) -> dict[s
         _soft_delete(db, Project, entity_id)
     for entity_id in payload.deletes.posts:
         _soft_delete(db, Post, entity_id)
+    for entity_id in payload.deletes.bundles:
+        _soft_delete(db, Bundle, entity_id)
     for entity_id in payload.deletes.drafts:
         _soft_delete(db, Draft, entity_id)
     for entity_id in payload.deletes.variants:

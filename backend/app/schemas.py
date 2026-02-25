@@ -37,6 +37,20 @@ class PostSyncItem(BaseModel):
     deleted_at: datetime | None = None
 
 
+class BundleSyncItem(BaseModel):
+    id: str
+    name: str = ""
+    anchor_type: str = "youtube"
+    anchor_ref: str | None = None
+    canonical_draft_id: str | None = None
+    post_id: str | None = None
+    related_variant_ids: list[str] = Field(default_factory=list)
+    notes: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    deleted_at: datetime | None = None
+
+
 class DraftSyncItem(BaseModel):
     id: str
     canonical_markdown: str = ""
@@ -108,6 +122,7 @@ class ScheduledPostSyncItem(BaseModel):
 class SyncUpserts(BaseModel):
     projects: list[ProjectSyncItem] = Field(default_factory=list)
     posts: list[PostSyncItem] = Field(default_factory=list)
+    bundles: list[BundleSyncItem] = Field(default_factory=list)
     drafts: list[DraftSyncItem] = Field(default_factory=list)
     variants: list[VariantSyncItem] = Field(default_factory=list)
     publish_logs: list[PublishLogSyncItem] = Field(default_factory=list)
@@ -119,6 +134,7 @@ class SyncUpserts(BaseModel):
 class SyncDeletes(BaseModel):
     projects: list[str] = Field(default_factory=list)
     posts: list[str] = Field(default_factory=list)
+    bundles: list[str] = Field(default_factory=list)
     drafts: list[str] = Field(default_factory=list)
     variants: list[str] = Field(default_factory=list)
     publish_logs: list[str] = Field(default_factory=list)

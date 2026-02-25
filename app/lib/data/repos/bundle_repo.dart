@@ -65,6 +65,7 @@ class BundleRepo {
             notes: Value(notes?.trim().isEmpty ?? true ? null : notes),
             createdAt: Value(now),
             updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
           ),
         );
     return id;
@@ -87,6 +88,7 @@ class BundleRepo {
       BundlesCompanion(
         relatedVariantIds: Value(merged),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
       ),
     );
   }
@@ -109,6 +111,7 @@ class BundleRepo {
       BundlesCompanion(
         relatedVariantIds: Value(filtered),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
       ),
     );
   }
@@ -121,6 +124,7 @@ class BundleRepo {
       BundlesCompanion(
         canonicalDraftId: Value(draftId),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
       ),
     );
   }
@@ -154,6 +158,7 @@ class BundleRepo {
         postId: Value(resolvedPostId),
         notes: Value(notes?.trim().isEmpty ?? true ? null : notes?.trim()),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
       ),
     );
   }

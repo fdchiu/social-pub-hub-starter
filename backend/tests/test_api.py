@@ -22,6 +22,7 @@ def _sync_payload(
         "upserts": {
             "projects": [],
             "posts": [],
+            "bundles": [],
             "drafts": draft_rows,
             "variants": [],
             "publish_logs": [],
@@ -31,6 +32,7 @@ def _sync_payload(
         "deletes": {
             "projects": [],
             "posts": [],
+            "bundles": [],
             "drafts": [],
             "variants": [],
             "publish_logs": [],
@@ -237,6 +239,9 @@ def test_sync_scheduled_posts_and_deletes(client: TestClient) -> None:
 
     create_payload = {
         "upserts": {
+            "projects": [],
+            "posts": [],
+            "bundles": [],
             "drafts": [],
             "variants": [],
             "publish_logs": [],
@@ -255,6 +260,9 @@ def test_sync_scheduled_posts_and_deletes(client: TestClient) -> None:
             ],
         },
         "deletes": {
+            "projects": [],
+            "posts": [],
+            "bundles": [],
             "drafts": [],
             "variants": [],
             "publish_logs": [],
@@ -273,6 +281,9 @@ def test_sync_scheduled_posts_and_deletes(client: TestClient) -> None:
 
     delete_payload = {
         "upserts": {
+            "projects": [],
+            "posts": [],
+            "bundles": [],
             "drafts": [],
             "variants": [],
             "publish_logs": [],
@@ -280,6 +291,9 @@ def test_sync_scheduled_posts_and_deletes(client: TestClient) -> None:
             "scheduled_posts": [],
         },
         "deletes": {
+            "projects": [],
+            "posts": [],
+            "bundles": [],
             "drafts": [],
             "variants": [],
             "publish_logs": [],
@@ -327,6 +341,7 @@ def test_sync_projects_and_posts_roundtrip(client: TestClient) -> None:
                     "updated_at": now.isoformat(),
                 }
             ],
+            "bundles": [],
             "drafts": [],
             "variants": [],
             "publish_logs": [],
@@ -336,6 +351,7 @@ def test_sync_projects_and_posts_roundtrip(client: TestClient) -> None:
         "deletes": {
             "projects": [],
             "posts": [],
+            "bundles": [],
             "drafts": [],
             "variants": [],
             "publish_logs": [],
@@ -352,3 +368,56 @@ def test_sync_projects_and_posts_roundtrip(client: TestClient) -> None:
     posts = changes_after_create.json()["upserts"]["posts"]
     assert any(row["id"] == project_id for row in projects)
     assert any(row["id"] == post_id and row["project_id"] == project_id for row in posts)
+
+
+def test_sync_bundles_roundtrip(client: TestClient) -> None:
+    bundle_id = "bundle_sync_1"
+    now = datetime.now(timezone.utc)
+
+    push_payload = {
+        "upserts": {
+            "projects": [],
+            "posts": [],
+            "bundles": [
+                {
+                    "id": bundle_id,
+                    "name": "Launch wave",
+                    "anchor_type": "youtube",
+                    "anchor_ref": "vid_123",
+                    "canonical_draft_id": "draft_sync_1",
+                    "post_id": "post_sync_1",
+                    "related_variant_ids": ["var_1", "var_2"],
+                    "notes": "Ship over two days",
+                    "created_at": now.isoformat(),
+                    "updated_at": now.isoformat(),
+                }
+            ],
+            "drafts": [],
+            "variants": [],
+            "publish_logs": [],
+            "style_profiles": [],
+            "scheduled_posts": [],
+        },
+        "deletes": {
+            "projects": [],
+            "posts": [],
+            "bundles": [],
+            "drafts": [],
+            "variants": [],
+            "publish_logs": [],
+            "style_profiles": [],
+            "scheduled_posts": [],
+        },
+    }
+    push_response = client.post("/sync/push", json=push_payload)
+    assert push_response.status_code == 200
+
+    changes = client.get("/sync/changes", params={"since": 0})
+    assert changes.status_code == 200
+    bundles = changes.json()["upserts"]["bundles"]
+    assert any(
+        row["id"] == bundle_id
+        and row["post_id"] == "post_sync_1"
+        and row["related_variant_ids"] == ["var_1", "var_2"]
+        for row in bundles
+    )

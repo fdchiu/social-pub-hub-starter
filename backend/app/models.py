@@ -66,6 +66,33 @@ class Post(Base):
     )
 
 
+class Bundle(Base):
+    __tablename__ = "bundles"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    anchor_type: Mapped[str] = mapped_column(String, default="youtube", nullable=False)
+    anchor_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
+    canonical_draft_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    post_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    related_variant_ids: Mapped[list[str]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    sync_cursor: Mapped[int] = mapped_column(
+        BigInteger, default=0, nullable=False, index=True
+    )
+
+
 class Draft(Base):
     __tablename__ = "drafts"
 
@@ -156,6 +183,7 @@ class ScheduledPost(Base):
 SYNC_TABLES = {
     "projects": Project,
     "posts": Post,
+    "bundles": Bundle,
     "drafts": Draft,
     "variants": Variant,
     "publish_logs": PublishLog,
