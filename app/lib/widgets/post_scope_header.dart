@@ -120,8 +120,21 @@ class PostScopeHeader extends ConsumerWidget {
                             context,
                             ref,
                             project: activeProject!,
-                          ),
+                  ),
                   icon: const Icon(Icons.edit_outlined),
+                ),
+                IconButton(
+                  tooltip: activeProject == null
+                      ? 'Select project to delete'
+                      : 'Delete project',
+                  onPressed: activeProject == null
+                      ? null
+                      : () => _confirmDeleteProject(
+                            context,
+                            ref,
+                            project: activeProject!,
+                          ),
+                  icon: const Icon(Icons.delete_outline),
                 ),
               ],
             ),
@@ -181,6 +194,15 @@ class PostScopeHeader extends ConsumerWidget {
                       post: activePost!,
                     ),
                     icon: const Icon(Icons.edit_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete post',
+                    onPressed: () => _confirmDeletePost(
+                      context,
+                      ref,
+                      post: activePost!,
+                    ),
+                    icon: const Icon(Icons.delete_outline),
                   ),
                 ],
               ),
@@ -669,5 +691,82 @@ class PostScopeHeader extends ConsumerWidget {
     titleController.dispose();
     goalController.dispose();
     audienceController.dispose();
+  }
+
+  Future<void> _confirmDeleteProject(
+    BuildContext context,
+    WidgetRef ref, {
+    required Project project,
+  }) async {
+    final shouldDelete = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete project?'),
+            content: Text(
+              'Delete "${project.name}" and unassign linked posts from this project?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!shouldDelete) {
+      return;
+    }
+
+    await ref.read(projectRepoProvider).deleteProject(project.id);
+    ref.read(activeProjectIdProvider.notifier).state = null;
+    ref.read(activePostIdProvider.notifier).state = null;
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Project deleted')),
+      );
+    }
+  }
+
+  Future<void> _confirmDeletePost(
+    BuildContext context,
+    WidgetRef ref, {
+    required Post post,
+  }) async {
+    final shouldDelete = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete post workspace?'),
+            content: Text(
+              'Delete "${post.title}" and unassign linked drafts, sources, queue rows, logs, and bundles from this post?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!shouldDelete) {
+      return;
+    }
+
+    await ref.read(postRepoProvider).deletePost(post.id);
+    ref.read(activePostIdProvider.notifier).state = null;
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Post workspace deleted')),
+      );
+    }
   }
 }

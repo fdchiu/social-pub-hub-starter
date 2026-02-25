@@ -62,4 +62,28 @@ class ProjectRepo {
       ),
     );
   }
+
+  Future<void> deleteProject(String projectId) async {
+    await _db.transaction(() async {
+      final now = DateTime.now().toUtc();
+      await _db.into(_db.syncTombstones).insertOnConflictUpdate(
+            SyncTombstonesCompanion.insert(
+              id: 'projects:$projectId',
+              entityType: 'projects',
+              entityId: projectId,
+              createdAt: Value(now),
+            ),
+          );
+      await (_db.update(_db.posts)..where((t) => t.projectId.equals(projectId)))
+          .write(
+        PostsCompanion(
+          projectId: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('dirty'),
+        ),
+      );
+      await (_db.delete(_db.projects)..where((t) => t.id.equals(projectId)))
+          .go();
+    });
+  }
 }

@@ -86,4 +86,61 @@ class PostRepo {
       ),
     );
   }
+
+  Future<void> deletePost(String postId) async {
+    await _db.transaction(() async {
+      final now = DateTime.now().toUtc();
+      await _db.into(_db.syncTombstones).insertOnConflictUpdate(
+            SyncTombstonesCompanion.insert(
+              id: 'posts:$postId',
+              entityType: 'posts',
+              entityId: postId,
+              createdAt: Value(now),
+            ),
+          );
+
+      await (_db.update(_db.sourceItems)..where((t) => t.postId.equals(postId)))
+          .write(
+        SourceItemsCompanion(
+          postId: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('dirty'),
+        ),
+      );
+      await (_db.update(_db.drafts)..where((t) => t.postId.equals(postId)))
+          .write(
+        DraftsCompanion(
+          postId: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('dirty'),
+        ),
+      );
+      await (_db.update(_db.publishLogs)..where((t) => t.postId.equals(postId)))
+          .write(
+        PublishLogsCompanion(
+          postId: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('dirty'),
+        ),
+      );
+      await (_db.update(_db.scheduledPosts)
+            ..where((t) => t.postId.equals(postId)))
+          .write(
+        ScheduledPostsCompanion(
+          postId: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('dirty'),
+        ),
+      );
+      await (_db.update(_db.bundles)..where((t) => t.postId.equals(postId)))
+          .write(
+        BundlesCompanion(
+          postId: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('dirty'),
+        ),
+      );
+      await (_db.delete(_db.posts)..where((t) => t.id.equals(postId))).go();
+    });
+  }
 }

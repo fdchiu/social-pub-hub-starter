@@ -22,6 +22,7 @@ Goal: keep writing operations focused and reusable.
 - Pick project scope (`all` or specific project).
 - Pick active post inside that scope.
 - Create project/post on the fly.
+- Delete project/post when needed (linked rows are unscoped and deletion syncs across devices).
 Exit criteria:
 - active post selected before drafting/publishing/auditing steps.
 
