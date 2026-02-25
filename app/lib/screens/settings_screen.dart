@@ -1026,14 +1026,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _copySyncRuns() async {
     final lines = <String>[
-      'at_utc,ok,duration_ms,cursor,error',
+      'at_utc,ok,duration_ms,cursor,pushed_total,pushed_deletes_total,pulled_total,deleted_total,conflicts,error',
       ..._syncRuns.map((run) {
-        final cursor = run.summary?.cursor ?? '';
+        final summary = run.summary;
+        final cursor = summary?.cursor ?? '';
+        final pushedTotal = summary == null
+            ? ''
+            : summary.pushedSourceItems +
+                summary.pushedProjects +
+                summary.pushedPosts +
+                summary.pushedBundles +
+                summary.pushedDrafts +
+                summary.pushedVariants +
+                summary.pushedPublishLogs +
+                summary.pushedStyleProfiles +
+                summary.pushedScheduledPosts;
+        final pushedDeletesTotal = summary == null
+            ? ''
+            : summary.pushedDeletedSourceItems +
+                summary.pushedDeletedProjects +
+                summary.pushedDeletedPosts +
+                summary.pushedDeletedBundles +
+                summary.pushedDeletedDrafts +
+                summary.pushedDeletedVariants +
+                summary.pushedDeletedPublishLogs +
+                summary.pushedDeletedStyleProfiles +
+                summary.pushedDeletedScheduledPosts;
+        final pulledTotal = summary == null
+            ? ''
+            : summary.pulledSourceItems +
+                summary.pulledProjects +
+                summary.pulledPosts +
+                summary.pulledBundles +
+                summary.pulledDrafts +
+                summary.pulledVariants +
+                summary.pulledPublishLogs +
+                summary.pulledStyleProfiles +
+                summary.pulledScheduledPosts;
+        final deletedTotal = summary == null
+            ? ''
+            : summary.deletedSourceItems +
+                summary.deletedProjects +
+                summary.deletedPosts +
+                summary.deletedBundles +
+                summary.deletedDrafts +
+                summary.deletedVariants +
+                summary.deletedPublishLogs +
+                summary.deletedStyleProfiles +
+                summary.deletedScheduledPosts;
+        final conflicts = summary?.detectedConflicts ?? '';
         final error = (run.error ?? '').replaceAll(',', ';');
         return '${run.at.toUtc().toIso8601String()},'
             '${run.ok},'
             '${run.durationMs},'
             '$cursor,'
+            '$pushedTotal,'
+            '$pushedDeletesTotal,'
+            '$pulledTotal,'
+            '$deletedTotal,'
+            '$conflicts,'
             '$error';
       }),
     ];

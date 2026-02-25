@@ -133,6 +133,7 @@ Exit criteria:
 Goal: keep system stable and style consistent.
 - Diagnostics can be scoped to active post or toggled to all posts.
 - Sync diagnostics include pushed upserts, pushed deletes, pulled upserts, and pulled deletes.
+- Sync run CSV export includes per-run push/pull/delete totals and conflict count.
 - Run sync now.
 - Refresh integrations.
 - Tune style profile/sliders/banned phrases.
