@@ -126,6 +126,7 @@ Exit criteria:
 
 ### Settings (`/settings`)
 Goal: keep system stable and style consistent.
+- Diagnostics can be scoped to active post or toggled to all posts.
 - Run sync now.
 - Refresh integrations.
 - Tune style profile/sliders/banned phrases.
