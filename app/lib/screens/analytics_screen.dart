@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
+import '../widgets/post_scope_header.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
@@ -16,11 +18,13 @@ class AnalyticsScreen extends ConsumerStatefulWidget {
 
 class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   _AnalyticsWindow _window = _AnalyticsWindow.days30;
+  bool _includeAllPosts = false;
 
   @override
   Widget build(BuildContext context) {
     final logsAsync = ref.watch(publishLogsStreamProvider);
     final queueAsync = ref.watch(scheduledPostsStreamProvider);
+    final activePost = ref.watch(activePostProvider);
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -37,11 +41,23 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       body: logsAsync.when(
         data: (logs) => queueAsync.when(
           data: (queueItems) {
+            final scopedLogs = _scopeLogs(
+              logs,
+              activePostId: activePost?.id,
+              includeAllPosts: _includeAllPosts,
+            );
+            final scopedQueueItems = _scopeQueueItems(
+              queueItems,
+              activePostId: activePost?.id,
+              includeAllPosts: _includeAllPosts,
+            );
             final now = DateTime.now().toUtc();
             final since = _sinceForWindow(now, _window);
             final filteredLogs = since == null
-                ? logs
-                : logs.where((row) => row.createdAt.isAfter(since)).toList();
+                ? scopedLogs
+                : scopedLogs
+                    .where((row) => row.createdAt.isAfter(since))
+                    .toList();
             final postedLogs = filteredLogs
                 .where((row) => row.status.toLowerCase() == 'posted')
                 .toList(growable: false);
@@ -66,10 +82,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               ..sort((a, b) => b.value.compareTo(a.value));
 
             final queuedCount =
-                queueItems.where((row) => row.status == 'queued').length;
+                scopedQueueItems.where((row) => row.status == 'queued').length;
             final postedQueueCount =
-                queueItems.where((row) => row.status == 'posted').length;
-            final overdueCount = queueItems
+                scopedQueueItems.where((row) => row.status == 'posted').length;
+            final overdueCount = scopedQueueItems
                 .where(
                   (row) =>
                       row.status == 'queued' && row.scheduledFor.isBefore(now),
@@ -88,6 +104,22 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                const PostScopeHeader(showGlobalToggle: false),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  value: _includeAllPosts,
+                  onChanged: (value) {
+                    setState(() {
+                      _includeAllPosts = value;
+                    });
+                  },
+                  title: const Text('Include all posts'),
+                  subtitle: const Text(
+                    'Show analytics for all posts instead of only active post',
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -148,7 +180,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                       child: const Text('Open queue'),
                     ),
                     FilledButton.tonal(
-                      onPressed: () => context.go('/history'),
+                      onPressed: () => _openHistoryDrilldown(),
                       child: const Text('Open history'),
                     ),
                     FilledButton.tonal(
@@ -316,6 +348,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   Future<void> _exportCsv() async {
     final logs = ref.read(publishLogsStreamProvider).valueOrNull;
     final queueItems = ref.read(scheduledPostsStreamProvider).valueOrNull;
+    final activePost = ref.read(activePostProvider);
     if (logs == null || queueItems == null) {
       if (!mounted) {
         return;
@@ -325,12 +358,22 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       );
       return;
     }
+    final scopedLogs = _scopeLogs(
+      logs,
+      activePostId: activePost?.id,
+      includeAllPosts: _includeAllPosts,
+    );
+    final scopedQueueItems = _scopeQueueItems(
+      queueItems,
+      activePostId: activePost?.id,
+      includeAllPosts: _includeAllPosts,
+    );
 
     final now = DateTime.now().toUtc();
     final since = _sinceForWindow(now, _window);
     final filteredLogs = since == null
-        ? logs
-        : logs.where((row) => row.createdAt.isAfter(since)).toList();
+        ? scopedLogs
+        : scopedLogs.where((row) => row.createdAt.isAfter(since)).toList();
     final postedLogs = filteredLogs
         .where((row) => row.status.toLowerCase() == 'posted')
         .toList(growable: false);
@@ -341,14 +384,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         _csv(_windowLabel(_window)),
         _csv('${filteredLogs.length}'),
         _csv('${postedLogs.length}'),
-        _csv('${queueItems.where((r) => r.status == 'queued').length}'),
-        _csv('${queueItems.where((r) => r.status == 'posted').length}'),
+        _csv('${scopedQueueItems.where((r) => r.status == 'queued').length}'),
+        _csv('${scopedQueueItems.where((r) => r.status == 'posted').length}'),
         _csv(
-          '${queueItems.where((r) => r.status == 'queued' && r.scheduledFor.isBefore(now)).length}',
+          '${scopedQueueItems.where((r) => r.status == 'queued' && r.scheduledFor.isBefore(now)).length}',
         ),
       ].join(','),
       '',
-      'id,platform,status,mode,variant_id,external_url,posted_at,created_at',
+      'id,platform,status,mode,variant_id,post_id,external_url,posted_at,created_at',
       ...filteredLogs.map((row) {
         return [
           _csv(row.id),
@@ -356,6 +399,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           _csv(row.status),
           _csv(row.mode),
           _csv(row.variantId ?? ''),
+          _csv(row.postId ?? ''),
           _csv(row.externalUrl ?? ''),
           _csv(row.postedAt?.toUtc().toIso8601String() ?? ''),
           _csv(row.createdAt.toUtc().toIso8601String()),
@@ -399,6 +443,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     String? platform,
     String? mode,
   }) {
+    final activePost = ref.read(activePostProvider);
     final query = <String, String>{
       'status': 'posted',
     };
@@ -414,8 +459,37 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     if (window != null) {
       query['window'] = window;
     }
+    if (!_includeAllPosts && activePost != null) {
+      query['postId'] = activePost.id;
+    }
     final uri = Uri(path: '/history', queryParameters: query);
     context.go(uri.toString());
+  }
+
+  List<PublishLog> _scopeLogs(
+    List<PublishLog> logs, {
+    required String? activePostId,
+    required bool includeAllPosts,
+  }) {
+    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
+      return logs;
+    }
+    return logs
+        .where((row) => row.postId != null && row.postId == activePostId)
+        .toList(growable: false);
+  }
+
+  List<ScheduledPost> _scopeQueueItems(
+    List<ScheduledPost> queueItems, {
+    required String? activePostId,
+    required bool includeAllPosts,
+  }) {
+    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
+      return queueItems;
+    }
+    return queueItems
+        .where((row) => row.postId != null && row.postId == activePostId)
+        .toList(growable: false);
   }
 
   String? _windowQuery(_AnalyticsWindow window) {

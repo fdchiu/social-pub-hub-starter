@@ -35,6 +35,7 @@ class HubShellScreen extends StatelessWidget {
     this.initialBundleId,
     this.initialVariantId,
     this.initialPublishChecklistDraftId,
+    this.initialHistoryPostId,
     this.initialHistoryPlatform,
     this.initialHistoryStatus,
     this.initialHistoryMode,
@@ -46,6 +47,7 @@ class HubShellScreen extends StatelessWidget {
   final String? initialBundleId;
   final String? initialVariantId;
   final String? initialPublishChecklistDraftId;
+  final String? initialHistoryPostId;
   final String? initialHistoryPlatform;
   final String? initialHistoryStatus;
   final String? initialHistoryMode;
@@ -83,6 +85,7 @@ class HubShellScreen extends StatelessWidget {
       HubPage.syncConflicts => const SyncConflictsScreen(),
       HubPage.history => HistoryScreen(
           initialVariantId: initialVariantId,
+          initialPostId: initialHistoryPostId,
           initialPlatform: initialHistoryPlatform,
           initialStatus: initialHistoryStatus,
           initialMode: initialHistoryMode,

@@ -5,13 +5,16 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
+import '../widgets/post_scope_header.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({
     super.key,
     this.initialVariantId,
+    this.initialPostId,
     this.initialPlatform,
     this.initialStatus,
     this.initialMode,
@@ -19,6 +22,7 @@ class HistoryScreen extends ConsumerStatefulWidget {
   });
 
   final String? initialVariantId;
+  final String? initialPostId;
   final String? initialPlatform;
   final String? initialStatus;
   final String? initialMode;
@@ -37,11 +41,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   String _modeFilter = 'all';
   _HistoryWindow _window = _HistoryWindow.all;
   String? _variantFilterId;
+  bool _includeAllPosts = false;
 
   @override
   void initState() {
     super.initState();
     _queryController.addListener(_onQueryChanged);
+    final initialPostId = widget.initialPostId?.trim();
+    if (initialPostId != null && initialPostId.isNotEmpty) {
+      ref.read(activePostIdProvider.notifier).state = initialPostId;
+    }
     final initialVariantId = widget.initialVariantId?.trim();
     if (initialVariantId != null && initialVariantId.isNotEmpty) {
       _variantFilterId = initialVariantId;
@@ -76,6 +85,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final logsAsync = ref.watch(publishLogsStreamProvider);
+    final activePost = ref.watch(activePostProvider);
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -91,22 +101,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
       body: logsAsync.when(
         data: (logs) {
-          if (logs.isEmpty) {
-            return const Center(child: Text('No publish logs yet.'));
-          }
+          final scopedLogs = _scopeLogs(
+            logs,
+            activePostId: activePost?.id,
+            includeAllPosts: _includeAllPosts,
+          );
           final platformOptions = <String>{
             'all',
-            ...logs.map((row) => row.platform.toLowerCase()),
+            ...scopedLogs.map((row) => row.platform.toLowerCase()),
           }.toList()
             ..sort();
           final statusOptions = <String>{
             'all',
-            ...logs.map((row) => row.status.toLowerCase()),
+            ...scopedLogs.map((row) => row.status.toLowerCase()),
           }.toList()
             ..sort();
           final modeOptions = <String>{
             'all',
-            ...logs.map((row) => row.mode.toLowerCase()),
+            ...scopedLogs.map((row) => row.mode.toLowerCase()),
           }.toList()
             ..sort();
           final platformFilter =
@@ -114,7 +126,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           final statusFilter = _normalizeFilter(_statusFilter, statusOptions);
           final modeFilter = _normalizeFilter(_modeFilter, modeOptions);
           final filtered = _filterLogs(
-            logs,
+            scopedLogs,
             platformFilter: platformFilter,
             statusFilter: statusFilter,
             modeFilter: modeFilter,
@@ -129,164 +141,186 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: TextField(
-                  controller: _queryController,
-                  decoration: InputDecoration(
-                    labelText: 'Search logs',
-                    hintText: 'platform, status, variant id, url',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _query.isEmpty
-                        ? null
-                        : IconButton(
-                            onPressed: () => _queryController.clear(),
-                            icon: const Icon(Icons.clear),
-                          ),
-                    border: const OutlineInputBorder(),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: PostScopeHeader(showGlobalToggle: false),
+              ),
+              SwitchListTile(
+                value: _includeAllPosts,
+                onChanged: (value) {
+                  setState(() {
+                    _includeAllPosts = value;
+                  });
+                },
+                title: const Text('Include all posts'),
+                subtitle: const Text(
+                  'Show history rows from all posts instead of only active post',
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              if (scopedLogs.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  child: TextField(
+                    controller: _queryController,
+                    decoration: InputDecoration(
+                      labelText: 'Search logs',
+                      hintText: 'platform, status, variant id, url',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              onPressed: () => _queryController.clear(),
+                              icon: const Icon(Icons.clear),
+                            ),
+                      border: const OutlineInputBorder(),
+                    ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: TextField(
-                  controller: _variantController,
-                  decoration: InputDecoration(
-                    labelText: 'Variant ID (exact match)',
-                    hintText: 'Paste full variant id',
-                    prefixIcon: const Icon(Icons.tag_outlined),
-                    suffixIcon: _variantController.text.trim().isEmpty
-                        ? null
-                        : IconButton(
-                            onPressed: () {
-                              _variantController.clear();
-                              setState(() {
-                                _variantFilterId = null;
-                              });
-                            },
-                            icon: const Icon(Icons.clear),
-                          ),
-                    border: const OutlineInputBorder(),
+              if (scopedLogs.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: TextField(
+                    controller: _variantController,
+                    decoration: InputDecoration(
+                      labelText: 'Variant ID (exact match)',
+                      hintText: 'Paste full variant id',
+                      prefixIcon: const Icon(Icons.tag_outlined),
+                      suffixIcon: _variantController.text.trim().isEmpty
+                          ? null
+                          : IconButton(
+                              onPressed: () {
+                                _variantController.clear();
+                                setState(() {
+                                  _variantFilterId = null;
+                                });
+                              },
+                              icon: const Icon(Icons.clear),
+                            ),
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      final trimmed = value.trim();
+                      setState(() {
+                        _variantFilterId = trimmed.isEmpty ? null : trimmed;
+                      });
+                    },
                   ),
-                  onChanged: (value) {
-                    final trimmed = value.trim();
-                    setState(() {
-                      _variantFilterId = trimmed.isEmpty ? null : trimmed;
-                    });
-                  },
                 ),
-              ),
-              SizedBox(
-                height: 42,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _HistoryWindow.values.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    final option = _HistoryWindow.values[index];
-                    final label = switch (option) {
-                      _HistoryWindow.days7 => '7D',
-                      _HistoryWindow.days30 => '30D',
-                      _HistoryWindow.days90 => '90D',
-                      _HistoryWindow.all => 'All',
-                    };
-                    return ChoiceChip(
-                      label: Text(label),
-                      selected: _window == option,
-                      onSelected: (selected) {
-                        if (!selected) {
-                          return;
-                        }
-                        setState(() {
-                          _window = option;
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 6),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    SizedBox(
-                      width: 220,
-                      child: DropdownButtonFormField<String>(
-                        value: platformFilter,
-                        decoration:
-                            const InputDecoration(labelText: 'Platform'),
-                        items: platformOptions
-                            .map(
-                              (value) => DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(labelFor(value)),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) {
+              if (scopedLogs.isNotEmpty)
+                SizedBox(
+                  height: 42,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _HistoryWindow.values.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final option = _HistoryWindow.values[index];
+                      final label = switch (option) {
+                        _HistoryWindow.days7 => '7D',
+                        _HistoryWindow.days30 => '30D',
+                        _HistoryWindow.days90 => '90D',
+                        _HistoryWindow.all => 'All',
+                      };
+                      return ChoiceChip(
+                        label: Text(label),
+                        selected: _window == option,
+                        onSelected: (selected) {
+                          if (!selected) {
                             return;
                           }
                           setState(() {
-                            _platformFilter = value;
+                            _window = option;
                           });
                         },
-                      ),
-                    ),
-                    SizedBox(
-                      width: 220,
-                      child: DropdownButtonFormField<String>(
-                        value: statusFilter,
-                        decoration: const InputDecoration(labelText: 'Status'),
-                        items: statusOptions
-                            .map(
-                              (value) => DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(labelFor(value)),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() {
-                            _statusFilter = value;
-                          });
-                        },
-                      ),
-                    ),
-                    SizedBox(
-                      width: 220,
-                      child: DropdownButtonFormField<String>(
-                        value: modeFilter,
-                        decoration: const InputDecoration(labelText: 'Mode'),
-                        items: modeOptions
-                            .map(
-                              (value) => DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(labelFor(value)),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() {
-                            _modeFilter = value;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
+                      );
+                    },
+                  ),
                 ),
-              ),
-              if (_variantFilterId != null)
+              if (scopedLogs.isNotEmpty) const SizedBox(height: 6),
+              if (scopedLogs.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      SizedBox(
+                        width: 220,
+                        child: DropdownButtonFormField<String>(
+                          value: platformFilter,
+                          decoration:
+                              const InputDecoration(labelText: 'Platform'),
+                          items: platformOptions
+                              .map(
+                                (value) => DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(labelFor(value)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() {
+                              _platformFilter = value;
+                            });
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: 220,
+                        child: DropdownButtonFormField<String>(
+                          value: statusFilter,
+                          decoration:
+                              const InputDecoration(labelText: 'Status'),
+                          items: statusOptions
+                              .map(
+                                (value) => DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(labelFor(value)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() {
+                              _statusFilter = value;
+                            });
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        width: 220,
+                        child: DropdownButtonFormField<String>(
+                          value: modeFilter,
+                          decoration: const InputDecoration(labelText: 'Mode'),
+                          items: modeOptions
+                              .map(
+                                (value) => DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(labelFor(value)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() {
+                              _modeFilter = value;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (scopedLogs.isNotEmpty && _variantFilterId != null)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Row(
@@ -309,68 +343,94 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   ),
                 ),
               Expanded(
-                child: filtered.isEmpty
-                    ? const Center(child: Text('No logs match filters.'))
-                    : ListView.separated(
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final item = filtered[index];
-                          final posted =
-                              item.postedAt?.toLocal().toIso8601String() ?? '-';
-                          final variantLabel = item.variantId == null
-                              ? '-'
-                              : _shortId(item.variantId!);
-                          return ListTile(
-                            title: Text(
-                                '${item.platform.toUpperCase()} · ${item.status}'),
-                            subtitle: Text(
-                                'mode=${item.mode} · variant=$variantLabel · postedAt=$posted'),
-                            trailing: PopupMenuButton<_HistoryAction>(
-                              onSelected: (action) {
-                                if (action == _HistoryAction.cloneAsDraft) {
-                                  _cloneAsDraft(item.variantId);
-                                  return;
-                                }
-                                if (action == _HistoryAction.openExternalUrl &&
-                                    item.externalUrl != null) {
-                                  _openExternalUrl(item.externalUrl!);
-                                }
-                              },
-                              itemBuilder: (context) {
-                                final menu = <PopupMenuEntry<_HistoryAction>>[];
-                                if (item.variantId != null) {
-                                  menu.add(
-                                    const PopupMenuItem(
-                                      value: _HistoryAction.cloneAsDraft,
-                                      child: Text('Clone as draft'),
-                                    ),
-                                  );
-                                }
-                                if (item.externalUrl != null &&
-                                    item.externalUrl!.trim().isNotEmpty) {
-                                  menu.add(
-                                    const PopupMenuItem(
-                                      value: _HistoryAction.openExternalUrl,
-                                      child: Text('Open external URL'),
-                                    ),
-                                  );
-                                }
-                                if (menu.isEmpty) {
-                                  menu.add(
-                                    const PopupMenuItem(
-                                      enabled: false,
-                                      value: _HistoryAction.cloneAsDraft,
-                                      child: Text('No actions'),
-                                    ),
-                                  );
-                                }
-                                return menu;
-                              },
+                child: logs.isEmpty
+                    ? const Center(child: Text('No publish logs yet.'))
+                    : scopedLogs.isEmpty
+                        ? Center(
+                            child: Text(
+                              _includeAllPosts
+                                  ? 'No history rows yet.'
+                                  : 'No history rows for active post scope.',
                             ),
-                          );
-                        },
-                      ),
+                          )
+                        : filtered.isEmpty
+                            ? const Center(
+                                child: Text('No logs match filters.'))
+                            : ListView.separated(
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final item = filtered[index];
+                                  final posted = item.postedAt
+                                          ?.toLocal()
+                                          .toIso8601String() ??
+                                      '-';
+                                  final variantLabel = item.variantId == null
+                                      ? '-'
+                                      : _shortId(item.variantId!);
+                                  final postLabel = item.postId == null
+                                      ? 'unscoped'
+                                      : _shortId(item.postId!);
+                                  return ListTile(
+                                    title: Text(
+                                        '${item.platform.toUpperCase()} · ${item.status}'),
+                                    subtitle: Text(
+                                        'post=$postLabel · mode=${item.mode} · variant=$variantLabel · postedAt=$posted'),
+                                    trailing: PopupMenuButton<_HistoryAction>(
+                                      onSelected: (action) {
+                                        if (action ==
+                                            _HistoryAction.cloneAsDraft) {
+                                          _cloneAsDraft(item);
+                                          return;
+                                        }
+                                        if (action ==
+                                                _HistoryAction
+                                                    .openExternalUrl &&
+                                            item.externalUrl != null) {
+                                          _openExternalUrl(item.externalUrl!);
+                                        }
+                                      },
+                                      itemBuilder: (context) {
+                                        final menu =
+                                            <PopupMenuEntry<_HistoryAction>>[];
+                                        if (item.variantId != null) {
+                                          menu.add(
+                                            const PopupMenuItem(
+                                              value:
+                                                  _HistoryAction.cloneAsDraft,
+                                              child: Text('Clone as draft'),
+                                            ),
+                                          );
+                                        }
+                                        if (item.externalUrl != null &&
+                                            item.externalUrl!
+                                                .trim()
+                                                .isNotEmpty) {
+                                          menu.add(
+                                            const PopupMenuItem(
+                                              value: _HistoryAction
+                                                  .openExternalUrl,
+                                              child: Text('Open external URL'),
+                                            ),
+                                          );
+                                        }
+                                        if (menu.isEmpty) {
+                                          menu.add(
+                                            const PopupMenuItem(
+                                              enabled: false,
+                                              value:
+                                                  _HistoryAction.cloneAsDraft,
+                                              child: Text('No actions'),
+                                            ),
+                                          );
+                                        }
+                                        return menu;
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
               ),
             ],
           );
@@ -382,7 +442,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  Future<void> _cloneAsDraft(String? variantId) async {
+  Future<void> _cloneAsDraft(PublishLog log) async {
+    final variantId = log.variantId;
     if (variantId == null) {
       if (!mounted) {
         return;
@@ -408,6 +469,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final draftId = await ref.read(draftRepoProvider).createDraft(
           canonicalMarkdown: variant.body,
           intent: 'how_to',
+          postId: log.postId ?? ref.read(activePostProvider)?.id,
         );
     if (!mounted) {
       return;
@@ -500,6 +562,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Future<void> _exportFilteredCsv() async {
     final logs = ref.read(publishLogsStreamProvider).valueOrNull;
+    final activePost = ref.read(activePostProvider);
     if (logs == null || logs.isEmpty) {
       if (!mounted) {
         return;
@@ -509,24 +572,44 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       );
       return;
     }
+    final scopedLogs = _scopeLogs(
+      logs,
+      activePostId: activePost?.id,
+      includeAllPosts: _includeAllPosts,
+    );
+    if (scopedLogs.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _includeAllPosts
+                ? 'No logs to export'
+                : 'No logs in active post scope',
+          ),
+        ),
+      );
+      return;
+    }
 
     final platformOptions = <String>{
       'all',
-      ...logs.map((row) => row.platform.toLowerCase()),
+      ...scopedLogs.map((row) => row.platform.toLowerCase()),
     }.toList()
       ..sort();
     final statusOptions = <String>{
       'all',
-      ...logs.map((row) => row.status.toLowerCase()),
+      ...scopedLogs.map((row) => row.status.toLowerCase()),
     }.toList()
       ..sort();
     final modeOptions = <String>{
       'all',
-      ...logs.map((row) => row.mode.toLowerCase()),
+      ...scopedLogs.map((row) => row.mode.toLowerCase()),
     }.toList()
       ..sort();
     final filtered = _filterLogs(
-      logs,
+      scopedLogs,
       platformFilter: _normalizeFilter(_platformFilter, platformOptions),
       statusFilter: _normalizeFilter(_statusFilter, statusOptions),
       modeFilter: _normalizeFilter(_modeFilter, modeOptions),
@@ -542,7 +625,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
 
     final lines = <String>[
-      'id,platform,status,mode,variant_id,external_url,posted_at,created_at',
+      'id,platform,status,mode,variant_id,post_id,external_url,posted_at,created_at',
       ...filtered.map((row) {
         return [
           _csv(row.id),
@@ -550,6 +633,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           _csv(row.status),
           _csv(row.mode),
           _csv(row.variantId ?? ''),
+          _csv(row.postId ?? ''),
           _csv(row.externalUrl ?? ''),
           _csv(row.postedAt?.toUtc().toIso8601String() ?? ''),
           _csv(row.createdAt.toUtc().toIso8601String()),
@@ -574,6 +658,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   String _normalizeFilter(String value, List<String> options) {
     return options.contains(value) ? value : 'all';
+  }
+
+  List<PublishLog> _scopeLogs(
+    List<PublishLog> logs, {
+    required String? activePostId,
+    required bool includeAllPosts,
+  }) {
+    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
+      return logs;
+    }
+    return logs
+        .where((row) => row.postId != null && row.postId == activePostId)
+        .toList(growable: false);
   }
 
   _HistoryWindow? _parseWindow(String? raw) {

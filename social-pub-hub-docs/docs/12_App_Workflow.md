@@ -17,13 +17,13 @@ Read when:
 
 ## 2) Screen-by-screen flow
 
-### Project + Post Scope (top of Inbox/Library/Compose)
+### Project + Post Scope (top of Inbox/Library/Compose/Queue/History)
 Goal: keep writing operations focused and reusable.
 - Pick project scope (`all` or specific project).
 - Pick active post inside that scope.
 - Create project/post on the fly.
 Exit criteria:
-- active post selected before drafting/publishing steps.
+- active post selected before drafting/publishing/auditing steps.
 
 ### Inbox (`/inbox`)
 Goal: collect evidence and start a draft.
@@ -88,10 +88,11 @@ Exit criteria:
 
 ### Queue (`/queue`)
 Goal: manage scheduled execution.
+- Scope queue to active post by default; toggle “Include all posts” when needed.
 - Filter queued/overdue.
 - Copy/open composer for manual assisted posting.
 - Mark posted or cancel.
-- Queue rows carry `post_id` when variant is linked, enabling per-post audits.
+- Queue rows carry `post_id` for linked variants and post-scoped manual queue entries, enabling per-post audits.
 Exit criteria:
 - no stale overdue items.
 
@@ -104,15 +105,17 @@ Exit criteria:
 
 ### History (`/history`)
 Goal: audit + reuse.
+- Scope history to active post by default; toggle “Include all posts” when needed.
 - Filter by platform/status.
 - Open posted URL.
-- Clone winning variant into new draft.
+- Clone winning variant into a post-scoped draft.
 - Publish logs carry `post_id` when variant is linked.
 Exit criteria:
 - learnings captured and reusable.
 
 ### Analytics (`/analytics`)
 Goal: quick health check.
+- Scope metrics to active post by default; toggle “Include all posts” for cross-post view.
 - Check posted count, queue health, platform split.
 Exit criteria:
 - KPI snapshot reviewed for next iteration.

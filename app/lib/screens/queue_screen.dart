@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../utils/composer_links.dart';
 import '../widgets/hub_app_bar.dart';
+import '../widgets/post_scope_header.dart';
 
 class QueueScreen extends ConsumerStatefulWidget {
   const QueueScreen({super.key});
@@ -20,10 +22,12 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
   String _statusFilter = 'all';
   String _platformFilter = 'all';
   bool _overdueOnly = false;
+  bool _includeAllPosts = false;
 
   @override
   Widget build(BuildContext context) {
     final queueAsync = ref.watch(scheduledPostsStreamProvider);
+    final activePost = ref.watch(activePostProvider);
     return Scaffold(
       appBar: buildHubAppBar(
         context: context,
@@ -48,21 +52,20 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
       ),
       body: queueAsync.when(
         data: (items) {
-          if (items.isEmpty) {
-            return const Center(
-              child:
-                  Text('No scheduled posts yet. Queue from Compose variants.'),
-            );
-          }
+          final scopedItems = _scopeItems(
+            items,
+            activePostId: activePost?.id,
+            includeAllPosts: _includeAllPosts,
+          );
           final now = DateTime.now().toUtc();
           final statusOptions = <String>{
             'all',
-            ...items.map((row) => row.status.toLowerCase()),
+            ...scopedItems.map((row) => row.status.toLowerCase()),
           }.toList()
             ..sort();
           final platformOptions = <String>{
             'all',
-            ...items.map((row) => row.platform.toLowerCase()),
+            ...scopedItems.map((row) => row.platform.toLowerCase()),
           }.toList()
             ..sort();
           final selectedStatus =
@@ -72,7 +75,7 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
               : 'all';
 
           final filtered = _applyFilters(
-            items,
+            scopedItems,
             now: now,
             selectedStatus: selectedStatus,
             selectedPlatform: selectedPlatform,
@@ -80,90 +83,128 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
 
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: selectedPlatform,
-                        decoration:
-                            const InputDecoration(labelText: 'Platform'),
-                        items: platformOptions
-                            .map(
-                              (value) => DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value == 'all'
-                                    ? 'All'
-                                    : value.toUpperCase()),
-                              ),
-                            )
-                            .toList(growable: false),
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() {
-                            _platformFilter = value;
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: selectedStatus,
-                        decoration: const InputDecoration(labelText: 'Status'),
-                        items: statusOptions
-                            .map(
-                              (value) => DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value == 'all'
-                                    ? 'All'
-                                    : value.toUpperCase()),
-                              ),
-                            )
-                            .toList(growable: false),
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() {
-                            _statusFilter = value;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: PostScopeHeader(showGlobalToggle: false),
               ),
               SwitchListTile(
-                value: _overdueOnly,
+                value: _includeAllPosts,
                 onChanged: (value) {
                   setState(() {
-                    _overdueOnly = value;
+                    _includeAllPosts = value;
                   });
                 },
-                title: const Text('Overdue only'),
+                title: const Text('Include all posts'),
+                subtitle: const Text(
+                  'Show queue rows from all posts instead of only active post',
+                ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               ),
-              Expanded(
-                child: filtered.isEmpty
-                    ? const Center(child: Text('No queue items match filters.'))
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final item = filtered[index];
-                          final isOverdue = item.status == 'queued' &&
-                              item.scheduledFor.isBefore(now);
-                          return _ScheduledPostCard(
-                            item: item,
-                            isOverdue: isOverdue,
-                          );
-                        },
+              if (scopedItems.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: selectedPlatform,
+                          decoration:
+                              const InputDecoration(labelText: 'Platform'),
+                          items: platformOptions
+                              .map(
+                                (value) => DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value == 'all'
+                                      ? 'All'
+                                      : value.toUpperCase()),
+                                ),
+                              )
+                              .toList(growable: false),
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() {
+                              _platformFilter = value;
+                            });
+                          },
+                        ),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: selectedStatus,
+                          decoration:
+                              const InputDecoration(labelText: 'Status'),
+                          items: statusOptions
+                              .map(
+                                (value) => DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value == 'all'
+                                      ? 'All'
+                                      : value.toUpperCase()),
+                                ),
+                              )
+                              .toList(growable: false),
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() {
+                              _statusFilter = value;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (scopedItems.isNotEmpty)
+                SwitchListTile(
+                  value: _overdueOnly,
+                  onChanged: (value) {
+                    setState(() {
+                      _overdueOnly = value;
+                    });
+                  },
+                  title: const Text('Overdue only'),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+              Expanded(
+                child: items.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No scheduled posts yet. Queue from Compose variants.',
+                        ),
+                      )
+                    : scopedItems.isEmpty
+                        ? Center(
+                            child: Text(
+                              _includeAllPosts
+                                  ? 'No queue items yet.'
+                                  : 'No queue items for active post scope.',
+                            ),
+                          )
+                        : filtered.isEmpty
+                            ? const Center(
+                                child: Text('No queue items match filters.'),
+                              )
+                            : ListView.separated(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 10),
+                                itemBuilder: (context, index) {
+                                  final item = filtered[index];
+                                  final isOverdue = item.status == 'queued' &&
+                                      item.scheduledFor.isBefore(now);
+                                  return _ScheduledPostCard(
+                                    item: item,
+                                    isOverdue: isOverdue,
+                                  );
+                                },
+                              ),
               ),
             ],
           );
@@ -176,6 +217,7 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
   }
 
   Future<void> _showScheduleDialog() async {
+    final activePost = ref.read(activePostProvider);
     final contentController = TextEditingController();
     String platform = 'x';
     DateTime scheduledFor = DateTime.now().add(const Duration(hours: 1));
@@ -277,6 +319,7 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
     }
 
     await ref.read(scheduledPostRepoProvider).createScheduledPost(
+          postId: activePost?.id,
           platform: platform,
           content: content,
           scheduledFor: scheduledFor.toUtc(),
@@ -339,6 +382,7 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
 
   Future<void> _exportFilteredCsv() async {
     final items = ref.read(scheduledPostsStreamProvider).valueOrNull;
+    final activePost = ref.read(activePostProvider);
     if (items == null) {
       if (!mounted) {
         return;
@@ -357,22 +401,42 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
       );
       return;
     }
+    final scopedItems = _scopeItems(
+      items,
+      activePostId: activePost?.id,
+      includeAllPosts: _includeAllPosts,
+    );
+    if (scopedItems.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _includeAllPosts
+                ? 'No queue items to export'
+                : 'No queue items in active post scope',
+          ),
+        ),
+      );
+      return;
+    }
 
     final now = DateTime.now().toUtc();
     final statusOptions = <String>{
       'all',
-      ...items.map((row) => row.status.toLowerCase()),
+      ...scopedItems.map((row) => row.status.toLowerCase()),
     };
     final platformOptions = <String>{
       'all',
-      ...items.map((row) => row.platform.toLowerCase()),
+      ...scopedItems.map((row) => row.platform.toLowerCase()),
     };
     final selectedStatus =
         statusOptions.contains(_statusFilter) ? _statusFilter : 'all';
     final selectedPlatform =
         platformOptions.contains(_platformFilter) ? _platformFilter : 'all';
     final filtered = _applyFilters(
-      items,
+      scopedItems,
       now: now,
       selectedStatus: selectedStatus,
       selectedPlatform: selectedPlatform,
@@ -388,13 +452,14 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
     }
 
     final lines = <String>[
-      'id,platform,status,variant_id,scheduled_for,external_url,content,created_at,updated_at',
+      'id,platform,status,variant_id,post_id,scheduled_for,external_url,content,created_at,updated_at',
       ...filtered.map((row) {
         return [
           _csv(row.id),
           _csv(row.platform),
           _csv(row.status),
           _csv(row.variantId ?? ''),
+          _csv(row.postId ?? ''),
           _csv(row.scheduledFor.toUtc().toIso8601String()),
           _csv(row.externalUrl ?? ''),
           _csv(row.content),
@@ -416,6 +481,19 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
   String _csv(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
+  }
+
+  List<ScheduledPost> _scopeItems(
+    List<ScheduledPost> items, {
+    required String? activePostId,
+    required bool includeAllPosts,
+  }) {
+    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
+      return items;
+    }
+    return items
+        .where((row) => row.postId != null && row.postId == activePostId)
+        .toList(growable: false);
   }
 }
 
@@ -547,6 +625,10 @@ class _ScheduledPostCard extends ConsumerWidget {
     if (item.status.toLowerCase() == 'posted') {
       query['status'] = 'posted';
     }
+    final postId = item.postId?.trim();
+    if (postId != null && postId.isNotEmpty) {
+      query['postId'] = postId;
+    }
     final uri = Uri(path: '/history', queryParameters: query);
     context.go(uri.toString());
   }
@@ -559,6 +641,7 @@ class _ScheduledPostCard extends ConsumerWidget {
         );
     await ref.read(publishLogRepoProvider).createPublishLog(
           variantId: item.variantId,
+          postId: item.postId,
           platform: item.platform,
           mode: 'scheduled',
           status: 'posted',
