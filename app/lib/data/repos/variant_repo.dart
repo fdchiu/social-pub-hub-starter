@@ -52,8 +52,10 @@ class VariantRepo {
   }
 
   Future<void> deleteVariantsForDraft(String draftId) async {
-    await (_db.delete(_db.variants)..where((t) => t.draftId.equals(draftId)))
-        .go();
+    final variants = await (_db.select(_db.variants)
+          ..where((t) => t.draftId.equals(draftId)))
+        .get();
+    await _deleteVariantsByIds(variants.map((v) => v.id).toList());
   }
 
   Future<void> deleteVariantsForDraftPlatforms({
@@ -63,15 +65,16 @@ class VariantRepo {
     if (platforms.isEmpty) {
       return;
     }
-    await (_db.delete(_db.variants)
+    final variants = await (_db.select(_db.variants)
           ..where(
             (t) => t.draftId.equals(draftId) & t.platform.isIn(platforms),
           ))
-        .go();
+        .get();
+    await _deleteVariantsByIds(variants.map((v) => v.id).toList());
   }
 
   Future<void> deleteVariantById(String variantId) async {
-    await (_db.delete(_db.variants)..where((t) => t.id.equals(variantId))).go();
+    await _deleteVariantsByIds(<String>[variantId]);
   }
 
   Future<void> updateVariantBody({
@@ -86,5 +89,46 @@ class VariantRepo {
         syncStatus: const Value('dirty'),
       ),
     );
+  }
+
+  Future<void> _deleteVariantsByIds(List<String> variantIds) async {
+    if (variantIds.isEmpty) {
+      return;
+    }
+
+    await _db.transaction(() async {
+      final now = DateTime.now().toUtc();
+      for (final variantId in variantIds) {
+        await _db.into(_db.syncTombstones).insertOnConflictUpdate(
+              SyncTombstonesCompanion.insert(
+                id: 'variants:$variantId',
+                entityType: 'variants',
+                entityId: variantId,
+                createdAt: Value(now),
+              ),
+            );
+      }
+
+      await (_db.update(_db.publishLogs)
+            ..where((t) => t.variantId.isIn(variantIds)))
+          .write(
+        PublishLogsCompanion(
+          variantId: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('dirty'),
+        ),
+      );
+      await (_db.update(_db.scheduledPosts)
+            ..where((t) => t.variantId.isIn(variantIds)))
+          .write(
+        ScheduledPostsCompanion(
+          variantId: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('dirty'),
+        ),
+      );
+      await (_db.delete(_db.variants)..where((t) => t.id.isIn(variantIds)))
+          .go();
+    });
   }
 }
