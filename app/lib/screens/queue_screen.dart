@@ -576,6 +576,11 @@ class _ScheduledPostCard extends ConsumerWidget {
                     onPressed: () => _cancel(context, ref),
                     child: const Text('Cancel'),
                   ),
+                if (!isQueued)
+                  FilledButton.tonal(
+                    onPressed: () => _remove(context, ref),
+                    child: const Text('Remove'),
+                  ),
               ],
             ),
           ],
@@ -680,6 +685,39 @@ class _ScheduledPostCard extends ConsumerWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Queue item rescheduled')),
+      );
+    }
+  }
+
+  Future<void> _remove(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Remove queue row?'),
+            content: const Text(
+              'This permanently removes the queue row and syncs deletion.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) {
+      return;
+    }
+
+    await ref.read(scheduledPostRepoProvider).deleteScheduledPost(item.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Queue item removed')),
       );
     }
   }

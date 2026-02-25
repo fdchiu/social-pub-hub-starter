@@ -111,7 +111,24 @@ class ScheduledPostRepo {
         status: const Value('queued'),
         updatedAt: Value(DateTime.now().toUtc()),
         syncStatus: const Value('dirty'),
-      ),
+        ),
     );
+  }
+
+  Future<void> deleteScheduledPost(String scheduledPostId) async {
+    await _db.transaction(() async {
+      final now = DateTime.now().toUtc();
+      await _db.into(_db.syncTombstones).insertOnConflictUpdate(
+            SyncTombstonesCompanion.insert(
+              id: 'scheduled_posts:$scheduledPostId',
+              entityType: 'scheduled_posts',
+              entityId: scheduledPostId,
+              createdAt: Value(now),
+            ),
+          );
+      await (_db.delete(_db.scheduledPosts)
+            ..where((t) => t.id.equals(scheduledPostId)))
+          .go();
+    });
   }
 }

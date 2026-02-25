@@ -101,6 +101,7 @@ Goal: manage scheduled execution.
 - Filter queued/overdue.
 - Copy/open composer for manual assisted posting.
 - Mark posted or cancel.
+- Remove posted/canceled rows to keep queue clean (syncs deletion).
 - Queue rows carry `post_id` for linked variants and post-scoped manual queue entries, enabling per-post audits.
 Exit criteria:
 - no stale overdue items.
