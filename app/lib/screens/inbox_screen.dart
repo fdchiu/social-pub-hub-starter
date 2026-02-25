@@ -654,6 +654,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final draftRepo = ref.read(draftRepoProvider);
     final styleProfile =
         await ref.read(styleProfileRepoProvider).getOrCreateDefault();
+    final tone = styleProfile.casualFormal.clamp(0.0, 1.0).toDouble();
+    final punchiness = styleProfile.punchiness.clamp(0.0, 1.0).toDouble();
     final selectedSourceItems = await ref
         .read(sourceRepoProvider)
         .getSourceItemsByIds(selectedSourceIds);
@@ -678,8 +680,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   )
                   .toList(growable: false),
               'intent': _intentForContentType(activePost.contentType),
-              'tone': 0.6,
-              'punchiness': 0.7,
+              'tone': tone,
+              'punchiness': punchiness,
               'audience': activePost.audience ?? 'builders',
               'length_target': 'short',
               'post_id': activePost.id,
@@ -724,6 +726,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             contentType: activePost.contentType,
           ),
           intent: _intentForContentType(activePost.contentType),
+          tone: tone,
+          punchiness: punchiness,
           audience: activePost.audience ?? 'builders',
           postId: activePost.id,
           contentType: activePost.contentType,
@@ -743,8 +747,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           id: draftId,
           canonicalMarkdown: canonicalMarkdown,
           intent: _intentForContentType(activePost.contentType),
-          tone: 0.6,
-          punchiness: 0.7,
+          tone: tone,
+          punchiness: punchiness,
           audience: activePost.audience ?? 'builders',
           postId: activePost.id,
           contentType: activePost.contentType,

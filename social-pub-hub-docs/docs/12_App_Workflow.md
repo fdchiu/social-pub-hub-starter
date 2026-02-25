@@ -30,7 +30,7 @@ Goal: collect evidence and start a draft.
 - Add source (`url`, `note`, `snippet`).
 - Scope source to active post or global reusable pool.
 - Source items sync across devices in the sync loop (including deletions).
-- Draft-from-selected applies style traits, differentiation points, and banned phrase guardrails.
+- Draft-from-selected applies style traits, tone/punchiness, differentiation points, and banned phrase guardrails.
 - Select one or more sources.
 - Trigger “create draft from selected sources”.
 Exit criteria:
