@@ -4,11 +4,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
+import '../widgets/post_scope_header.dart';
 
-class BundlePublishChecklistScreen extends ConsumerWidget {
+class BundlePublishChecklistScreen extends ConsumerStatefulWidget {
   const BundlePublishChecklistScreen({super.key});
+
+  @override
+  ConsumerState<BundlePublishChecklistScreen> createState() =>
+      _BundlePublishChecklistScreenState();
+}
+
+class _BundlePublishChecklistScreenState
+    extends ConsumerState<BundlePublishChecklistScreen> {
+  bool _includeAllPosts = false;
 
   static const List<String> _targetPlatforms = <String>[
     'x',
@@ -19,11 +30,13 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final bundlesAsync = ref.watch(bundlesStreamProvider);
     final sourcesAsync = ref.watch(sourceItemsStreamProvider);
     final variantsAsync = ref.watch(allVariantsStreamProvider);
     final logsAsync = ref.watch(publishLogsStreamProvider);
+    final activePost = ref.watch(activePostProvider);
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -44,11 +57,11 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
       ),
       body: bundlesAsync.when(
         data: (bundles) {
-          if (bundles.isEmpty) {
-            return const Center(
-              child: Text('No bundles found. Create a bundle first.'),
-            );
-          }
+          final scopedBundles = _scopeBundles(
+            bundles,
+            activePostId: activePost?.id,
+            includeAllPosts: _includeAllPosts,
+          );
           return sourcesAsync.when(
             data: (sources) {
               return variantsAsync.when(
@@ -58,7 +71,7 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
                       final variantById = <String, Variant>{
                         for (final row in variants) row.id: row,
                       };
-                      final reports = bundles
+                      final reports = scopedBundles
                           .map(
                             (bundle) => _buildReport(
                               bundle: bundle,
@@ -94,57 +107,82 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
                       return ListView(
                         padding: const EdgeInsets.all(16),
                         children: [
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Wrap(
-                                spacing: 12,
-                                runSpacing: 8,
-                                children: [
-                                  Text('Bundles: ${reports.length}'),
-                                  Text('Ready: $readyCount'),
-                                  Text('Needs work: $needsWorkCount'),
-                                  Text(
-                                      'Missing platforms: $totalMissingPlatforms'),
-                                  Text(
-                                      'Missing variants: $totalMissingVariants'),
-                                ],
-                              ),
+                          const PostScopeHeader(showGlobalToggle: false),
+                          const SizedBox(height: 8),
+                          SwitchListTile(
+                            value: _includeAllPosts,
+                            onChanged: (value) {
+                              setState(() {
+                                _includeAllPosts = value;
+                              });
+                            },
+                            title: const Text('Include all posts'),
+                            subtitle: const Text(
+                              'Show bundles from all posts instead of only active post',
                             ),
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          const SizedBox(height: 12),
-                          ...reports.map(
-                            (report) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _BundleChecklistCard(
-                                report: report,
-                                onGenerateCanonicalDraft: () =>
-                                    _generateCanonicalDraftFromSources(
-                                  context: context,
-                                  ref: ref,
-                                  report: report,
-                                ),
-                                onAttachSource: () =>
-                                    _attachLatestSourceToBundle(
-                                  context: context,
-                                  ref: ref,
-                                  report: report,
-                                ),
-                                onBackfillVariants: () =>
-                                    _backfillBundleVariants(
-                                  context: context,
-                                  ref: ref,
-                                  report: report,
-                                ),
-                                onCleanMissingVariants: () =>
-                                    _cleanMissingVariantRefs(
-                                  context: context,
-                                  ref: ref,
-                                  report: report,
+                          const SizedBox(height: 8),
+                          if (scopedBundles.isEmpty)
+                            Text(
+                              _includeAllPosts
+                                  ? 'No bundles found. Create a bundle first.'
+                                  : 'No bundles in active post scope.',
+                            ),
+                          if (scopedBundles.isNotEmpty)
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Wrap(
+                                  spacing: 12,
+                                  runSpacing: 8,
+                                  children: [
+                                    Text('Bundles: ${reports.length}'),
+                                    Text('Ready: $readyCount'),
+                                    Text('Needs work: $needsWorkCount'),
+                                    Text(
+                                        'Missing platforms: $totalMissingPlatforms'),
+                                    Text(
+                                        'Missing variants: $totalMissingVariants'),
+                                  ],
                                 ),
                               ),
                             ),
-                          ),
+                          if (scopedBundles.isNotEmpty)
+                            const SizedBox(height: 12),
+                          if (scopedBundles.isNotEmpty)
+                            ...reports.map(
+                              (report) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _BundleChecklistCard(
+                                  report: report,
+                                  onGenerateCanonicalDraft: () =>
+                                      _generateCanonicalDraftFromSources(
+                                    context: context,
+                                    ref: ref,
+                                    report: report,
+                                  ),
+                                  onAttachSource: () =>
+                                      _attachLatestSourceToBundle(
+                                    context: context,
+                                    ref: ref,
+                                    report: report,
+                                  ),
+                                  onBackfillVariants: () =>
+                                      _backfillBundleVariants(
+                                    context: context,
+                                    ref: ref,
+                                    report: report,
+                                  ),
+                                  onCleanMissingVariants: () =>
+                                      _cleanMissingVariantRefs(
+                                    context: context,
+                                    ref: ref,
+                                    report: report,
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       );
                     },
@@ -181,7 +219,14 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton.tonal(
-                onPressed: () => context.go('/history'),
+                onPressed: () {
+                  if (!_includeAllPosts && activePost != null) {
+                    final encoded = Uri.encodeQueryComponent(activePost.id);
+                    context.go('/history?postId=$encoded');
+                    return;
+                  }
+                  context.go('/history');
+                },
                 child: const Text('History'),
               ),
             ),
@@ -294,6 +339,7 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
     required WidgetRef ref,
     required _BundleReport report,
   }) async {
+    final activePost = ref.read(activePostProvider);
     final messenger = ScaffoldMessenger.of(context);
     if (report.linkedSources.isEmpty) {
       messenger.showSnackBar(
@@ -307,6 +353,7 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
           canonicalMarkdown: canonical,
           intent: 'how_to',
           audience: 'engineers',
+          postId: report.bundle.postId ?? activePost?.id,
         );
     await ref.read(bundleRepoProvider).setCanonicalDraftId(
           bundleId: report.bundle.id,
@@ -326,8 +373,13 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
     required WidgetRef ref,
     required _BundleReport report,
   }) async {
+    final activePost = ref.read(activePostProvider);
+    final scopedPostId = report.bundle.postId ?? activePost?.id;
     final sourceRepo = ref.read(sourceRepoProvider);
-    final existing = await sourceRepo.getLatestUnbundledSource();
+    final existing = await sourceRepo.getLatestUnbundledSource(
+      postId: scopedPostId,
+      includeGlobal: true,
+    );
     if (existing != null) {
       await sourceRepo.assignBundle(
         sourceId: existing.id,
@@ -347,6 +399,7 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
       userNote: 'Seed source for bundle: ${report.bundle.name}',
       tags: const <String>['bundle', 'seed'],
       bundleId: report.bundle.id,
+      postId: scopedPostId,
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -372,7 +425,9 @@ class BundlePublishChecklistScreen extends ConsumerWidget {
 
     var draftId = report.referenceDraftId;
     if (draftId == null || draftId.isEmpty) {
-      final latestDraft = await ref.read(draftRepoProvider).getLatestDraft();
+      final latestDraft = await ref.read(draftRepoProvider).getLatestDraft(
+            postId: report.bundle.postId ?? ref.read(activePostProvider)?.id,
+          );
       draftId = latestDraft?.id;
     }
     if (draftId == null || draftId.isEmpty) {
@@ -484,6 +539,7 @@ Takeaway: Start with a concrete step and ask for feedback.
     final sources = ref.read(sourceItemsStreamProvider).valueOrNull;
     final variants = ref.read(allVariantsStreamProvider).valueOrNull;
     final logs = ref.read(publishLogsStreamProvider).valueOrNull;
+    final activePost = ref.read(activePostProvider);
 
     if (bundles == null ||
         sources == null ||
@@ -498,8 +554,13 @@ Takeaway: Start with a concrete step and ask for feedback.
       return;
     }
 
+    final scopedBundles = _scopeBundles(
+      bundles,
+      activePostId: activePost?.id,
+      includeAllPosts: _includeAllPosts,
+    );
     final variantById = {for (final row in variants) row.id: row};
-    final reports = bundles
+    final reports = scopedBundles
         .map(
           (bundle) => _buildReport(
             bundle: bundle,
@@ -553,6 +614,20 @@ Takeaway: Start with a concrete step and ask for feedback.
   String _csv(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
+  }
+
+  List<Bundle> _scopeBundles(
+    List<Bundle> bundles, {
+    required String? activePostId,
+    required bool includeAllPosts,
+  }) {
+    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
+      return bundles;
+    }
+    return bundles
+        .where(
+            (bundle) => bundle.postId == null || bundle.postId == activePostId)
+        .toList(growable: false);
   }
 }
 

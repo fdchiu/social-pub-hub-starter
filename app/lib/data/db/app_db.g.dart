@@ -4615,6 +4615,11 @@ class $BundlesTable extends Bundles with TableInfo<$BundlesTable, Bundle> {
   late final GeneratedColumn<String> canonicalDraftId = GeneratedColumn<String>(
       'canonical_draft_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _postIdMeta = const VerificationMeta('postId');
+  @override
+  late final GeneratedColumn<String> postId = GeneratedColumn<String>(
+      'post_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   late final GeneratedColumnWithTypeConverter<List<String>, String>
       relatedVariantIds = GeneratedColumn<String>(
@@ -4652,6 +4657,7 @@ class $BundlesTable extends Bundles with TableInfo<$BundlesTable, Bundle> {
         anchorType,
         anchorRef,
         canonicalDraftId,
+        postId,
         relatedVariantIds,
         notes,
         createdAt,
@@ -4694,6 +4700,10 @@ class $BundlesTable extends Bundles with TableInfo<$BundlesTable, Bundle> {
           canonicalDraftId.isAcceptableOrUnknown(
               data['canonical_draft_id']!, _canonicalDraftIdMeta));
     }
+    if (data.containsKey('post_id')) {
+      context.handle(_postIdMeta,
+          postId.isAcceptableOrUnknown(data['post_id']!, _postIdMeta));
+    }
     if (data.containsKey('notes')) {
       context.handle(
           _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
@@ -4725,6 +4735,8 @@ class $BundlesTable extends Bundles with TableInfo<$BundlesTable, Bundle> {
           .read(DriftSqlType.string, data['${effectivePrefix}anchor_ref']),
       canonicalDraftId: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}canonical_draft_id']),
+      postId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}post_id']),
       relatedVariantIds: $BundlesTable.$converterrelatedVariantIds.fromSql(
           attachedDatabase.typeMapping.read(DriftSqlType.string,
               data['${effectivePrefix}related_variant_ids'])!),
@@ -4752,6 +4764,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
   final String anchorType;
   final String? anchorRef;
   final String? canonicalDraftId;
+  final String? postId;
   final List<String> relatedVariantIds;
   final String? notes;
   final DateTime createdAt;
@@ -4762,6 +4775,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
       required this.anchorType,
       this.anchorRef,
       this.canonicalDraftId,
+      this.postId,
       required this.relatedVariantIds,
       this.notes,
       required this.createdAt,
@@ -4777,6 +4791,9 @@ class Bundle extends DataClass implements Insertable<Bundle> {
     }
     if (!nullToAbsent || canonicalDraftId != null) {
       map['canonical_draft_id'] = Variable<String>(canonicalDraftId);
+    }
+    if (!nullToAbsent || postId != null) {
+      map['post_id'] = Variable<String>(postId);
     }
     {
       map['related_variant_ids'] = Variable<String>(
@@ -4801,6 +4818,8 @@ class Bundle extends DataClass implements Insertable<Bundle> {
       canonicalDraftId: canonicalDraftId == null && nullToAbsent
           ? const Value.absent()
           : Value(canonicalDraftId),
+      postId:
+          postId == null && nullToAbsent ? const Value.absent() : Value(postId),
       relatedVariantIds: Value(relatedVariantIds),
       notes:
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
@@ -4818,6 +4837,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
       anchorType: serializer.fromJson<String>(json['anchorType']),
       anchorRef: serializer.fromJson<String?>(json['anchorRef']),
       canonicalDraftId: serializer.fromJson<String?>(json['canonicalDraftId']),
+      postId: serializer.fromJson<String?>(json['postId']),
       relatedVariantIds:
           serializer.fromJson<List<String>>(json['relatedVariantIds']),
       notes: serializer.fromJson<String?>(json['notes']),
@@ -4834,6 +4854,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
       'anchorType': serializer.toJson<String>(anchorType),
       'anchorRef': serializer.toJson<String?>(anchorRef),
       'canonicalDraftId': serializer.toJson<String?>(canonicalDraftId),
+      'postId': serializer.toJson<String?>(postId),
       'relatedVariantIds': serializer.toJson<List<String>>(relatedVariantIds),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -4847,6 +4868,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
           String? anchorType,
           Value<String?> anchorRef = const Value.absent(),
           Value<String?> canonicalDraftId = const Value.absent(),
+          Value<String?> postId = const Value.absent(),
           List<String>? relatedVariantIds,
           Value<String?> notes = const Value.absent(),
           DateTime? createdAt,
@@ -4859,6 +4881,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
         canonicalDraftId: canonicalDraftId.present
             ? canonicalDraftId.value
             : this.canonicalDraftId,
+        postId: postId.present ? postId.value : this.postId,
         relatedVariantIds: relatedVariantIds ?? this.relatedVariantIds,
         notes: notes.present ? notes.value : this.notes,
         createdAt: createdAt ?? this.createdAt,
@@ -4874,6 +4897,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
       canonicalDraftId: data.canonicalDraftId.present
           ? data.canonicalDraftId.value
           : this.canonicalDraftId,
+      postId: data.postId.present ? data.postId.value : this.postId,
       relatedVariantIds: data.relatedVariantIds.present
           ? data.relatedVariantIds.value
           : this.relatedVariantIds,
@@ -4891,6 +4915,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
           ..write('anchorType: $anchorType, ')
           ..write('anchorRef: $anchorRef, ')
           ..write('canonicalDraftId: $canonicalDraftId, ')
+          ..write('postId: $postId, ')
           ..write('relatedVariantIds: $relatedVariantIds, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
@@ -4901,7 +4926,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
 
   @override
   int get hashCode => Object.hash(id, name, anchorType, anchorRef,
-      canonicalDraftId, relatedVariantIds, notes, createdAt, updatedAt);
+      canonicalDraftId, postId, relatedVariantIds, notes, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4911,6 +4936,7 @@ class Bundle extends DataClass implements Insertable<Bundle> {
           other.anchorType == this.anchorType &&
           other.anchorRef == this.anchorRef &&
           other.canonicalDraftId == this.canonicalDraftId &&
+          other.postId == this.postId &&
           other.relatedVariantIds == this.relatedVariantIds &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt &&
@@ -4923,6 +4949,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
   final Value<String> anchorType;
   final Value<String?> anchorRef;
   final Value<String?> canonicalDraftId;
+  final Value<String?> postId;
   final Value<List<String>> relatedVariantIds;
   final Value<String?> notes;
   final Value<DateTime> createdAt;
@@ -4934,6 +4961,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
     this.anchorType = const Value.absent(),
     this.anchorRef = const Value.absent(),
     this.canonicalDraftId = const Value.absent(),
+    this.postId = const Value.absent(),
     this.relatedVariantIds = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -4946,6 +4974,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
     this.anchorType = const Value.absent(),
     this.anchorRef = const Value.absent(),
     this.canonicalDraftId = const Value.absent(),
+    this.postId = const Value.absent(),
     this.relatedVariantIds = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -4959,6 +4988,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
     Expression<String>? anchorType,
     Expression<String>? anchorRef,
     Expression<String>? canonicalDraftId,
+    Expression<String>? postId,
     Expression<String>? relatedVariantIds,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
@@ -4971,6 +5001,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
       if (anchorType != null) 'anchor_type': anchorType,
       if (anchorRef != null) 'anchor_ref': anchorRef,
       if (canonicalDraftId != null) 'canonical_draft_id': canonicalDraftId,
+      if (postId != null) 'post_id': postId,
       if (relatedVariantIds != null) 'related_variant_ids': relatedVariantIds,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
@@ -4985,6 +5016,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
       Value<String>? anchorType,
       Value<String?>? anchorRef,
       Value<String?>? canonicalDraftId,
+      Value<String?>? postId,
       Value<List<String>>? relatedVariantIds,
       Value<String?>? notes,
       Value<DateTime>? createdAt,
@@ -4996,6 +5028,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
       anchorType: anchorType ?? this.anchorType,
       anchorRef: anchorRef ?? this.anchorRef,
       canonicalDraftId: canonicalDraftId ?? this.canonicalDraftId,
+      postId: postId ?? this.postId,
       relatedVariantIds: relatedVariantIds ?? this.relatedVariantIds,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
@@ -5021,6 +5054,9 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
     }
     if (canonicalDraftId.present) {
       map['canonical_draft_id'] = Variable<String>(canonicalDraftId.value);
+    }
+    if (postId.present) {
+      map['post_id'] = Variable<String>(postId.value);
     }
     if (relatedVariantIds.present) {
       map['related_variant_ids'] = Variable<String>($BundlesTable
@@ -5050,6 +5086,7 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
           ..write('anchorType: $anchorType, ')
           ..write('anchorRef: $anchorRef, ')
           ..write('canonicalDraftId: $canonicalDraftId, ')
+          ..write('postId: $postId, ')
           ..write('relatedVariantIds: $relatedVariantIds, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
@@ -8658,6 +8695,7 @@ typedef $$BundlesTableCreateCompanionBuilder = BundlesCompanion Function({
   Value<String> anchorType,
   Value<String?> anchorRef,
   Value<String?> canonicalDraftId,
+  Value<String?> postId,
   Value<List<String>> relatedVariantIds,
   Value<String?> notes,
   Value<DateTime> createdAt,
@@ -8670,6 +8708,7 @@ typedef $$BundlesTableUpdateCompanionBuilder = BundlesCompanion Function({
   Value<String> anchorType,
   Value<String?> anchorRef,
   Value<String?> canonicalDraftId,
+  Value<String?> postId,
   Value<List<String>> relatedVariantIds,
   Value<String?> notes,
   Value<DateTime> createdAt,
@@ -8701,6 +8740,9 @@ class $$BundlesTableFilterComposer
   ColumnFilters<String> get canonicalDraftId => $composableBuilder(
       column: $table.canonicalDraftId,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get postId => $composableBuilder(
+      column: $table.postId, builder: (column) => ColumnFilters(column));
 
   ColumnWithTypeConverterFilters<List<String>, List<String>, String>
       get relatedVariantIds => $composableBuilder(
@@ -8742,6 +8784,9 @@ class $$BundlesTableOrderingComposer
       column: $table.canonicalDraftId,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get postId => $composableBuilder(
+      column: $table.postId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get relatedVariantIds => $composableBuilder(
       column: $table.relatedVariantIds,
       builder: (column) => ColumnOrderings(column));
@@ -8779,6 +8824,9 @@ class $$BundlesTableAnnotationComposer
 
   GeneratedColumn<String> get canonicalDraftId => $composableBuilder(
       column: $table.canonicalDraftId, builder: (column) => column);
+
+  GeneratedColumn<String> get postId =>
+      $composableBuilder(column: $table.postId, builder: (column) => column);
 
   GeneratedColumnWithTypeConverter<List<String>, String>
       get relatedVariantIds => $composableBuilder(
@@ -8822,6 +8870,7 @@ class $$BundlesTableTableManager extends RootTableManager<
             Value<String> anchorType = const Value.absent(),
             Value<String?> anchorRef = const Value.absent(),
             Value<String?> canonicalDraftId = const Value.absent(),
+            Value<String?> postId = const Value.absent(),
             Value<List<String>> relatedVariantIds = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -8834,6 +8883,7 @@ class $$BundlesTableTableManager extends RootTableManager<
             anchorType: anchorType,
             anchorRef: anchorRef,
             canonicalDraftId: canonicalDraftId,
+            postId: postId,
             relatedVariantIds: relatedVariantIds,
             notes: notes,
             createdAt: createdAt,
@@ -8846,6 +8896,7 @@ class $$BundlesTableTableManager extends RootTableManager<
             Value<String> anchorType = const Value.absent(),
             Value<String?> anchorRef = const Value.absent(),
             Value<String?> canonicalDraftId = const Value.absent(),
+            Value<String?> postId = const Value.absent(),
             Value<List<String>> relatedVariantIds = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -8858,6 +8909,7 @@ class $$BundlesTableTableManager extends RootTableManager<
             anchorType: anchorType,
             anchorRef: anchorRef,
             canonicalDraftId: canonicalDraftId,
+            postId: postId,
             relatedVariantIds: relatedVariantIds,
             notes: notes,
             createdAt: createdAt,

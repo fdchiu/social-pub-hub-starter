@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
+import '../widgets/post_scope_header.dart';
 
 class BundleBuilderScreen extends ConsumerStatefulWidget {
   const BundleBuilderScreen({super.key});
@@ -21,6 +23,7 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
   final TextEditingController _notesController = TextEditingController();
   final Set<String> _selectedVariantIds = <String>{};
   String _anchorType = 'youtube';
+  bool _includeAllPosts = false;
 
   @override
   void dispose() {
@@ -33,8 +36,10 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
   @override
   Widget build(BuildContext context) {
     final variantsAsync = ref.watch(allVariantsStreamProvider);
+    final draftsAsync = ref.watch(allDraftsStreamProvider);
     final bundlesAsync = ref.watch(bundlesStreamProvider);
     final sourceItemsAsync = ref.watch(sourceItemsStreamProvider);
+    final activePost = ref.watch(activePostProvider);
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -51,6 +56,22 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const PostScopeHeader(showGlobalToggle: false),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            value: _includeAllPosts,
+            onChanged: (value) {
+              setState(() {
+                _includeAllPosts = value;
+              });
+            },
+            title: const Text('Include all posts'),
+            subtitle: const Text(
+              'Show variants and bundles from all posts instead of only active post',
+            ),
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 10),
           Text(
             'Create bundle',
             style: Theme.of(context).textTheme.titleMedium,
@@ -120,45 +141,67 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
                   const SizedBox(height: 8),
                   variantsAsync.when(
                     data: (variants) {
-                      if (variants.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child:
-                              Text('No variants yet. Generate variants first.'),
-                        );
-                      }
-                      return SizedBox(
-                        height: 220,
-                        child: ListView.separated(
-                          itemCount: variants.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1, thickness: 0.5),
-                          itemBuilder: (context, index) {
-                            final variant = variants[index];
-                            final selected =
-                                _selectedVariantIds.contains(variant.id);
-                            return CheckboxListTile(
-                              value: selected,
-                              dense: true,
-                              title: Text(
-                                  '${variant.platform.toUpperCase()} · ${variant.id.substring(0, 8)}'),
-                              subtitle: Text(
-                                variant.body,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                      return draftsAsync.when(
+                        data: (drafts) {
+                          final draftsById = {
+                            for (final row in drafts) row.id: row
+                          };
+                          final scopedVariants = _scopeVariants(
+                            variants,
+                            draftsById: draftsById,
+                            activePostId: activePost?.id,
+                            includeAllPosts: _includeAllPosts,
+                          );
+                          if (scopedVariants.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                _includeAllPosts
+                                    ? 'No variants yet. Generate variants first.'
+                                    : 'No variants in active post scope yet.',
                               ),
-                              onChanged: (_) {
-                                setState(() {
-                                  if (selected) {
-                                    _selectedVariantIds.remove(variant.id);
-                                  } else {
-                                    _selectedVariantIds.add(variant.id);
-                                  }
-                                });
-                              },
                             );
-                          },
+                          }
+                          return SizedBox(
+                            height: 220,
+                            child: ListView.separated(
+                              itemCount: scopedVariants.length,
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1, thickness: 0.5),
+                              itemBuilder: (context, index) {
+                                final variant = scopedVariants[index];
+                                final selected =
+                                    _selectedVariantIds.contains(variant.id);
+                                return CheckboxListTile(
+                                  value: selected,
+                                  dense: true,
+                                  title: Text(
+                                      '${variant.platform.toUpperCase()} · ${variant.id.substring(0, 8)}'),
+                                  subtitle: Text(
+                                    variant.body,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  onChanged: (_) {
+                                    setState(() {
+                                      if (selected) {
+                                        _selectedVariantIds.remove(variant.id);
+                                      } else {
+                                        _selectedVariantIds.add(variant.id);
+                                      }
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                          );
+                        },
+                        loading: () => const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: LinearProgressIndicator(),
                         ),
+                        error: (error, _) =>
+                            Text('Failed loading drafts: $error'),
                       );
                     },
                     loading: () => const Padding(
@@ -192,8 +235,17 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
           const SizedBox(height: 8),
           bundlesAsync.when(
             data: (bundles) {
-              if (bundles.isEmpty) {
-                return const Text('No bundles yet.');
+              final scopedBundles = _scopeBundles(
+                bundles,
+                activePostId: activePost?.id,
+                includeAllPosts: _includeAllPosts,
+              );
+              if (scopedBundles.isEmpty) {
+                return Text(
+                  _includeAllPosts
+                      ? 'No bundles yet.'
+                      : 'No bundles in active post scope.',
+                );
               }
               return variantsAsync.when(
                 data: (variants) {
@@ -211,11 +263,12 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
                       }
                       return Column(
                         children: [
-                          for (final bundle in bundles)
+                          for (final bundle in scopedBundles)
                             Card(
                               child: ListTile(
                                 title: Text(bundle.name),
                                 subtitle: Text(
+                                  'post=${bundle.postId == null ? 'unscoped' : bundle.postId!.substring(0, 8)} · '
                                   'anchor=${bundle.anchorType}:${bundle.anchorRef ?? '-'} · '
                                   'variants=${bundle.relatedVariantIds.length} · '
                                   'sources=${sourceCountByBundle[bundle.id] ?? 0}',
@@ -275,6 +328,35 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
   }
 
   Future<void> _createBundle() async {
+    final activePost = ref.read(activePostProvider);
+    if (activePost == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Select an active post before creating bundle')),
+      );
+      return;
+    }
+
+    final allVariants = ref.read(allVariantsStreamProvider).valueOrNull;
+    final allDrafts = ref.read(allDraftsStreamProvider).valueOrNull;
+    if (allVariants == null || allDrafts == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Variants are still loading')),
+      );
+      return;
+    }
+    final draftsById = {for (final row in allDrafts) row.id: row};
+    final scopedVariants = _scopeVariants(
+      allVariants,
+      draftsById: draftsById,
+      activePostId: activePost.id,
+      includeAllPosts: _includeAllPosts,
+    );
+    final scopedVariantIds = scopedVariants.map((row) => row.id).toSet();
+    final selectedScopedVariantIds = _selectedVariantIds
+        .where((id) => scopedVariantIds.contains(id))
+        .toList(growable: false);
+
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -282,9 +364,11 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
       );
       return;
     }
-    if (_selectedVariantIds.isEmpty) {
+    if (selectedScopedVariantIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least one variant')),
+        const SnackBar(
+          content: Text('Select at least one variant in active post scope'),
+        ),
       );
       return;
     }
@@ -293,8 +377,9 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
           name: name,
           anchorType: _anchorType,
           anchorRef: _anchorRefController.text,
-          relatedVariantIds: _selectedVariantIds.toList(growable: false),
+          relatedVariantIds: selectedScopedVariantIds,
           notes: _notesController.text,
+          postId: activePost.id,
         );
 
     if (!mounted) {
@@ -451,6 +536,7 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
           anchorRef: anchorRefController.text,
           notes: notesController.text,
           canonicalDraftId: bundle.canonicalDraftId,
+          postId: bundle.postId ?? ref.read(activePostProvider)?.id,
         );
 
     nameController.dispose();
@@ -660,6 +746,36 @@ Which part should I break down deeper in the next upload?
       return value;
     }
     return '${value.substring(0, max)}...';
+  }
+
+  List<Bundle> _scopeBundles(
+    List<Bundle> bundles, {
+    required String? activePostId,
+    required bool includeAllPosts,
+  }) {
+    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
+      return bundles;
+    }
+    return bundles
+        .where(
+            (bundle) => bundle.postId == null || bundle.postId == activePostId)
+        .toList(growable: false);
+  }
+
+  List<Variant> _scopeVariants(
+    List<Variant> variants, {
+    required Map<String, Draft> draftsById,
+    required String? activePostId,
+    required bool includeAllPosts,
+  }) {
+    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
+      return variants;
+    }
+    return variants.where((variant) {
+      final draft = draftsById[variant.draftId];
+      final draftPostId = draft?.postId;
+      return draftPostId == null || draftPostId == activePostId;
+    }).toList(growable: false);
   }
 }
 

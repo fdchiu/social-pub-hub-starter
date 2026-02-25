@@ -27,11 +27,22 @@ class SourceRepo {
     return query.watch();
   }
 
-  Future<SourceItem?> getLatestUnbundledSource() {
+  Future<SourceItem?> getLatestUnbundledSource({
+    String? postId,
+    bool includeGlobal = true,
+  }) {
     final query = _db.select(_db.sourceItems)
       ..where((t) => t.bundleId.isNull())
       ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
       ..limit(1);
+    final normalizedPostId = postId?.trim();
+    if (normalizedPostId != null && normalizedPostId.isNotEmpty) {
+      query.where(
+        includeGlobal
+            ? (t) => t.postId.equals(normalizedPostId) | t.postId.isNull()
+            : (t) => t.postId.equals(normalizedPostId),
+      );
+    }
     return query.getSingleOrNull();
   }
 

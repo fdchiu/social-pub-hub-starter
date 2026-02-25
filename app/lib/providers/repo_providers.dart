@@ -82,6 +82,10 @@ final draftsStreamProvider = StreamProvider<List<Draft>>((ref) {
   return ref.watch(draftRepoProvider).watchRecentDrafts();
 });
 
+final allDraftsStreamProvider = StreamProvider<List<Draft>>((ref) {
+  return ref.watch(draftRepoProvider).watchAllDrafts();
+});
+
 final allVariantsStreamProvider = StreamProvider<List<Variant>>((ref) {
   return ref.watch(variantRepoProvider).watchAllVariants();
 });

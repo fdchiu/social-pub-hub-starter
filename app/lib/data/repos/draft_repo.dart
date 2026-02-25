@@ -43,6 +43,15 @@ class DraftRepo {
     return query.watch();
   }
 
+  Stream<List<Draft>> watchAllDrafts({String? postId}) {
+    final query = _db.select(_db.drafts);
+    if (postId != null && postId.trim().isNotEmpty) {
+      query.where((t) => t.postId.equals(postId.trim()));
+    }
+    query.orderBy([(t) => OrderingTerm.desc(t.updatedAt)]);
+    return query.watch();
+  }
+
   Future<String> createDraft({
     String? id,
     String canonicalMarkdown = '',
