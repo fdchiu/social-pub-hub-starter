@@ -6,7 +6,7 @@ Read when:
 - implementing missing actions screen-by-screen
 
 ## 1) Daily happy path (short version)
-1. Select/create Post workspace (title + content type + goal + audience).
+1. Select/create Project scope (optional) and Post workspace (required).
 2. Inbox: capture/select source items for active post (optionally save as global).
 3. Library: refine source set and pull reusable global sources.
 4. Compose: create/edit canonical draft for active post.
@@ -16,6 +16,14 @@ Read when:
 8. History/Analytics: verify outcome and reuse winners.
 
 ## 2) Screen-by-screen flow
+
+### Project + Post Scope (top of Inbox/Library/Compose)
+Goal: keep writing operations focused and reusable.
+- Pick project scope (`all` or specific project).
+- Pick active post inside that scope.
+- Create project/post on the fly.
+Exit criteria:
+- active post selected before drafting/publishing steps.
 
 ### Inbox (`/inbox`)
 Goal: collect evidence and start a draft.
