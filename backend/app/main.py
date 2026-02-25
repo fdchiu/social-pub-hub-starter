@@ -642,6 +642,77 @@ def _variant_template(platform: str, canonical: str, content_type: str) -> str:
     return f"{first_line}\n\nShared summary for {platform}."
 
 
+def _generate_variant_with_llm(
+    platform: str,
+    canonical: str,
+    content_type: str,
+    style: StyleProfile | None,
+) -> tuple[str | None, str | None, str | None]:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None, None, "OPENAI_API_KEY missing"
+
+    model = os.getenv("OPENAI_MODEL", "gpt-5.3-codex")
+    style_traits = ", ".join(style.personal_traits) if style else ""
+    differentiation = ", ".join(style.differentiation_points) if style else ""
+    custom_prompt = style.custom_prompt.strip() if style and style.custom_prompt else ""
+    banned = ", ".join(style.banned_phrases) if style and style.banned_phrases else "none"
+
+    system_prompt = (
+        "You rewrite canonical markdown into platform-ready social variants. "
+        "Output plain text only. Keep it concrete and human."
+    )
+    user_prompt = (
+        f"Platform: {platform}\n"
+        f"Content type: {content_type}\n"
+        f"Style traits: {style_traits or 'practical, direct, specific'}\n"
+        f"Differentiation points: {differentiation or 'none'}\n"
+        f"Personal prompt: {custom_prompt or 'none'}\n"
+        f"Banned phrases: {banned}\n\n"
+        "Canonical draft:\n"
+        f"{canonical}\n\n"
+        "Constraints:\n"
+        "- keep to one platform-ready post\n"
+        "- preserve claims from source draft\n"
+        "- concise, specific, no fluff\n"
+        "- include one natural CTA/question at the end"
+    )
+
+    payload = {
+        "model": model,
+        "temperature": 0.5,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    }
+
+    try:
+        with httpx.Client(timeout=35.0) as client:
+            response = client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+        if response.status_code < 200 or response.status_code >= 300:
+            return None, model, f"OpenAI HTTP {response.status_code}"
+
+        parsed = response.json()
+        choices = parsed.get("choices")
+        if not isinstance(choices, list) or not choices:
+            return None, model, "No choices returned"
+        message = choices[0].get("message", {})
+        text = _content_to_text(message.get("content")).strip()
+        if not text:
+            return None, model, "LLM returned empty content"
+        return text, model, None
+    except Exception as exc:  # pragma: no cover - network/runtime dependent
+        return None, model, f"{exc}"
+
+
 def _humanize_text(text: str, strictness: float, banned: list[str]) -> str:
     result = text
     for phrase in banned:
@@ -928,16 +999,28 @@ def draft_variants(
 
     platforms = payload.platforms or ["x", "linkedin"]
     content_type = payload.content_type or draft.content_type or "general_post"
+    style: StyleProfile | None = None
+    if payload.style_profile_id:
+        style = db.get(StyleProfile, payload.style_profile_id)
     variants: list[dict[str, Any]] = []
 
     for platform in platforms:
         variant_id = f"{draft_id}_{platform}"
         now = utc_now()
-        variant_text = _variant_template(
+        llm_text, model, fallback_reason = _generate_variant_with_llm(
+            platform,
+            draft.canonical_markdown,
+            content_type,
+            style,
+        )
+        variant_text = llm_text or _variant_template(
             platform,
             draft.canonical_markdown,
             content_type,
         )
+        banned_phrases = style.banned_phrases if style is not None else []
+        if banned_phrases:
+            variant_text = _humanize_text(variant_text, 0.7, banned_phrases)
         variant = db.get(Variant, variant_id)
         if variant is None:
             variant = Variant(
@@ -962,6 +1045,9 @@ def draft_variants(
                 "id": variant.id,
                 "platform": variant.platform,
                 "text": variant.text,
+                "llm_used": llm_text is not None,
+                "model": model,
+                "fallback_reason": fallback_reason,
             }
         )
 

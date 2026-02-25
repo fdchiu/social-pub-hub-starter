@@ -58,7 +58,7 @@ Exit criteria:
 
 ### Variant Studio (Compose subflow)
 Goal: produce publish-ready platform versions.
-- Generate variants for selected platforms.
+- Generate variants for selected platforms using style profile cues (LLM first, template fallback).
 - Variant deletions sync across devices and safely unlink queue/history references.
 - Check hard constraints (length/format).
 - Humanize pass if needed.

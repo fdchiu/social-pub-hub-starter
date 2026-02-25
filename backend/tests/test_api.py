@@ -206,6 +206,8 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
     assert len(variants) == 2
     variant_id = variants[0]["id"]
     assert all(isinstance(row["text"], str) and row["text"] for row in variants)
+    assert all(isinstance(row.get("llm_used"), bool) for row in variants)
+    assert all("fallback_reason" in row for row in variants)
 
     humanize_response = client.post(
         f"/variants/{variant_id}/humanize",
