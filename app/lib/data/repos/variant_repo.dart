@@ -127,6 +127,24 @@ class VariantRepo {
           syncStatus: const Value('dirty'),
         ),
       );
+
+      final bundles = await _db.select(_db.bundles).get();
+      for (final bundle in bundles) {
+        final updatedVariantIds = bundle.relatedVariantIds
+            .where((id) => !variantIds.contains(id))
+            .toList(growable: false);
+        if (updatedVariantIds.length == bundle.relatedVariantIds.length) {
+          continue;
+        }
+        await (_db.update(_db.bundles)..where((t) => t.id.equals(bundle.id)))
+            .write(
+          BundlesCompanion(
+            relatedVariantIds: Value(updatedVariantIds),
+            updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
+          ),
+        );
+      }
       await (_db.delete(_db.variants)..where((t) => t.id.isIn(variantIds)))
           .go();
     });
