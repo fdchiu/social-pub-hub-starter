@@ -1110,6 +1110,9 @@ class SyncService {
     required List<String> deletedStyleProfiles,
     required List<String> deletedScheduledPosts,
   }) async {
+    final removedVariantIds = <String>{};
+    final removedDraftIds = <String>{};
+
     if (deletedSourceItems.isNotEmpty) {
       await (_db.delete(_db.sourceItems)
             ..where((t) => t.id.isIn(deletedSourceItems)))
@@ -1162,6 +1165,7 @@ class SyncService {
     }
 
     if (deletedVariants.isNotEmpty) {
+      removedVariantIds.addAll(deletedVariants);
       await (_db.update(_db.publishLogs)
             ..where((t) => t.variantId.isIn(deletedVariants)))
           .write(const PublishLogsCompanion(variantId: Value(null)));
@@ -1173,11 +1177,13 @@ class SyncService {
     }
 
     if (deletedDrafts.isNotEmpty) {
+      removedDraftIds.addAll(deletedDrafts);
       final linkedVariants = await (_db.select(_db.variants)
             ..where((t) => t.draftId.isIn(deletedDrafts)))
           .get();
       final linkedVariantIds = linkedVariants.map((v) => v.id).toList();
       if (linkedVariantIds.isNotEmpty) {
+        removedVariantIds.addAll(linkedVariantIds);
         await (_db.update(_db.publishLogs)
               ..where((t) => t.variantId.isIn(linkedVariantIds)))
             .write(const PublishLogsCompanion(variantId: Value(null)));
@@ -1190,6 +1196,33 @@ class SyncService {
       }
       await (_db.delete(_db.drafts)..where((t) => t.id.isIn(deletedDrafts)))
           .go();
+    }
+
+    if (removedVariantIds.isNotEmpty || removedDraftIds.isNotEmpty) {
+      final now = DateTime.now().toUtc();
+      final bundles = await _db.select(_db.bundles).get();
+      for (final bundle in bundles) {
+        final nextRelatedIds = bundle.relatedVariantIds
+            .where((id) => !removedVariantIds.contains(id))
+            .toList(growable: false);
+        final relatedChanged =
+            nextRelatedIds.length != bundle.relatedVariantIds.length;
+        final canonicalChanged = bundle.canonicalDraftId != null &&
+            removedDraftIds.contains(bundle.canonicalDraftId!);
+        if (!relatedChanged && !canonicalChanged) {
+          continue;
+        }
+        await (_db.update(_db.bundles)..where((t) => t.id.equals(bundle.id)))
+            .write(
+          BundlesCompanion(
+            relatedVariantIds: Value(nextRelatedIds),
+            canonicalDraftId:
+                canonicalChanged ? const Value(null) : const Value.absent(),
+            updatedAt: Value(now),
+            syncStatus: const Value('clean'),
+          ),
+        );
+      }
     }
 
     if (deletedStyleProfiles.isNotEmpty) {
