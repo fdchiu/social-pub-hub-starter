@@ -8,10 +8,12 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import '../utils/composer_links.dart';
 import '../widgets/hub_app_bar.dart';
+import '../widgets/post_scope_header.dart';
 import 'compose_queue_action.dart';
 
 class ComposeScreen extends ConsumerStatefulWidget {
@@ -41,6 +43,7 @@ Takeaway:
   final TextEditingController _controller = TextEditingController();
   Timer? _saveDebounce;
   String? _draftId;
+  String? _loadedForPostId;
   bool _loading = true;
   bool _hydratingEditor = false;
   String? _saveError;
@@ -69,6 +72,19 @@ Takeaway:
 
   @override
   Widget build(BuildContext context) {
+    final activePost = ref.watch(activePostProvider);
+    final activePostId = activePost?.id;
+    if (!_loading && activePostId != null && activePostId != _loadedForPostId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _loading = true;
+        });
+        unawaited(_loadOrCreateDraft());
+      });
+    }
     final variantsAsync = _draftId == null
         ? null
         : ref.watch(draftVariantsStreamProvider(_draftId!));
@@ -141,6 +157,8 @@ Takeaway:
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
+                  const PostScopeHeader(showGlobalToggle: false),
+                  const SizedBox(height: 12),
                   Expanded(
                     child: TextField(
                       controller: _controller,
@@ -431,6 +449,22 @@ Takeaway:
   }
 
   Future<void> _loadOrCreateDraft() async {
+    final activePost = ref.read(activePostProvider);
+    if (activePost == null) {
+      if (!mounted) {
+        return;
+      }
+      _hydratingEditor = true;
+      _draftId = null;
+      _loadedForPostId = null;
+      _controller.text = '';
+      _hydratingEditor = false;
+      setState(() {
+        _loading = false;
+        _saveError = null;
+      });
+      return;
+    }
     final repo = ref.read(draftRepoProvider);
     var draft = await () async {
       final preferredDraftId = widget.initialDraftId;
@@ -439,11 +473,18 @@ Takeaway:
       }
       return null;
     }();
-    draft ??= await repo.getLatestDraft();
+    draft ??= await repo.getLatestDraft(postId: activePost.id);
     draft ??= await () async {
       final draftId = await repo.createDraft(
         canonicalMarkdown: _seedDraftText,
-        intent: 'how_to',
+        intent: activePost.contentType == 'coding_guide'
+            ? 'guide'
+            : activePost.contentType == 'ai_tool_guide'
+                ? 'tool_guide'
+                : 'how_to',
+        audience: activePost.audience,
+        postId: activePost.id,
+        contentType: activePost.contentType,
       );
       return repo.getDraftById(draftId);
     }();
@@ -454,6 +495,7 @@ Takeaway:
 
     _hydratingEditor = true;
     _draftId = draft?.id;
+    _loadedForPostId = activePost.id;
     _controller.text = draft?.canonicalMarkdown ?? '';
     _hydratingEditor = false;
     setState(() {
@@ -509,6 +551,10 @@ Takeaway:
             canonicalMarkdown: _controller.text,
           );
 
+      final activePost = ref.read(activePostProvider);
+      final styleProfile =
+          await ref.read(styleProfileRepoProvider).getOrCreateDefault();
+
       final baseUrl = ref.read(apiBaseUrlProvider);
       final response = await ref.read(httpClientProvider).post(
             Uri.parse('$baseUrl/drafts/$draftId/variants'),
@@ -521,6 +567,8 @@ Takeaway:
                 'facebook',
                 'youtube',
               ],
+              'style_profile_id': styleProfile.id,
+              'content_type': activePost?.contentType,
             }),
           );
 
@@ -583,7 +631,11 @@ Takeaway:
             canonicalMarkdown: _controller.text,
           );
       final sourceItems =
-          await ref.read(sourceRepoProvider).getRecentSourceItems(limit: 12);
+          await ref.read(sourceRepoProvider).getRecentSourceItemsForPost(
+                limit: 12,
+                postId: ref.read(activePostProvider)?.id,
+                includeGlobal: ref.read(includeGlobalSourcesProvider),
+              );
       final styleProfile =
           await ref.read(styleProfileRepoProvider).getOrCreateDefault();
       final baseUrl = ref.read(apiBaseUrlProvider);
@@ -606,6 +658,9 @@ Takeaway:
                   .toList(growable: false),
               'style_profile_id': styleProfile.id,
               'banned_phrases': styleProfile.bannedPhrases,
+              'style_traits': styleProfile.personalTraits,
+              'differentiation_points': styleProfile.differentiationPoints,
+              'personal_prompt': styleProfile.customPrompt,
               'strictness': _humanizeStrictness,
             }),
           );
@@ -680,6 +735,7 @@ Takeaway:
     try {
       final styleProfile =
           await ref.read(styleProfileRepoProvider).getOrCreateDefault();
+      final activePost = ref.read(activePostProvider);
       final baseUrl = ref.read(apiBaseUrlProvider);
       final response = await ref.read(httpClientProvider).post(
             Uri.parse('$baseUrl/variants/${variant.id}/humanize'),
@@ -687,6 +743,7 @@ Takeaway:
             body: jsonEncode({
               'style_profile_id': styleProfile.id,
               'strictness': _humanizeStrictness,
+              'content_type': activePost?.contentType,
             }),
           );
 
@@ -795,7 +852,10 @@ Takeaway:
       final response = await ref.read(httpClientProvider).post(
             Uri.parse('$baseUrl/drafts/$draftId/variants'),
             headers: const {'content-type': 'application/json'},
-            body: jsonEncode({'platforms': platforms}),
+            body: jsonEncode({
+              'platforms': platforms,
+              'content_type': ref.read(activePostProvider)?.contentType,
+            }),
           );
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception('Regenerate failed: ${response.statusCode}');

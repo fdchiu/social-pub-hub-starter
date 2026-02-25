@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart';
 
+import 'posts.dart';
+
 class Drafts extends Table {
   TextColumn get id => text()();
 
@@ -14,6 +16,10 @@ class Drafts extends Table {
   TextColumn get emojiLevel => text().nullable()();
 
   TextColumn get audience => text().nullable()();
+
+  TextColumn get postId => text().nullable().references(Posts, #id)();
+
+  TextColumn get contentType => text().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 

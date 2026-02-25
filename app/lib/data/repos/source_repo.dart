@@ -8,9 +8,22 @@ class SourceRepo {
 
   final AppDatabase _db;
 
-  Stream<List<SourceItem>> watchSourceItems() {
-    final query = _db.select(_db.sourceItems)
-      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
+  Stream<List<SourceItem>> watchSourceItems({
+    String? postId,
+    bool includeGlobal = true,
+  }) {
+    final query = _db.select(_db.sourceItems);
+    if (postId != null && postId.trim().isNotEmpty) {
+      final normalizedPostId = postId.trim();
+      if (includeGlobal) {
+        query.where(
+          (t) => t.postId.equals(normalizedPostId) | t.postId.isNull(),
+        );
+      } else {
+        query.where((t) => t.postId.equals(normalizedPostId));
+      }
+    }
+    query.orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
     return query.watch();
   }
 
@@ -37,7 +50,26 @@ class SourceRepo {
   }
 
   Future<List<SourceItem>> getRecentSourceItems({int limit = 12}) {
-    final query = _db.select(_db.sourceItems)
+    return getRecentSourceItemsForPost(limit: limit);
+  }
+
+  Future<List<SourceItem>> getRecentSourceItemsForPost({
+    required int limit,
+    String? postId,
+    bool includeGlobal = true,
+  }) {
+    final query = _db.select(_db.sourceItems);
+    if (postId != null && postId.trim().isNotEmpty) {
+      final normalizedPostId = postId.trim();
+      if (includeGlobal) {
+        query.where(
+          (t) => t.postId.equals(normalizedPostId) | t.postId.isNull(),
+        );
+      } else {
+        query.where((t) => t.postId.equals(normalizedPostId));
+      }
+    }
+    query
       ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
       ..limit(limit);
     return query.get();
@@ -50,6 +82,7 @@ class SourceRepo {
     String? userNote,
     List<String> tags = const <String>[],
     String? bundleId,
+    String? postId,
   }) async {
     final now = DateTime.now().toUtc();
     final id = generateEntityId();
@@ -67,6 +100,8 @@ class SourceRepo {
             tags: Value(normalizedTags),
             bundleId: Value(
                 bundleId?.trim().isEmpty ?? true ? null : bundleId?.trim()),
+            postId:
+                Value(postId?.trim().isEmpty ?? true ? null : postId?.trim()),
             createdAt: Value(now),
             updatedAt: Value(now),
           ),
@@ -95,6 +130,7 @@ class SourceRepo {
     String? title,
     String? userNote,
     List<String>? tags,
+    String? postId,
   }) async {
     final normalizedTags = tags
         ?.map((tag) => tag.trim())
@@ -111,6 +147,20 @@ class SourceRepo {
         tags: normalizedTags == null
             ? const Value.absent()
             : Value(normalizedTags),
+        postId: postId == null ? const Value.absent() : Value(postId),
+        updatedAt: Value(DateTime.now().toUtc()),
+      ),
+    );
+  }
+
+  Future<void> assignPost({
+    required String sourceId,
+    String? postId,
+  }) async {
+    await (_db.update(_db.sourceItems)..where((t) => t.id.equals(sourceId)))
+        .write(
+      SourceItemsCompanion(
+        postId: Value(postId),
         updatedAt: Value(DateTime.now().toUtc()),
       ),
     );

@@ -31,6 +31,18 @@ class StyleProfileRepo {
               'fast-paced world',
               'game-changer',
             ]),
+            personalTraits: const Value(<String>[
+              'practical',
+              'specific',
+              'first-hand',
+            ]),
+            differentiationPoints: const Value(<String>[
+              'show concrete tradeoffs',
+              'include what failed',
+            ]),
+            customPrompt: const Value(
+              'Prefer specific examples and measurable outcomes.',
+            ),
             createdAt: Value(now),
             updatedAt: Value(now),
             syncStatus: const Value('dirty'),
@@ -48,10 +60,21 @@ class StyleProfileRepo {
     required double punchiness,
     required String emojiLevel,
     required List<String> bannedPhrases,
+    required List<String> personalTraits,
+    required List<String> differentiationPoints,
+    String? customPrompt,
   }) async {
     final normalizedPhrases = bannedPhrases
         .map((phrase) => phrase.trim())
         .where((phrase) => phrase.isNotEmpty)
+        .toList(growable: false);
+    final normalizedTraits = personalTraits
+        .map((trait) => trait.trim())
+        .where((trait) => trait.isNotEmpty)
+        .toList(growable: false);
+    final normalizedDiff = differentiationPoints
+        .map((point) => point.trim())
+        .where((point) => point.isNotEmpty)
         .toList(growable: false);
 
     await (_db.update(_db.styleProfiles)..where((t) => t.id.equals(id))).write(
@@ -61,6 +84,11 @@ class StyleProfileRepo {
         punchiness: Value(punchiness),
         emojiLevel: Value(emojiLevel),
         bannedPhrases: Value(normalizedPhrases),
+        personalTraits: Value(normalizedTraits),
+        differentiationPoints: Value(normalizedDiff),
+        customPrompt: Value(
+          customPrompt?.trim().isEmpty ?? true ? null : customPrompt?.trim(),
+        ),
         updatedAt: Value(DateTime.now().toUtc()),
         syncStatus: const Value('dirty'),
       ),

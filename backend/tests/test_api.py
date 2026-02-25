@@ -149,6 +149,12 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
                 },
             ],
             "intent": "how_to",
+            "content_type": "coding_guide",
+            "post_title": "SQLite sync playbook",
+            "post_goal": "Teach setup and pitfalls",
+            "style_traits": ["practical", "specific"],
+            "differentiation_points": ["show tradeoffs"],
+            "personal_prompt": "Include one caveat.",
             "audience": "engineers",
             "tone": 0.6,
             "punchiness": 0.7,
@@ -160,6 +166,7 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
     draft_id = draft_payload["draft_id"]
     assert isinstance(draft_id, str) and draft_id
     assert "Hook:" in draft_payload["canonical_markdown"]
+    assert "Step-by-step implementation" in draft_payload["canonical_markdown"]
 
     polish_response = client.post(
         f"/drafts/{draft_id}/polish",
@@ -189,6 +196,7 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
     variants = variants_response.json()["variants"]
     assert len(variants) == 2
     variant_id = variants[0]["id"]
+    assert all(isinstance(row["text"], str) and row["text"] for row in variants)
 
     humanize_response = client.post(
         f"/variants/{variant_id}/humanize",

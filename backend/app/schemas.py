@@ -22,6 +22,8 @@ class DraftSyncItem(BaseModel):
     punchiness: float | None = None
     emoji_level: str | None = None
     audience: str | None = None
+    post_id: str | None = None
+    content_type: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     deleted_at: datetime | None = None
@@ -57,6 +59,9 @@ class StyleProfileSyncItem(BaseModel):
     punchiness: float = 0.7
     emoji_level: str = "light"
     banned_phrases: list[str] = Field(default_factory=list)
+    personal_traits: list[str] = Field(default_factory=list)
+    differentiation_points: list[str] = Field(default_factory=list)
+    custom_prompt: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     deleted_at: datetime | None = None
@@ -106,6 +111,13 @@ class DraftFromSourcesRequest(BaseModel):
     punchiness: float = 0.7
     audience: str = "engineers"
     length_target: str = "short"
+    post_id: str | None = None
+    post_title: str | None = None
+    post_goal: str | None = None
+    content_type: str = "general_post"
+    style_traits: list[str] = Field(default_factory=list)
+    differentiation_points: list[str] = Field(default_factory=list)
+    personal_prompt: str | None = None
 
 
 class DraftPolishRequest(BaseModel):
@@ -119,6 +131,7 @@ class DraftPolishRequest(BaseModel):
 class DraftVariantsRequest(BaseModel):
     platforms: list[str] = Field(default_factory=lambda: ["x", "linkedin"])
     style_profile_id: str | None = None
+    content_type: str | None = None
 
 
 class VariantHumanizeRequest(BaseModel):

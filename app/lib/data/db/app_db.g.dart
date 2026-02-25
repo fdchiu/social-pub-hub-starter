@@ -3,6 +3,817 @@
 part of 'app_db.dart';
 
 // ignore_for_file: type=lint
+class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProjectsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('active'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, name, description, status, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'projects';
+  @override
+  VerificationContext validateIntegrity(Insertable<Project> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Project map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Project(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description']),
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ProjectsTable createAlias(String alias) {
+    return $ProjectsTable(attachedDatabase, alias);
+  }
+}
+
+class Project extends DataClass implements Insertable<Project> {
+  final String id;
+  final String name;
+  final String? description;
+  final String status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Project(
+      {required this.id,
+      required this.name,
+      this.description,
+      required this.status,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ProjectsCompanion toCompanion(bool nullToAbsent) {
+    return ProjectsCompanion(
+      id: Value(id),
+      name: Value(name),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Project.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Project(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String?>(json['description']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String?>(description),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Project copyWith(
+          {String? id,
+          String? name,
+          Value<String?> description = const Value.absent(),
+          String? status,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      Project(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        description: description.present ? description.value : this.description,
+        status: status ?? this.status,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  Project copyWithCompanion(ProjectsCompanion data) {
+    return Project(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      description:
+          data.description.present ? data.description.value : this.description,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Project(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, description, status, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Project &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.description == this.description &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ProjectsCompanion extends UpdateCompanion<Project> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String?> description;
+  final Value<String> status;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const ProjectsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProjectsCompanion.insert({
+    required String id,
+    required String name,
+    this.description = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        name = Value(name);
+  static Insertable<Project> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<String>? status,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProjectsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? name,
+      Value<String?>? description,
+      Value<String>? status,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return ProjectsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProjectsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PostsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _projectIdMeta =
+      const VerificationMeta('projectId');
+  @override
+  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
+      'project_id', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES projects (id)'));
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentTypeMeta =
+      const VerificationMeta('contentType');
+  @override
+  late final GeneratedColumn<String> contentType = GeneratedColumn<String>(
+      'content_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('general_post'));
+  static const VerificationMeta _goalMeta = const VerificationMeta('goal');
+  @override
+  late final GeneratedColumn<String> goal = GeneratedColumn<String>(
+      'goal', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _audienceMeta =
+      const VerificationMeta('audience');
+  @override
+  late final GeneratedColumn<String> audience = GeneratedColumn<String>(
+      'audience', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('active'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        projectId,
+        title,
+        contentType,
+        goal,
+        audience,
+        status,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'posts';
+  @override
+  VerificationContext validateIntegrity(Insertable<Post> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('project_id')) {
+      context.handle(_projectIdMeta,
+          projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('content_type')) {
+      context.handle(
+          _contentTypeMeta,
+          contentType.isAcceptableOrUnknown(
+              data['content_type']!, _contentTypeMeta));
+    }
+    if (data.containsKey('goal')) {
+      context.handle(
+          _goalMeta, goal.isAcceptableOrUnknown(data['goal']!, _goalMeta));
+    }
+    if (data.containsKey('audience')) {
+      context.handle(_audienceMeta,
+          audience.isAcceptableOrUnknown(data['audience']!, _audienceMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Post map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Post(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      projectId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}project_id']),
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      contentType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content_type'])!,
+      goal: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}goal']),
+      audience: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}audience']),
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $PostsTable createAlias(String alias) {
+    return $PostsTable(attachedDatabase, alias);
+  }
+}
+
+class Post extends DataClass implements Insertable<Post> {
+  final String id;
+  final String? projectId;
+  final String title;
+  final String contentType;
+  final String? goal;
+  final String? audience;
+  final String status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Post(
+      {required this.id,
+      this.projectId,
+      required this.title,
+      required this.contentType,
+      this.goal,
+      this.audience,
+      required this.status,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || projectId != null) {
+      map['project_id'] = Variable<String>(projectId);
+    }
+    map['title'] = Variable<String>(title);
+    map['content_type'] = Variable<String>(contentType);
+    if (!nullToAbsent || goal != null) {
+      map['goal'] = Variable<String>(goal);
+    }
+    if (!nullToAbsent || audience != null) {
+      map['audience'] = Variable<String>(audience);
+    }
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  PostsCompanion toCompanion(bool nullToAbsent) {
+    return PostsCompanion(
+      id: Value(id),
+      projectId: projectId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(projectId),
+      title: Value(title),
+      contentType: Value(contentType),
+      goal: goal == null && nullToAbsent ? const Value.absent() : Value(goal),
+      audience: audience == null && nullToAbsent
+          ? const Value.absent()
+          : Value(audience),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Post.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Post(
+      id: serializer.fromJson<String>(json['id']),
+      projectId: serializer.fromJson<String?>(json['projectId']),
+      title: serializer.fromJson<String>(json['title']),
+      contentType: serializer.fromJson<String>(json['contentType']),
+      goal: serializer.fromJson<String?>(json['goal']),
+      audience: serializer.fromJson<String?>(json['audience']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'projectId': serializer.toJson<String?>(projectId),
+      'title': serializer.toJson<String>(title),
+      'contentType': serializer.toJson<String>(contentType),
+      'goal': serializer.toJson<String?>(goal),
+      'audience': serializer.toJson<String?>(audience),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Post copyWith(
+          {String? id,
+          Value<String?> projectId = const Value.absent(),
+          String? title,
+          String? contentType,
+          Value<String?> goal = const Value.absent(),
+          Value<String?> audience = const Value.absent(),
+          String? status,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      Post(
+        id: id ?? this.id,
+        projectId: projectId.present ? projectId.value : this.projectId,
+        title: title ?? this.title,
+        contentType: contentType ?? this.contentType,
+        goal: goal.present ? goal.value : this.goal,
+        audience: audience.present ? audience.value : this.audience,
+        status: status ?? this.status,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  Post copyWithCompanion(PostsCompanion data) {
+    return Post(
+      id: data.id.present ? data.id.value : this.id,
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      title: data.title.present ? data.title.value : this.title,
+      contentType:
+          data.contentType.present ? data.contentType.value : this.contentType,
+      goal: data.goal.present ? data.goal.value : this.goal,
+      audience: data.audience.present ? data.audience.value : this.audience,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Post(')
+          ..write('id: $id, ')
+          ..write('projectId: $projectId, ')
+          ..write('title: $title, ')
+          ..write('contentType: $contentType, ')
+          ..write('goal: $goal, ')
+          ..write('audience: $audience, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, projectId, title, contentType, goal,
+      audience, status, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Post &&
+          other.id == this.id &&
+          other.projectId == this.projectId &&
+          other.title == this.title &&
+          other.contentType == this.contentType &&
+          other.goal == this.goal &&
+          other.audience == this.audience &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PostsCompanion extends UpdateCompanion<Post> {
+  final Value<String> id;
+  final Value<String?> projectId;
+  final Value<String> title;
+  final Value<String> contentType;
+  final Value<String?> goal;
+  final Value<String?> audience;
+  final Value<String> status;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const PostsCompanion({
+    this.id = const Value.absent(),
+    this.projectId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.contentType = const Value.absent(),
+    this.goal = const Value.absent(),
+    this.audience = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PostsCompanion.insert({
+    required String id,
+    this.projectId = const Value.absent(),
+    required String title,
+    this.contentType = const Value.absent(),
+    this.goal = const Value.absent(),
+    this.audience = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        title = Value(title);
+  static Insertable<Post> custom({
+    Expression<String>? id,
+    Expression<String>? projectId,
+    Expression<String>? title,
+    Expression<String>? contentType,
+    Expression<String>? goal,
+    Expression<String>? audience,
+    Expression<String>? status,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (projectId != null) 'project_id': projectId,
+      if (title != null) 'title': title,
+      if (contentType != null) 'content_type': contentType,
+      if (goal != null) 'goal': goal,
+      if (audience != null) 'audience': audience,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PostsCompanion copyWith(
+      {Value<String>? id,
+      Value<String?>? projectId,
+      Value<String>? title,
+      Value<String>? contentType,
+      Value<String?>? goal,
+      Value<String?>? audience,
+      Value<String>? status,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return PostsCompanion(
+      id: id ?? this.id,
+      projectId: projectId ?? this.projectId,
+      title: title ?? this.title,
+      contentType: contentType ?? this.contentType,
+      goal: goal ?? this.goal,
+      audience: audience ?? this.audience,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (projectId.present) {
+      map['project_id'] = Variable<String>(projectId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (contentType.present) {
+      map['content_type'] = Variable<String>(contentType.value);
+    }
+    if (goal.present) {
+      map['goal'] = Variable<String>(goal.value);
+    }
+    if (audience.present) {
+      map['audience'] = Variable<String>(audience.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PostsCompanion(')
+          ..write('id: $id, ')
+          ..write('projectId: $projectId, ')
+          ..write('title: $title, ')
+          ..write('contentType: $contentType, ')
+          ..write('goal: $goal, ')
+          ..write('audience: $audience, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SourceItemsTable extends SourceItems
     with TableInfo<$SourceItemsTable, SourceItem> {
   @override
@@ -48,6 +859,14 @@ class $SourceItemsTable extends SourceItems
   late final GeneratedColumn<String> bundleId = GeneratedColumn<String>(
       'bundle_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _postIdMeta = const VerificationMeta('postId');
+  @override
+  late final GeneratedColumn<String> postId = GeneratedColumn<String>(
+      'post_id', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES posts (id)'));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -65,8 +884,18 @@ class $SourceItemsTable extends SourceItems
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, type, url, title, userNote, tags, bundleId, createdAt, updatedAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        type,
+        url,
+        title,
+        userNote,
+        tags,
+        bundleId,
+        postId,
+        createdAt,
+        updatedAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -104,6 +933,10 @@ class $SourceItemsTable extends SourceItems
       context.handle(_bundleIdMeta,
           bundleId.isAcceptableOrUnknown(data['bundle_id']!, _bundleIdMeta));
     }
+    if (data.containsKey('post_id')) {
+      context.handle(_postIdMeta,
+          postId.isAcceptableOrUnknown(data['post_id']!, _postIdMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -136,6 +969,8 @@ class $SourceItemsTable extends SourceItems
           .read(DriftSqlType.string, data['${effectivePrefix}tags'])!),
       bundleId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}bundle_id']),
+      postId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}post_id']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -160,6 +995,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
   final String? userNote;
   final List<String> tags;
   final String? bundleId;
+  final String? postId;
   final DateTime createdAt;
   final DateTime updatedAt;
   const SourceItem(
@@ -170,6 +1006,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       this.userNote,
       required this.tags,
       this.bundleId,
+      this.postId,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -193,6 +1030,9 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
     if (!nullToAbsent || bundleId != null) {
       map['bundle_id'] = Variable<String>(bundleId);
     }
+    if (!nullToAbsent || postId != null) {
+      map['post_id'] = Variable<String>(postId);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -212,6 +1052,8 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       bundleId: bundleId == null && nullToAbsent
           ? const Value.absent()
           : Value(bundleId),
+      postId:
+          postId == null && nullToAbsent ? const Value.absent() : Value(postId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -228,6 +1070,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       userNote: serializer.fromJson<String?>(json['userNote']),
       tags: serializer.fromJson<List<String>>(json['tags']),
       bundleId: serializer.fromJson<String?>(json['bundleId']),
+      postId: serializer.fromJson<String?>(json['postId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -243,6 +1086,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       'userNote': serializer.toJson<String?>(userNote),
       'tags': serializer.toJson<List<String>>(tags),
       'bundleId': serializer.toJson<String?>(bundleId),
+      'postId': serializer.toJson<String?>(postId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -256,6 +1100,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           Value<String?> userNote = const Value.absent(),
           List<String>? tags,
           Value<String?> bundleId = const Value.absent(),
+          Value<String?> postId = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       SourceItem(
@@ -266,6 +1111,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
         userNote: userNote.present ? userNote.value : this.userNote,
         tags: tags ?? this.tags,
         bundleId: bundleId.present ? bundleId.value : this.bundleId,
+        postId: postId.present ? postId.value : this.postId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -278,6 +1124,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       userNote: data.userNote.present ? data.userNote.value : this.userNote,
       tags: data.tags.present ? data.tags.value : this.tags,
       bundleId: data.bundleId.present ? data.bundleId.value : this.bundleId,
+      postId: data.postId.present ? data.postId.value : this.postId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -293,6 +1140,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           ..write('userNote: $userNote, ')
           ..write('tags: $tags, ')
           ..write('bundleId: $bundleId, ')
+          ..write('postId: $postId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -300,8 +1148,8 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, type, url, title, userNote, tags, bundleId, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, type, url, title, userNote, tags,
+      bundleId, postId, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -313,6 +1161,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           other.userNote == this.userNote &&
           other.tags == this.tags &&
           other.bundleId == this.bundleId &&
+          other.postId == this.postId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -325,6 +1174,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
   final Value<String?> userNote;
   final Value<List<String>> tags;
   final Value<String?> bundleId;
+  final Value<String?> postId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -336,6 +1186,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     this.userNote = const Value.absent(),
     this.tags = const Value.absent(),
     this.bundleId = const Value.absent(),
+    this.postId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -348,6 +1199,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     this.userNote = const Value.absent(),
     this.tags = const Value.absent(),
     this.bundleId = const Value.absent(),
+    this.postId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -361,6 +1213,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     Expression<String>? userNote,
     Expression<String>? tags,
     Expression<String>? bundleId,
+    Expression<String>? postId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -373,6 +1226,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       if (userNote != null) 'user_note': userNote,
       if (tags != null) 'tags': tags,
       if (bundleId != null) 'bundle_id': bundleId,
+      if (postId != null) 'post_id': postId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -387,6 +1241,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       Value<String?>? userNote,
       Value<List<String>>? tags,
       Value<String?>? bundleId,
+      Value<String?>? postId,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
@@ -398,6 +1253,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       userNote: userNote ?? this.userNote,
       tags: tags ?? this.tags,
       bundleId: bundleId ?? this.bundleId,
+      postId: postId ?? this.postId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -429,6 +1285,9 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     if (bundleId.present) {
       map['bundle_id'] = Variable<String>(bundleId.value);
     }
+    if (postId.present) {
+      map['post_id'] = Variable<String>(postId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -451,6 +1310,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
           ..write('userNote: $userNote, ')
           ..write('tags: $tags, ')
           ..write('bundleId: $bundleId, ')
+          ..write('postId: $postId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -505,6 +1365,20 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
   late final GeneratedColumn<String> audience = GeneratedColumn<String>(
       'audience', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _postIdMeta = const VerificationMeta('postId');
+  @override
+  late final GeneratedColumn<String> postId = GeneratedColumn<String>(
+      'post_id', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES posts (id)'));
+  static const VerificationMeta _contentTypeMeta =
+      const VerificationMeta('contentType');
+  @override
+  late final GeneratedColumn<String> contentType = GeneratedColumn<String>(
+      'content_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -538,6 +1412,8 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
         punchiness,
         emojiLevel,
         audience,
+        postId,
+        contentType,
         createdAt,
         updatedAt,
         syncStatus
@@ -587,6 +1463,16 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
       context.handle(_audienceMeta,
           audience.isAcceptableOrUnknown(data['audience']!, _audienceMeta));
     }
+    if (data.containsKey('post_id')) {
+      context.handle(_postIdMeta,
+          postId.isAcceptableOrUnknown(data['post_id']!, _postIdMeta));
+    }
+    if (data.containsKey('content_type')) {
+      context.handle(
+          _contentTypeMeta,
+          contentType.isAcceptableOrUnknown(
+              data['content_type']!, _contentTypeMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -624,6 +1510,10 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
           .read(DriftSqlType.string, data['${effectivePrefix}emoji_level']),
       audience: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}audience']),
+      postId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}post_id']),
+      contentType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content_type']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -647,6 +1537,8 @@ class Draft extends DataClass implements Insertable<Draft> {
   final double? punchiness;
   final String? emojiLevel;
   final String? audience;
+  final String? postId;
+  final String? contentType;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String syncStatus;
@@ -658,6 +1550,8 @@ class Draft extends DataClass implements Insertable<Draft> {
       this.punchiness,
       this.emojiLevel,
       this.audience,
+      this.postId,
+      this.contentType,
       required this.createdAt,
       required this.updatedAt,
       required this.syncStatus});
@@ -681,6 +1575,12 @@ class Draft extends DataClass implements Insertable<Draft> {
     if (!nullToAbsent || audience != null) {
       map['audience'] = Variable<String>(audience);
     }
+    if (!nullToAbsent || postId != null) {
+      map['post_id'] = Variable<String>(postId);
+    }
+    if (!nullToAbsent || contentType != null) {
+      map['content_type'] = Variable<String>(contentType);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['sync_status'] = Variable<String>(syncStatus);
@@ -703,6 +1603,11 @@ class Draft extends DataClass implements Insertable<Draft> {
       audience: audience == null && nullToAbsent
           ? const Value.absent()
           : Value(audience),
+      postId:
+          postId == null && nullToAbsent ? const Value.absent() : Value(postId),
+      contentType: contentType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contentType),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       syncStatus: Value(syncStatus),
@@ -720,6 +1625,8 @@ class Draft extends DataClass implements Insertable<Draft> {
       punchiness: serializer.fromJson<double?>(json['punchiness']),
       emojiLevel: serializer.fromJson<String?>(json['emojiLevel']),
       audience: serializer.fromJson<String?>(json['audience']),
+      postId: serializer.fromJson<String?>(json['postId']),
+      contentType: serializer.fromJson<String?>(json['contentType']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
@@ -736,6 +1643,8 @@ class Draft extends DataClass implements Insertable<Draft> {
       'punchiness': serializer.toJson<double?>(punchiness),
       'emojiLevel': serializer.toJson<String?>(emojiLevel),
       'audience': serializer.toJson<String?>(audience),
+      'postId': serializer.toJson<String?>(postId),
+      'contentType': serializer.toJson<String?>(contentType),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
@@ -750,6 +1659,8 @@ class Draft extends DataClass implements Insertable<Draft> {
           Value<double?> punchiness = const Value.absent(),
           Value<String?> emojiLevel = const Value.absent(),
           Value<String?> audience = const Value.absent(),
+          Value<String?> postId = const Value.absent(),
+          Value<String?> contentType = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt,
           String? syncStatus}) =>
@@ -761,6 +1672,8 @@ class Draft extends DataClass implements Insertable<Draft> {
         punchiness: punchiness.present ? punchiness.value : this.punchiness,
         emojiLevel: emojiLevel.present ? emojiLevel.value : this.emojiLevel,
         audience: audience.present ? audience.value : this.audience,
+        postId: postId.present ? postId.value : this.postId,
+        contentType: contentType.present ? contentType.value : this.contentType,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
@@ -778,6 +1691,9 @@ class Draft extends DataClass implements Insertable<Draft> {
       emojiLevel:
           data.emojiLevel.present ? data.emojiLevel.value : this.emojiLevel,
       audience: data.audience.present ? data.audience.value : this.audience,
+      postId: data.postId.present ? data.postId.value : this.postId,
+      contentType:
+          data.contentType.present ? data.contentType.value : this.contentType,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       syncStatus:
@@ -795,6 +1711,8 @@ class Draft extends DataClass implements Insertable<Draft> {
           ..write('punchiness: $punchiness, ')
           ..write('emojiLevel: $emojiLevel, ')
           ..write('audience: $audience, ')
+          ..write('postId: $postId, ')
+          ..write('contentType: $contentType, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus')
@@ -803,8 +1721,19 @@ class Draft extends DataClass implements Insertable<Draft> {
   }
 
   @override
-  int get hashCode => Object.hash(id, canonicalMarkdown, intent, tone,
-      punchiness, emojiLevel, audience, createdAt, updatedAt, syncStatus);
+  int get hashCode => Object.hash(
+      id,
+      canonicalMarkdown,
+      intent,
+      tone,
+      punchiness,
+      emojiLevel,
+      audience,
+      postId,
+      contentType,
+      createdAt,
+      updatedAt,
+      syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -816,6 +1745,8 @@ class Draft extends DataClass implements Insertable<Draft> {
           other.punchiness == this.punchiness &&
           other.emojiLevel == this.emojiLevel &&
           other.audience == this.audience &&
+          other.postId == this.postId &&
+          other.contentType == this.contentType &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.syncStatus == this.syncStatus);
@@ -829,6 +1760,8 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
   final Value<double?> punchiness;
   final Value<String?> emojiLevel;
   final Value<String?> audience;
+  final Value<String?> postId;
+  final Value<String?> contentType;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<String> syncStatus;
@@ -841,6 +1774,8 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     this.punchiness = const Value.absent(),
     this.emojiLevel = const Value.absent(),
     this.audience = const Value.absent(),
+    this.postId = const Value.absent(),
+    this.contentType = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -854,6 +1789,8 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     this.punchiness = const Value.absent(),
     this.emojiLevel = const Value.absent(),
     this.audience = const Value.absent(),
+    this.postId = const Value.absent(),
+    this.contentType = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -867,6 +1804,8 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     Expression<double>? punchiness,
     Expression<String>? emojiLevel,
     Expression<String>? audience,
+    Expression<String>? postId,
+    Expression<String>? contentType,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<String>? syncStatus,
@@ -880,6 +1819,8 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
       if (punchiness != null) 'punchiness': punchiness,
       if (emojiLevel != null) 'emoji_level': emojiLevel,
       if (audience != null) 'audience': audience,
+      if (postId != null) 'post_id': postId,
+      if (contentType != null) 'content_type': contentType,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
@@ -895,6 +1836,8 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
       Value<double?>? punchiness,
       Value<String?>? emojiLevel,
       Value<String?>? audience,
+      Value<String?>? postId,
+      Value<String?>? contentType,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<String>? syncStatus,
@@ -907,6 +1850,8 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
       punchiness: punchiness ?? this.punchiness,
       emojiLevel: emojiLevel ?? this.emojiLevel,
       audience: audience ?? this.audience,
+      postId: postId ?? this.postId,
+      contentType: contentType ?? this.contentType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -938,6 +1883,12 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     if (audience.present) {
       map['audience'] = Variable<String>(audience.value);
     }
+    if (postId.present) {
+      map['post_id'] = Variable<String>(postId.value);
+    }
+    if (contentType.present) {
+      map['content_type'] = Variable<String>(contentType.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -963,6 +1914,8 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
           ..write('punchiness: $punchiness, ')
           ..write('emojiLevel: $emojiLevel, ')
           ..write('audience: $audience, ')
+          ..write('postId: $postId, ')
+          ..write('contentType: $contentType, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -2435,6 +3388,30 @@ class $StyleProfilesTable extends StyleProfiles
               defaultValue: const Constant('[]'))
           .withConverter<List<String>>(
               $StyleProfilesTable.$converterbannedPhrases);
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String>
+      personalTraits = GeneratedColumn<String>(
+              'personal_traits', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('[]'))
+          .withConverter<List<String>>(
+              $StyleProfilesTable.$converterpersonalTraits);
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String>
+      differentiationPoints = GeneratedColumn<String>(
+              'differentiation_points', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('[]'))
+          .withConverter<List<String>>(
+              $StyleProfilesTable.$converterdifferentiationPoints);
+  static const VerificationMeta _customPromptMeta =
+      const VerificationMeta('customPrompt');
+  @override
+  late final GeneratedColumn<String> customPrompt = GeneratedColumn<String>(
+      'custom_prompt', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -2467,6 +3444,9 @@ class $StyleProfilesTable extends StyleProfiles
         punchiness,
         emojiLevel,
         bannedPhrases,
+        personalTraits,
+        differentiationPoints,
+        customPrompt,
         createdAt,
         updatedAt,
         syncStatus
@@ -2508,6 +3488,12 @@ class $StyleProfilesTable extends StyleProfiles
           emojiLevel.isAcceptableOrUnknown(
               data['emoji_level']!, _emojiLevelMeta));
     }
+    if (data.containsKey('custom_prompt')) {
+      context.handle(
+          _customPromptMeta,
+          customPrompt.isAcceptableOrUnknown(
+              data['custom_prompt']!, _customPromptMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -2544,6 +3530,14 @@ class $StyleProfilesTable extends StyleProfiles
       bannedPhrases: $StyleProfilesTable.$converterbannedPhrases.fromSql(
           attachedDatabase.typeMapping.read(
               DriftSqlType.string, data['${effectivePrefix}banned_phrases'])!),
+      personalTraits: $StyleProfilesTable.$converterpersonalTraits.fromSql(
+          attachedDatabase.typeMapping.read(
+              DriftSqlType.string, data['${effectivePrefix}personal_traits'])!),
+      differentiationPoints: $StyleProfilesTable.$converterdifferentiationPoints
+          .fromSql(attachedDatabase.typeMapping.read(DriftSqlType.string,
+              data['${effectivePrefix}differentiation_points'])!),
+      customPrompt: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}custom_prompt']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -2560,6 +3554,10 @@ class $StyleProfilesTable extends StyleProfiles
 
   static TypeConverter<List<String>, String> $converterbannedPhrases =
       const StringListConverter();
+  static TypeConverter<List<String>, String> $converterpersonalTraits =
+      const StringListConverter();
+  static TypeConverter<List<String>, String> $converterdifferentiationPoints =
+      const StringListConverter();
 }
 
 class StyleProfile extends DataClass implements Insertable<StyleProfile> {
@@ -2569,6 +3567,9 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
   final double punchiness;
   final String emojiLevel;
   final List<String> bannedPhrases;
+  final List<String> personalTraits;
+  final List<String> differentiationPoints;
+  final String? customPrompt;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String syncStatus;
@@ -2579,6 +3580,9 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
       required this.punchiness,
       required this.emojiLevel,
       required this.bannedPhrases,
+      required this.personalTraits,
+      required this.differentiationPoints,
+      this.customPrompt,
       required this.createdAt,
       required this.updatedAt,
       required this.syncStatus});
@@ -2594,6 +3598,18 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
       map['banned_phrases'] = Variable<String>(
           $StyleProfilesTable.$converterbannedPhrases.toSql(bannedPhrases));
     }
+    {
+      map['personal_traits'] = Variable<String>(
+          $StyleProfilesTable.$converterpersonalTraits.toSql(personalTraits));
+    }
+    {
+      map['differentiation_points'] = Variable<String>($StyleProfilesTable
+          .$converterdifferentiationPoints
+          .toSql(differentiationPoints));
+    }
+    if (!nullToAbsent || customPrompt != null) {
+      map['custom_prompt'] = Variable<String>(customPrompt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['sync_status'] = Variable<String>(syncStatus);
@@ -2608,6 +3624,11 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
       punchiness: Value(punchiness),
       emojiLevel: Value(emojiLevel),
       bannedPhrases: Value(bannedPhrases),
+      personalTraits: Value(personalTraits),
+      differentiationPoints: Value(differentiationPoints),
+      customPrompt: customPrompt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customPrompt),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       syncStatus: Value(syncStatus),
@@ -2624,6 +3645,10 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
       punchiness: serializer.fromJson<double>(json['punchiness']),
       emojiLevel: serializer.fromJson<String>(json['emojiLevel']),
       bannedPhrases: serializer.fromJson<List<String>>(json['bannedPhrases']),
+      personalTraits: serializer.fromJson<List<String>>(json['personalTraits']),
+      differentiationPoints:
+          serializer.fromJson<List<String>>(json['differentiationPoints']),
+      customPrompt: serializer.fromJson<String?>(json['customPrompt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
@@ -2639,6 +3664,10 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
       'punchiness': serializer.toJson<double>(punchiness),
       'emojiLevel': serializer.toJson<String>(emojiLevel),
       'bannedPhrases': serializer.toJson<List<String>>(bannedPhrases),
+      'personalTraits': serializer.toJson<List<String>>(personalTraits),
+      'differentiationPoints':
+          serializer.toJson<List<String>>(differentiationPoints),
+      'customPrompt': serializer.toJson<String?>(customPrompt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
@@ -2652,6 +3681,9 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
           double? punchiness,
           String? emojiLevel,
           List<String>? bannedPhrases,
+          List<String>? personalTraits,
+          List<String>? differentiationPoints,
+          Value<String?> customPrompt = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt,
           String? syncStatus}) =>
@@ -2662,6 +3694,11 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
         punchiness: punchiness ?? this.punchiness,
         emojiLevel: emojiLevel ?? this.emojiLevel,
         bannedPhrases: bannedPhrases ?? this.bannedPhrases,
+        personalTraits: personalTraits ?? this.personalTraits,
+        differentiationPoints:
+            differentiationPoints ?? this.differentiationPoints,
+        customPrompt:
+            customPrompt.present ? customPrompt.value : this.customPrompt,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
@@ -2680,6 +3717,15 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
       bannedPhrases: data.bannedPhrases.present
           ? data.bannedPhrases.value
           : this.bannedPhrases,
+      personalTraits: data.personalTraits.present
+          ? data.personalTraits.value
+          : this.personalTraits,
+      differentiationPoints: data.differentiationPoints.present
+          ? data.differentiationPoints.value
+          : this.differentiationPoints,
+      customPrompt: data.customPrompt.present
+          ? data.customPrompt.value
+          : this.customPrompt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       syncStatus:
@@ -2696,6 +3742,9 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
           ..write('punchiness: $punchiness, ')
           ..write('emojiLevel: $emojiLevel, ')
           ..write('bannedPhrases: $bannedPhrases, ')
+          ..write('personalTraits: $personalTraits, ')
+          ..write('differentiationPoints: $differentiationPoints, ')
+          ..write('customPrompt: $customPrompt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus')
@@ -2704,8 +3753,19 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
   }
 
   @override
-  int get hashCode => Object.hash(id, voiceName, casualFormal, punchiness,
-      emojiLevel, bannedPhrases, createdAt, updatedAt, syncStatus);
+  int get hashCode => Object.hash(
+      id,
+      voiceName,
+      casualFormal,
+      punchiness,
+      emojiLevel,
+      bannedPhrases,
+      personalTraits,
+      differentiationPoints,
+      customPrompt,
+      createdAt,
+      updatedAt,
+      syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2716,6 +3776,9 @@ class StyleProfile extends DataClass implements Insertable<StyleProfile> {
           other.punchiness == this.punchiness &&
           other.emojiLevel == this.emojiLevel &&
           other.bannedPhrases == this.bannedPhrases &&
+          other.personalTraits == this.personalTraits &&
+          other.differentiationPoints == this.differentiationPoints &&
+          other.customPrompt == this.customPrompt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.syncStatus == this.syncStatus);
@@ -2728,6 +3791,9 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
   final Value<double> punchiness;
   final Value<String> emojiLevel;
   final Value<List<String>> bannedPhrases;
+  final Value<List<String>> personalTraits;
+  final Value<List<String>> differentiationPoints;
+  final Value<String?> customPrompt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<String> syncStatus;
@@ -2739,6 +3805,9 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
     this.punchiness = const Value.absent(),
     this.emojiLevel = const Value.absent(),
     this.bannedPhrases = const Value.absent(),
+    this.personalTraits = const Value.absent(),
+    this.differentiationPoints = const Value.absent(),
+    this.customPrompt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -2751,6 +3820,9 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
     this.punchiness = const Value.absent(),
     this.emojiLevel = const Value.absent(),
     this.bannedPhrases = const Value.absent(),
+    this.personalTraits = const Value.absent(),
+    this.differentiationPoints = const Value.absent(),
+    this.customPrompt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -2763,6 +3835,9 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
     Expression<double>? punchiness,
     Expression<String>? emojiLevel,
     Expression<String>? bannedPhrases,
+    Expression<String>? personalTraits,
+    Expression<String>? differentiationPoints,
+    Expression<String>? customPrompt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<String>? syncStatus,
@@ -2775,6 +3850,10 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
       if (punchiness != null) 'punchiness': punchiness,
       if (emojiLevel != null) 'emoji_level': emojiLevel,
       if (bannedPhrases != null) 'banned_phrases': bannedPhrases,
+      if (personalTraits != null) 'personal_traits': personalTraits,
+      if (differentiationPoints != null)
+        'differentiation_points': differentiationPoints,
+      if (customPrompt != null) 'custom_prompt': customPrompt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
@@ -2789,6 +3868,9 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
       Value<double>? punchiness,
       Value<String>? emojiLevel,
       Value<List<String>>? bannedPhrases,
+      Value<List<String>>? personalTraits,
+      Value<List<String>>? differentiationPoints,
+      Value<String?>? customPrompt,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<String>? syncStatus,
@@ -2800,6 +3882,10 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
       punchiness: punchiness ?? this.punchiness,
       emojiLevel: emojiLevel ?? this.emojiLevel,
       bannedPhrases: bannedPhrases ?? this.bannedPhrases,
+      personalTraits: personalTraits ?? this.personalTraits,
+      differentiationPoints:
+          differentiationPoints ?? this.differentiationPoints,
+      customPrompt: customPrompt ?? this.customPrompt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -2830,6 +3916,19 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
           .$converterbannedPhrases
           .toSql(bannedPhrases.value));
     }
+    if (personalTraits.present) {
+      map['personal_traits'] = Variable<String>($StyleProfilesTable
+          .$converterpersonalTraits
+          .toSql(personalTraits.value));
+    }
+    if (differentiationPoints.present) {
+      map['differentiation_points'] = Variable<String>($StyleProfilesTable
+          .$converterdifferentiationPoints
+          .toSql(differentiationPoints.value));
+    }
+    if (customPrompt.present) {
+      map['custom_prompt'] = Variable<String>(customPrompt.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -2854,6 +3953,9 @@ class StyleProfilesCompanion extends UpdateCompanion<StyleProfile> {
           ..write('punchiness: $punchiness, ')
           ..write('emojiLevel: $emojiLevel, ')
           ..write('bannedPhrases: $bannedPhrases, ')
+          ..write('personalTraits: $personalTraits, ')
+          ..write('differentiationPoints: $differentiationPoints, ')
+          ..write('customPrompt: $customPrompt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -3802,6 +4904,8 @@ class BundlesCompanion extends UpdateCompanion<Bundle> {
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
+  late final $ProjectsTable projects = $ProjectsTable(this);
+  late final $PostsTable posts = $PostsTable(this);
   late final $SourceItemsTable sourceItems = $SourceItemsTable(this);
   late final $DraftsTable drafts = $DraftsTable(this);
   late final $VariantsTable variants = $VariantsTable(this);
@@ -3815,6 +4919,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
+        projects,
+        posts,
         sourceItems,
         drafts,
         variants,
@@ -3826,6 +4932,741 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ];
 }
 
+typedef $$ProjectsTableCreateCompanionBuilder = ProjectsCompanion Function({
+  required String id,
+  required String name,
+  Value<String?> description,
+  Value<String> status,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$ProjectsTableUpdateCompanionBuilder = ProjectsCompanion Function({
+  Value<String> id,
+  Value<String> name,
+  Value<String?> description,
+  Value<String> status,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+final class $$ProjectsTableReferences
+    extends BaseReferences<_$AppDatabase, $ProjectsTable, Project> {
+  $$ProjectsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$PostsTable, List<Post>> _postsRefsTable(
+          _$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.posts,
+          aliasName: $_aliasNameGenerator(db.projects.id, db.posts.projectId));
+
+  $$PostsTableProcessedTableManager get postsRefs {
+    final manager = $$PostsTableTableManager($_db, $_db.posts)
+        .filter((f) => f.projectId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_postsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
+class $$ProjectsTableFilterComposer
+    extends Composer<_$AppDatabase, $ProjectsTable> {
+  $$ProjectsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  Expression<bool> postsRefs(
+      Expression<bool> Function($$PostsTableFilterComposer f) f) {
+    final $$PostsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.projectId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableFilterComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+}
+
+class $$ProjectsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProjectsTable> {
+  $$ProjectsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ProjectsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProjectsTable> {
+  $$ProjectsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> postsRefs<T extends Object>(
+      Expression<T> Function($$PostsTableAnnotationComposer a) f) {
+    final $$PostsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.projectId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+}
+
+class $$ProjectsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ProjectsTable,
+    Project,
+    $$ProjectsTableFilterComposer,
+    $$ProjectsTableOrderingComposer,
+    $$ProjectsTableAnnotationComposer,
+    $$ProjectsTableCreateCompanionBuilder,
+    $$ProjectsTableUpdateCompanionBuilder,
+    (Project, $$ProjectsTableReferences),
+    Project,
+    PrefetchHooks Function({bool postsRefs})> {
+  $$ProjectsTableTableManager(_$AppDatabase db, $ProjectsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProjectsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProjectsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProjectsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String?> description = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ProjectsCompanion(
+            id: id,
+            name: name,
+            description: description,
+            status: status,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String name,
+            Value<String?> description = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ProjectsCompanion.insert(
+            id: id,
+            name: name,
+            description: description,
+            status: status,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) =>
+                  (e.readTable(table), $$ProjectsTableReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: ({postsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (postsRefs) db.posts],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (postsRefs)
+                    await $_getPrefetchedData<Project, $ProjectsTable, Post>(
+                        currentTable: table,
+                        referencedTable:
+                            $$ProjectsTableReferences._postsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ProjectsTableReferences(db, table, p0).postsRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.projectId == item.id),
+                        typedResults: items)
+                ];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$ProjectsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ProjectsTable,
+    Project,
+    $$ProjectsTableFilterComposer,
+    $$ProjectsTableOrderingComposer,
+    $$ProjectsTableAnnotationComposer,
+    $$ProjectsTableCreateCompanionBuilder,
+    $$ProjectsTableUpdateCompanionBuilder,
+    (Project, $$ProjectsTableReferences),
+    Project,
+    PrefetchHooks Function({bool postsRefs})>;
+typedef $$PostsTableCreateCompanionBuilder = PostsCompanion Function({
+  required String id,
+  Value<String?> projectId,
+  required String title,
+  Value<String> contentType,
+  Value<String?> goal,
+  Value<String?> audience,
+  Value<String> status,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$PostsTableUpdateCompanionBuilder = PostsCompanion Function({
+  Value<String> id,
+  Value<String?> projectId,
+  Value<String> title,
+  Value<String> contentType,
+  Value<String?> goal,
+  Value<String?> audience,
+  Value<String> status,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+final class $$PostsTableReferences
+    extends BaseReferences<_$AppDatabase, $PostsTable, Post> {
+  $$PostsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ProjectsTable _projectIdTable(_$AppDatabase db) => db.projects
+      .createAlias($_aliasNameGenerator(db.posts.projectId, db.projects.id));
+
+  $$ProjectsTableProcessedTableManager? get projectId {
+    final $_column = $_itemColumn<String>('project_id');
+    if ($_column == null) return null;
+    final manager = $$ProjectsTableTableManager($_db, $_db.projects)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static MultiTypedResultKey<$SourceItemsTable, List<SourceItem>>
+      _sourceItemsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.sourceItems,
+          aliasName: $_aliasNameGenerator(db.posts.id, db.sourceItems.postId));
+
+  $$SourceItemsTableProcessedTableManager get sourceItemsRefs {
+    final manager = $$SourceItemsTableTableManager($_db, $_db.sourceItems)
+        .filter((f) => f.postId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_sourceItemsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$DraftsTable, List<Draft>> _draftsRefsTable(
+          _$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.drafts,
+          aliasName: $_aliasNameGenerator(db.posts.id, db.drafts.postId));
+
+  $$DraftsTableProcessedTableManager get draftsRefs {
+    final manager = $$DraftsTableTableManager($_db, $_db.drafts)
+        .filter((f) => f.postId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_draftsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
+class $$PostsTableFilterComposer extends Composer<_$AppDatabase, $PostsTable> {
+  $$PostsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get contentType => $composableBuilder(
+      column: $table.contentType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get goal => $composableBuilder(
+      column: $table.goal, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get audience => $composableBuilder(
+      column: $table.audience, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  $$ProjectsTableFilterComposer get projectId {
+    final $$ProjectsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.projectId,
+        referencedTable: $db.projects,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProjectsTableFilterComposer(
+              $db: $db,
+              $table: $db.projects,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  Expression<bool> sourceItemsRefs(
+      Expression<bool> Function($$SourceItemsTableFilterComposer f) f) {
+    final $$SourceItemsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.sourceItems,
+        getReferencedColumn: (t) => t.postId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SourceItemsTableFilterComposer(
+              $db: $db,
+              $table: $db.sourceItems,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> draftsRefs(
+      Expression<bool> Function($$DraftsTableFilterComposer f) f) {
+    final $$DraftsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.drafts,
+        getReferencedColumn: (t) => t.postId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$DraftsTableFilterComposer(
+              $db: $db,
+              $table: $db.drafts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+}
+
+class $$PostsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PostsTable> {
+  $$PostsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get contentType => $composableBuilder(
+      column: $table.contentType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get goal => $composableBuilder(
+      column: $table.goal, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get audience => $composableBuilder(
+      column: $table.audience, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  $$ProjectsTableOrderingComposer get projectId {
+    final $$ProjectsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.projectId,
+        referencedTable: $db.projects,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProjectsTableOrderingComposer(
+              $db: $db,
+              $table: $db.projects,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$PostsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PostsTable> {
+  $$PostsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get contentType => $composableBuilder(
+      column: $table.contentType, builder: (column) => column);
+
+  GeneratedColumn<String> get goal =>
+      $composableBuilder(column: $table.goal, builder: (column) => column);
+
+  GeneratedColumn<String> get audience =>
+      $composableBuilder(column: $table.audience, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$ProjectsTableAnnotationComposer get projectId {
+    final $$ProjectsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.projectId,
+        referencedTable: $db.projects,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProjectsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.projects,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  Expression<T> sourceItemsRefs<T extends Object>(
+      Expression<T> Function($$SourceItemsTableAnnotationComposer a) f) {
+    final $$SourceItemsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.sourceItems,
+        getReferencedColumn: (t) => t.postId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SourceItemsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.sourceItems,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<T> draftsRefs<T extends Object>(
+      Expression<T> Function($$DraftsTableAnnotationComposer a) f) {
+    final $$DraftsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.drafts,
+        getReferencedColumn: (t) => t.postId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$DraftsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.drafts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+}
+
+class $$PostsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $PostsTable,
+    Post,
+    $$PostsTableFilterComposer,
+    $$PostsTableOrderingComposer,
+    $$PostsTableAnnotationComposer,
+    $$PostsTableCreateCompanionBuilder,
+    $$PostsTableUpdateCompanionBuilder,
+    (Post, $$PostsTableReferences),
+    Post,
+    PrefetchHooks Function(
+        {bool projectId, bool sourceItemsRefs, bool draftsRefs})> {
+  $$PostsTableTableManager(_$AppDatabase db, $PostsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PostsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PostsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PostsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String?> projectId = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String> contentType = const Value.absent(),
+            Value<String?> goal = const Value.absent(),
+            Value<String?> audience = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PostsCompanion(
+            id: id,
+            projectId: projectId,
+            title: title,
+            contentType: contentType,
+            goal: goal,
+            audience: audience,
+            status: status,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            Value<String?> projectId = const Value.absent(),
+            required String title,
+            Value<String> contentType = const Value.absent(),
+            Value<String?> goal = const Value.absent(),
+            Value<String?> audience = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PostsCompanion.insert(
+            id: id,
+            projectId: projectId,
+            title: title,
+            contentType: contentType,
+            goal: goal,
+            audience: audience,
+            status: status,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) =>
+                  (e.readTable(table), $$PostsTableReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: (
+              {projectId = false,
+              sourceItemsRefs = false,
+              draftsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (sourceItemsRefs) db.sourceItems,
+                if (draftsRefs) db.drafts
+              ],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (projectId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.projectId,
+                    referencedTable: $$PostsTableReferences._projectIdTable(db),
+                    referencedColumn:
+                        $$PostsTableReferences._projectIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (sourceItemsRefs)
+                    await $_getPrefetchedData<Post, $PostsTable, SourceItem>(
+                        currentTable: table,
+                        referencedTable:
+                            $$PostsTableReferences._sourceItemsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$PostsTableReferences(db, table, p0)
+                                .sourceItemsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.postId == item.id),
+                        typedResults: items),
+                  if (draftsRefs)
+                    await $_getPrefetchedData<Post, $PostsTable, Draft>(
+                        currentTable: table,
+                        referencedTable:
+                            $$PostsTableReferences._draftsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$PostsTableReferences(db, table, p0).draftsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.postId == item.id),
+                        typedResults: items)
+                ];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$PostsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $PostsTable,
+    Post,
+    $$PostsTableFilterComposer,
+    $$PostsTableOrderingComposer,
+    $$PostsTableAnnotationComposer,
+    $$PostsTableCreateCompanionBuilder,
+    $$PostsTableUpdateCompanionBuilder,
+    (Post, $$PostsTableReferences),
+    Post,
+    PrefetchHooks Function(
+        {bool projectId, bool sourceItemsRefs, bool draftsRefs})>;
 typedef $$SourceItemsTableCreateCompanionBuilder = SourceItemsCompanion
     Function({
   required String id,
@@ -3835,6 +5676,7 @@ typedef $$SourceItemsTableCreateCompanionBuilder = SourceItemsCompanion
   Value<String?> userNote,
   Value<List<String>> tags,
   Value<String?> bundleId,
+  Value<String?> postId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -3848,10 +5690,30 @@ typedef $$SourceItemsTableUpdateCompanionBuilder = SourceItemsCompanion
   Value<String?> userNote,
   Value<List<String>> tags,
   Value<String?> bundleId,
+  Value<String?> postId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
+
+final class $$SourceItemsTableReferences
+    extends BaseReferences<_$AppDatabase, $SourceItemsTable, SourceItem> {
+  $$SourceItemsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $PostsTable _postIdTable(_$AppDatabase db) => db.posts
+      .createAlias($_aliasNameGenerator(db.sourceItems.postId, db.posts.id));
+
+  $$PostsTableProcessedTableManager? get postId {
+    final $_column = $_itemColumn<String>('post_id');
+    if ($_column == null) return null;
+    final manager = $$PostsTableTableManager($_db, $_db.posts)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_postIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
 
 class $$SourceItemsTableFilterComposer
     extends Composer<_$AppDatabase, $SourceItemsTable> {
@@ -3890,6 +5752,26 @@ class $$SourceItemsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  $$PostsTableFilterComposer get postId {
+    final $$PostsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableFilterComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$SourceItemsTableOrderingComposer
@@ -3927,6 +5809,26 @@ class $$SourceItemsTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  $$PostsTableOrderingComposer get postId {
+    final $$PostsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableOrderingComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$SourceItemsTableAnnotationComposer
@@ -3964,6 +5866,26 @@ class $$SourceItemsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$PostsTableAnnotationComposer get postId {
+    final $$PostsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$SourceItemsTableTableManager extends RootTableManager<
@@ -3975,9 +5897,9 @@ class $$SourceItemsTableTableManager extends RootTableManager<
     $$SourceItemsTableAnnotationComposer,
     $$SourceItemsTableCreateCompanionBuilder,
     $$SourceItemsTableUpdateCompanionBuilder,
-    (SourceItem, BaseReferences<_$AppDatabase, $SourceItemsTable, SourceItem>),
+    (SourceItem, $$SourceItemsTableReferences),
     SourceItem,
-    PrefetchHooks Function()> {
+    PrefetchHooks Function({bool postId})> {
   $$SourceItemsTableTableManager(_$AppDatabase db, $SourceItemsTable table)
       : super(TableManagerState(
           db: db,
@@ -3996,6 +5918,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             Value<String?> userNote = const Value.absent(),
             Value<List<String>> tags = const Value.absent(),
             Value<String?> bundleId = const Value.absent(),
+            Value<String?> postId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -4008,6 +5931,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             userNote: userNote,
             tags: tags,
             bundleId: bundleId,
+            postId: postId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -4020,6 +5944,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             Value<String?> userNote = const Value.absent(),
             Value<List<String>> tags = const Value.absent(),
             Value<String?> bundleId = const Value.absent(),
+            Value<String?> postId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -4032,14 +5957,52 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             userNote: userNote,
             tags: tags,
             bundleId: bundleId,
+            postId: postId,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable(table),
+                    $$SourceItemsTableReferences(db, table, e)
+                  ))
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({postId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (postId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.postId,
+                    referencedTable:
+                        $$SourceItemsTableReferences._postIdTable(db),
+                    referencedColumn:
+                        $$SourceItemsTableReferences._postIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ));
 }
 
@@ -4052,9 +6015,9 @@ typedef $$SourceItemsTableProcessedTableManager = ProcessedTableManager<
     $$SourceItemsTableAnnotationComposer,
     $$SourceItemsTableCreateCompanionBuilder,
     $$SourceItemsTableUpdateCompanionBuilder,
-    (SourceItem, BaseReferences<_$AppDatabase, $SourceItemsTable, SourceItem>),
+    (SourceItem, $$SourceItemsTableReferences),
     SourceItem,
-    PrefetchHooks Function()>;
+    PrefetchHooks Function({bool postId})>;
 typedef $$DraftsTableCreateCompanionBuilder = DraftsCompanion Function({
   required String id,
   Value<String> canonicalMarkdown,
@@ -4063,6 +6026,8 @@ typedef $$DraftsTableCreateCompanionBuilder = DraftsCompanion Function({
   Value<double?> punchiness,
   Value<String?> emojiLevel,
   Value<String?> audience,
+  Value<String?> postId,
+  Value<String?> contentType,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<String> syncStatus,
@@ -4076,6 +6041,8 @@ typedef $$DraftsTableUpdateCompanionBuilder = DraftsCompanion Function({
   Value<double?> punchiness,
   Value<String?> emojiLevel,
   Value<String?> audience,
+  Value<String?> postId,
+  Value<String?> contentType,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<String> syncStatus,
@@ -4085,6 +6052,20 @@ typedef $$DraftsTableUpdateCompanionBuilder = DraftsCompanion Function({
 final class $$DraftsTableReferences
     extends BaseReferences<_$AppDatabase, $DraftsTable, Draft> {
   $$DraftsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $PostsTable _postIdTable(_$AppDatabase db) =>
+      db.posts.createAlias($_aliasNameGenerator(db.drafts.postId, db.posts.id));
+
+  $$PostsTableProcessedTableManager? get postId {
+    final $_column = $_itemColumn<String>('post_id');
+    if ($_column == null) return null;
+    final manager = $$PostsTableTableManager($_db, $_db.posts)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_postIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
 
   static MultiTypedResultKey<$VariantsTable, List<Variant>> _variantsRefsTable(
           _$AppDatabase db) =>
@@ -4132,6 +6113,9 @@ class $$DraftsTableFilterComposer
   ColumnFilters<String> get audience => $composableBuilder(
       column: $table.audience, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get contentType => $composableBuilder(
+      column: $table.contentType, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
 
@@ -4140,6 +6124,26 @@ class $$DraftsTableFilterComposer
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  $$PostsTableFilterComposer get postId {
+    final $$PostsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableFilterComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 
   Expression<bool> variantsRefs(
       Expression<bool> Function($$VariantsTableFilterComposer f) f) {
@@ -4194,6 +6198,9 @@ class $$DraftsTableOrderingComposer
   ColumnOrderings<String> get audience => $composableBuilder(
       column: $table.audience, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get contentType => $composableBuilder(
+      column: $table.contentType, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -4202,6 +6209,26 @@ class $$DraftsTableOrderingComposer
 
   ColumnOrderings<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
+  $$PostsTableOrderingComposer get postId {
+    final $$PostsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableOrderingComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$DraftsTableAnnotationComposer
@@ -4234,6 +6261,9 @@ class $$DraftsTableAnnotationComposer
   GeneratedColumn<String> get audience =>
       $composableBuilder(column: $table.audience, builder: (column) => column);
 
+  GeneratedColumn<String> get contentType => $composableBuilder(
+      column: $table.contentType, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -4242,6 +6272,26 @@ class $$DraftsTableAnnotationComposer
 
   GeneratedColumn<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => column);
+
+  $$PostsTableAnnotationComposer get postId {
+    final $$PostsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 
   Expression<T> variantsRefs<T extends Object>(
       Expression<T> Function($$VariantsTableAnnotationComposer a) f) {
@@ -4276,7 +6326,7 @@ class $$DraftsTableTableManager extends RootTableManager<
     $$DraftsTableUpdateCompanionBuilder,
     (Draft, $$DraftsTableReferences),
     Draft,
-    PrefetchHooks Function({bool variantsRefs})> {
+    PrefetchHooks Function({bool postId, bool variantsRefs})> {
   $$DraftsTableTableManager(_$AppDatabase db, $DraftsTable table)
       : super(TableManagerState(
           db: db,
@@ -4295,6 +6345,8 @@ class $$DraftsTableTableManager extends RootTableManager<
             Value<double?> punchiness = const Value.absent(),
             Value<String?> emojiLevel = const Value.absent(),
             Value<String?> audience = const Value.absent(),
+            Value<String?> postId = const Value.absent(),
+            Value<String?> contentType = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -4308,6 +6360,8 @@ class $$DraftsTableTableManager extends RootTableManager<
             punchiness: punchiness,
             emojiLevel: emojiLevel,
             audience: audience,
+            postId: postId,
+            contentType: contentType,
             createdAt: createdAt,
             updatedAt: updatedAt,
             syncStatus: syncStatus,
@@ -4321,6 +6375,8 @@ class $$DraftsTableTableManager extends RootTableManager<
             Value<double?> punchiness = const Value.absent(),
             Value<String?> emojiLevel = const Value.absent(),
             Value<String?> audience = const Value.absent(),
+            Value<String?> postId = const Value.absent(),
+            Value<String?> contentType = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -4334,6 +6390,8 @@ class $$DraftsTableTableManager extends RootTableManager<
             punchiness: punchiness,
             emojiLevel: emojiLevel,
             audience: audience,
+            postId: postId,
+            contentType: contentType,
             createdAt: createdAt,
             updatedAt: updatedAt,
             syncStatus: syncStatus,
@@ -4343,11 +6401,35 @@ class $$DraftsTableTableManager extends RootTableManager<
               .map((e) =>
                   (e.readTable(table), $$DraftsTableReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({variantsRefs = false}) {
+          prefetchHooksCallback: ({postId = false, variantsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [if (variantsRefs) db.variants],
-              addJoins: null,
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (postId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.postId,
+                    referencedTable: $$DraftsTableReferences._postIdTable(db),
+                    referencedColumn:
+                        $$DraftsTableReferences._postIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (variantsRefs)
@@ -4379,7 +6461,7 @@ typedef $$DraftsTableProcessedTableManager = ProcessedTableManager<
     $$DraftsTableUpdateCompanionBuilder,
     (Draft, $$DraftsTableReferences),
     Draft,
-    PrefetchHooks Function({bool variantsRefs})>;
+    PrefetchHooks Function({bool postId, bool variantsRefs})>;
 typedef $$VariantsTableCreateCompanionBuilder = VariantsCompanion Function({
   required String id,
   required String draftId,
@@ -5540,6 +7622,9 @@ typedef $$StyleProfilesTableCreateCompanionBuilder = StyleProfilesCompanion
   Value<double> punchiness,
   Value<String> emojiLevel,
   Value<List<String>> bannedPhrases,
+  Value<List<String>> personalTraits,
+  Value<List<String>> differentiationPoints,
+  Value<String?> customPrompt,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<String> syncStatus,
@@ -5553,6 +7638,9 @@ typedef $$StyleProfilesTableUpdateCompanionBuilder = StyleProfilesCompanion
   Value<double> punchiness,
   Value<String> emojiLevel,
   Value<List<String>> bannedPhrases,
+  Value<List<String>> personalTraits,
+  Value<List<String>> differentiationPoints,
+  Value<String?> customPrompt,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<String> syncStatus,
@@ -5587,6 +7675,19 @@ class $$StyleProfilesTableFilterComposer
       get bannedPhrases => $composableBuilder(
           column: $table.bannedPhrases,
           builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+      get personalTraits => $composableBuilder(
+          column: $table.personalTraits,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+      get differentiationPoints => $composableBuilder(
+          column: $table.differentiationPoints,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
+
+  ColumnFilters<String> get customPrompt => $composableBuilder(
+      column: $table.customPrompt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -5627,6 +7728,18 @@ class $$StyleProfilesTableOrderingComposer
       column: $table.bannedPhrases,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get personalTraits => $composableBuilder(
+      column: $table.personalTraits,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get differentiationPoints => $composableBuilder(
+      column: $table.differentiationPoints,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get customPrompt => $composableBuilder(
+      column: $table.customPrompt,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -5664,6 +7777,17 @@ class $$StyleProfilesTableAnnotationComposer
   GeneratedColumnWithTypeConverter<List<String>, String> get bannedPhrases =>
       $composableBuilder(
           column: $table.bannedPhrases, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<String>, String> get personalTraits =>
+      $composableBuilder(
+          column: $table.personalTraits, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<String>, String>
+      get differentiationPoints => $composableBuilder(
+          column: $table.differentiationPoints, builder: (column) => column);
+
+  GeneratedColumn<String> get customPrompt => $composableBuilder(
+      column: $table.customPrompt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -5707,6 +7831,9 @@ class $$StyleProfilesTableTableManager extends RootTableManager<
             Value<double> punchiness = const Value.absent(),
             Value<String> emojiLevel = const Value.absent(),
             Value<List<String>> bannedPhrases = const Value.absent(),
+            Value<List<String>> personalTraits = const Value.absent(),
+            Value<List<String>> differentiationPoints = const Value.absent(),
+            Value<String?> customPrompt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -5719,6 +7846,9 @@ class $$StyleProfilesTableTableManager extends RootTableManager<
             punchiness: punchiness,
             emojiLevel: emojiLevel,
             bannedPhrases: bannedPhrases,
+            personalTraits: personalTraits,
+            differentiationPoints: differentiationPoints,
+            customPrompt: customPrompt,
             createdAt: createdAt,
             updatedAt: updatedAt,
             syncStatus: syncStatus,
@@ -5731,6 +7861,9 @@ class $$StyleProfilesTableTableManager extends RootTableManager<
             Value<double> punchiness = const Value.absent(),
             Value<String> emojiLevel = const Value.absent(),
             Value<List<String>> bannedPhrases = const Value.absent(),
+            Value<List<String>> personalTraits = const Value.absent(),
+            Value<List<String>> differentiationPoints = const Value.absent(),
+            Value<String?> customPrompt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -5743,6 +7876,9 @@ class $$StyleProfilesTableTableManager extends RootTableManager<
             punchiness: punchiness,
             emojiLevel: emojiLevel,
             bannedPhrases: bannedPhrases,
+            personalTraits: personalTraits,
+            differentiationPoints: differentiationPoints,
+            customPrompt: customPrompt,
             createdAt: createdAt,
             updatedAt: updatedAt,
             syncStatus: syncStatus,
@@ -6233,6 +8369,10 @@ typedef $$BundlesTableProcessedTableManager = ProcessedTableManager<
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
+  $$ProjectsTableTableManager get projects =>
+      $$ProjectsTableTableManager(_db, _db.projects);
+  $$PostsTableTableManager get posts =>
+      $$PostsTableTableManager(_db, _db.posts);
   $$SourceItemsTableTableManager get sourceItems =>
       $$SourceItemsTableTableManager(_db, _db.sourceItems);
   $$DraftsTableTableManager get drafts =>

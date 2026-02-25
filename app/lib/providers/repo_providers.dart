@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/db/app_db.dart';
 import '../data/repos/draft_repo.dart';
 import '../data/repos/bundle_repo.dart';
+import '../data/repos/post_repo.dart';
 import '../data/repos/publish_log_repo.dart';
+import '../data/repos/project_repo.dart';
 import '../data/repos/scheduled_post_repo.dart';
 import '../data/repos/source_repo.dart';
 import '../data/repos/style_profile_repo.dart';
@@ -17,6 +19,14 @@ final sourceRepoProvider = Provider<SourceRepo>((ref) {
 
 final draftRepoProvider = Provider<DraftRepo>((ref) {
   return DraftRepo(ref.watch(appDatabaseProvider));
+});
+
+final projectRepoProvider = Provider<ProjectRepo>((ref) {
+  return ProjectRepo(ref.watch(appDatabaseProvider));
+});
+
+final postRepoProvider = Provider<PostRepo>((ref) {
+  return PostRepo(ref.watch(appDatabaseProvider));
 });
 
 final bundleRepoProvider = Provider<BundleRepo>((ref) {
@@ -45,6 +55,14 @@ final syncConflictRepoProvider = Provider<SyncConflictRepo>((ref) {
 
 final sourceItemsStreamProvider = StreamProvider<List<SourceItem>>((ref) {
   return ref.watch(sourceRepoProvider).watchSourceItems();
+});
+
+final postsStreamProvider = StreamProvider<List<Post>>((ref) {
+  return ref.watch(postRepoProvider).watchPosts();
+});
+
+final projectsStreamProvider = StreamProvider<List<Project>>((ref) {
+  return ref.watch(projectRepoProvider).watchProjects();
 });
 
 final publishLogsStreamProvider = StreamProvider<List<PublishLog>>((ref) {

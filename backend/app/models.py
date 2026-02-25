@@ -29,6 +29,8 @@ class Draft(Base):
     punchiness: Mapped[float | None] = mapped_column(Float, nullable=True)
     emoji_level: Mapped[str | None] = mapped_column(String, nullable=True)
     audience: Mapped[str | None] = mapped_column(String, nullable=True)
+    post_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    content_type: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -73,6 +75,11 @@ class StyleProfile(Base):
     punchiness: Mapped[float] = mapped_column(Float, default=0.7, nullable=False)
     emoji_level: Mapped[str] = mapped_column(String, default="light", nullable=False)
     banned_phrases: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    personal_traits: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    differentiation_points: Mapped[list[str]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    custom_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

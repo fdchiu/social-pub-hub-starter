@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
+import '../widgets/post_scope_header.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -35,8 +37,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sourceItemsAsync = ref.watch(sourceItemsStreamProvider);
+    final sourceItemsAsync = ref.watch(scopedSourceItemsStreamProvider);
     final bundlesAsync = ref.watch(bundlesStreamProvider);
+    final activePost = ref.watch(activePostProvider);
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -53,7 +56,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       body: sourceItemsAsync.when(
         data: (items) {
           if (items.isEmpty) {
-            return const Center(child: Text('No sources in library yet.'));
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  PostScopeHeader(showGlobalToggle: true),
+                  SizedBox(height: 16),
+                  Expanded(
+                      child: Center(child: Text('No sources in library yet.'))),
+                ],
+              ),
+            );
           }
 
           final tags = <String>{for (final item in items) ...item.tags}.toList()
@@ -62,8 +75,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
           return Column(
             children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: PostScopeHeader(showGlobalToggle: true),
+              ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: TextField(
                   controller: _queryController,
                   decoration: InputDecoration(
@@ -135,7 +152,21 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                               onSelected: (action) async {
                                 final messenger = ScaffoldMessenger.of(context);
                                 if (action == _LibraryAction.createDraft) {
-                                  await _createDraftFromSource(item);
+                                  if (activePost == null) {
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Create/select a post workspace first'),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+                                  await _createDraftFromSource(
+                                    item,
+                                    activePost: activePost,
+                                  );
                                   return;
                                 }
                                 if (action == _LibraryAction.openUrl) {
@@ -200,6 +231,47 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   }
                                   return;
                                 }
+                                if (action == _LibraryAction.moveToActivePost) {
+                                  if (activePost == null) {
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('No active post selected'),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+                                  await ref.read(sourceRepoProvider).assignPost(
+                                        sourceId: item.id,
+                                        postId: activePost.id,
+                                      );
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Moved source to ${activePost.title}',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+                                if (action == _LibraryAction.makeGlobal) {
+                                  await ref.read(sourceRepoProvider).assignPost(
+                                        sourceId: item.id,
+                                        postId: null,
+                                      );
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Source marked global'),
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
                                 if (action == _LibraryAction.addToBundle) {
                                   await _showAssignBundleDialog(
                                     item: item,
@@ -236,6 +308,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                     value: _LibraryAction.copyUrl,
                                     child: Text('Copy URL'),
                                   ),
+                                  if (activePost != null &&
+                                      item.postId != activePost.id)
+                                    const PopupMenuItem(
+                                      value: _LibraryAction.moveToActivePost,
+                                      child: Text('Move to active post'),
+                                    ),
+                                  if (item.postId != null &&
+                                      item.postId!.isNotEmpty)
+                                    const PopupMenuItem(
+                                      value: _LibraryAction.makeGlobal,
+                                      child: Text('Mark as global source'),
+                                    ),
                                   const PopupMenuItem(
                                     value: _LibraryAction.addToBundle,
                                     child: Text('Add to bundle'),
@@ -317,7 +401,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     return parts.join('  •  ');
   }
 
-  Future<void> _createDraftFromSource(SourceItem item) async {
+  Future<void> _createDraftFromSource(
+    SourceItem item, {
+    required Post activePost,
+  }) async {
     final canonical = '''
 # Draft
 
@@ -333,7 +420,14 @@ Takeaway: Start with one clear point, then iterate.
 ''';
     final draftId = await ref.read(draftRepoProvider).createDraft(
           canonicalMarkdown: canonical,
-          intent: 'how_to',
+          intent: activePost.contentType == 'ai_tool_guide'
+              ? 'tool_guide'
+              : activePost.contentType == 'coding_guide'
+                  ? 'guide'
+                  : 'how_to',
+          audience: activePost.audience,
+          postId: activePost.id,
+          contentType: activePost.contentType,
         );
     if (!mounted) {
       return;
@@ -474,6 +568,8 @@ enum _LibraryAction {
   createDraft,
   openUrl,
   copyUrl,
+  moveToActivePost,
+  makeGlobal,
   addToBundle,
   clearBundle,
 }

@@ -7,6 +7,8 @@ import 'converters/string_list_converter.dart';
 import 'tables/bundles.dart';
 import 'tables/drafts.dart';
 import 'tables/publish_logs.dart';
+import 'tables/projects.dart';
+import 'tables/posts.dart';
 import 'tables/scheduled_posts.dart';
 import 'tables/source_items.dart';
 import 'tables/style_profiles.dart';
@@ -25,6 +27,8 @@ part 'app_db.g.dart';
     StyleProfiles,
     SyncConflicts,
     Bundles,
+    Projects,
+    Posts,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -32,7 +36,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -59,6 +63,17 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 7) {
             await m.createTable(scheduledPosts);
+          }
+          if (from < 8) {
+            await m.createTable(projects);
+            await m.createTable(posts);
+            await m.addColumn(sourceItems, sourceItems.postId);
+            await m.addColumn(drafts, drafts.postId);
+            await m.addColumn(drafts, drafts.contentType);
+            await m.addColumn(styleProfiles, styleProfiles.personalTraits);
+            await m.addColumn(
+                styleProfiles, styleProfiles.differentiationPoints);
+            await m.addColumn(styleProfiles, styleProfiles.customPrompt);
           }
         },
       );

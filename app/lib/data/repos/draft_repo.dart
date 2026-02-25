@@ -8,8 +8,12 @@ class DraftRepo {
 
   final AppDatabase _db;
 
-  Future<Draft?> getLatestDraft() async {
-    final query = _db.select(_db.drafts)
+  Future<Draft?> getLatestDraft({String? postId}) async {
+    final query = _db.select(_db.drafts);
+    if (postId != null && postId.trim().isNotEmpty) {
+      query.where((t) => t.postId.equals(postId.trim()));
+    }
+    query
       ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
       ..limit(1);
     return query.getSingleOrNull();
@@ -25,8 +29,15 @@ class DraftRepo {
     return query.watchSingleOrNull();
   }
 
-  Stream<List<Draft>> watchRecentDrafts({int limit = 50}) {
-    final query = _db.select(_db.drafts)
+  Stream<List<Draft>> watchRecentDrafts({
+    int limit = 50,
+    String? postId,
+  }) {
+    final query = _db.select(_db.drafts);
+    if (postId != null && postId.trim().isNotEmpty) {
+      query.where((t) => t.postId.equals(postId.trim()));
+    }
+    query
       ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
       ..limit(limit);
     return query.watch();
@@ -40,6 +51,8 @@ class DraftRepo {
     double? punchiness,
     String? emojiLevel,
     String? audience,
+    String? postId,
+    String? contentType,
   }) async {
     final draftId = id ?? generateEntityId();
     final now = DateTime.now().toUtc();
@@ -53,6 +66,8 @@ class DraftRepo {
             punchiness: Value(punchiness),
             emojiLevel: Value(emojiLevel),
             audience: Value(audience),
+            postId: Value(postId),
+            contentType: Value(contentType),
             createdAt: Value(now),
             updatedAt: Value(now),
             syncStatus: const Value('dirty'),

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../converters/string_list_converter.dart';
+import 'posts.dart';
 
 class SourceItems extends Table {
   TextColumn get id => text()();
@@ -18,6 +19,8 @@ class SourceItems extends Table {
       .withDefault(const Constant('[]'))();
 
   TextColumn get bundleId => text().nullable()();
+
+  TextColumn get postId => text().nullable().references(Posts, #id)();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 

@@ -1,0 +1,128 @@
+# App Workflow (How To Use)
+
+Read when:
+- onboarding a new operator
+- validating end-to-end UX across screens
+- implementing missing actions screen-by-screen
+
+## 1) Daily happy path (short version)
+1. Select/create Post workspace (title + content type + goal + audience).
+2. Inbox: capture/select source items for active post (optionally save as global).
+3. Library: refine source set and pull reusable global sources.
+4. Compose: create/edit canonical draft for active post.
+5. Variant Studio (in Compose): generate per-platform variants.
+6. Publish Checklist: run quality gate.
+7. Publish/Queue: assisted publish now or queue.
+8. History/Analytics: verify outcome and reuse winners.
+
+## 2) Screen-by-screen flow
+
+### Inbox (`/inbox`)
+Goal: collect evidence and start a draft.
+- Add source (`url`, `note`, `snippet`).
+- Scope source to active post or global reusable pool.
+- Select one or more sources.
+- Trigger “create draft from selected sources”.
+Exit criteria:
+- canonical draft opened in Compose.
+
+### Library (`/library`)
+Goal: improve source quality before drafting.
+- Search/filter by text, tag, type, date.
+- Keep current-post sources + optional global sources in one scoped list.
+- Open source detail; adjust note/tags.
+- Start draft from a source, or assign to bundle.
+- Move a source to active post or promote it to global.
+Exit criteria:
+- source set is clean and relevant.
+
+### Compose (`/compose`)
+Goal: produce canonical draft.
+- Edit markdown.
+- Optional polish pass.
+- Content type drives structure (`general_post`, `coding_guide`, `ai_tool_guide`).
+- Style profile traits + differentiation + custom prompt feed LLM.
+- Generate variants.
+Exit criteria:
+- canonical draft approved by user.
+
+### Variant Studio (Compose subflow)
+Goal: produce publish-ready platform versions.
+- Generate variants for selected platforms.
+- Check hard constraints (length/format).
+- Humanize pass if needed.
+- Manual final edits.
+Exit criteria:
+- each target platform has an approved variant.
+
+### Bundles (`/bundles`) + Bundle Checklist (`/bundle-checklist`)
+Goal: coordinated distribution around an anchor post.
+- Create bundle (`youtube` or `social` anchor).
+- Link variants/sources.
+- Run checklist and backfill missing parts.
+Exit criteria:
+- bundle is complete and ready to distribute.
+
+### Publish Checklist (`/publish-checklist`)
+Goal: quality gate before posting.
+- Run rubric checks (hook, specifics, stance, CTA/question).
+- Confirm assisted publish steps.
+Exit criteria:
+- checklist pass, no blockers.
+
+### Publish (`/publish`)
+Goal: execute publishing safely.
+- Review integration capability/connection state.
+- For each variant: assisted publish (copy/open/confirm) or direct publish if available.
+- Confirm final status in publish logs.
+Exit criteria:
+- post status recorded (`posted`/`queued`/`failed` with reason).
+
+### Queue (`/queue`)
+Goal: manage scheduled execution.
+- Filter queued/overdue.
+- Copy/open composer for manual assisted posting.
+- Mark posted or cancel.
+Exit criteria:
+- no stale overdue items.
+
+### Sync Conflicts (`/sync-conflicts`)
+Goal: resolve local/remote divergence.
+- Compare local vs remote summaries.
+- Keep remote or local.
+Exit criteria:
+- conflict count returns to zero.
+
+### History (`/history`)
+Goal: audit + reuse.
+- Filter by platform/status.
+- Open posted URL.
+- Clone winning variant into new draft.
+Exit criteria:
+- learnings captured and reusable.
+
+### Analytics (`/analytics`)
+Goal: quick health check.
+- Check posted count, queue health, platform split.
+Exit criteria:
+- KPI snapshot reviewed for next iteration.
+
+### Settings (`/settings`)
+Goal: keep system stable and style consistent.
+- Run sync now.
+- Refresh integrations.
+- Tune style profile/sliders/banned phrases.
+Exit criteria:
+- sync healthy + style defaults aligned.
+
+## 3) Recommended operating cadence
+- Start: Inbox/Library triage.
+- Midday: Compose + variants.
+- Before publish: Publish Checklist.
+- End of day: Queue cleanup + History/Analytics review.
+
+## 4) Failure handling flow
+1. Publish fails -> inspect Publish log reason.
+2. If auth/integration issue -> Settings (refresh/reconnect), retry.
+3. If content issue -> Compose/Variant edit, rerun checklist.
+4. If sync issue -> Sync Conflicts resolve, then retry publish.

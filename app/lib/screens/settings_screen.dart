@@ -26,6 +26,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final TextEditingController _voiceController = TextEditingController();
   final TextEditingController _bannedPhrasesController =
       TextEditingController();
+  final TextEditingController _personalTraitsController =
+      TextEditingController();
+  final TextEditingController _differentiationPointsController =
+      TextEditingController();
+  final TextEditingController _customPromptController = TextEditingController();
   String? _styleProfileId;
   bool _loadingStyleProfile = true;
   bool _savingStyleProfile = false;
@@ -44,6 +49,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void dispose() {
     _voiceController.dispose();
     _bannedPhrasesController.dispose();
+    _personalTraitsController.dispose();
+    _differentiationPointsController.dispose();
+    _customPromptController.dispose();
     super.dispose();
   }
 
@@ -362,6 +370,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              TextField(
+                controller: _personalTraitsController,
+                enabled: !disabled,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Personal traits',
+                  hintText: 'practical, concise, candid',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _differentiationPointsController,
+                enabled: !disabled,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Differentiation points',
+                  hintText: 'tradeoff-first, include failure notes',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _customPromptController,
+                enabled: !disabled,
+                minLines: 2,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'Custom prompt',
+                  hintText: 'Always include a concrete example and caveat.',
+                ),
+              ),
+              const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed:
                     (profileId == null || disabled) ? null : _saveStyleProfile,
@@ -492,6 +533,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _punchiness = profile.punchiness;
         _emojiLevel = profile.emojiLevel;
         _bannedPhrasesController.text = profile.bannedPhrases.join(', ');
+        _personalTraitsController.text = profile.personalTraits.join(', ');
+        _differentiationPointsController.text =
+            profile.differentiationPoints.join(', ');
+        _customPromptController.text = profile.customPrompt ?? '';
         _loadingStyleProfile = false;
         _styleProfileError = null;
       });
@@ -529,6 +574,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 .map((phrase) => phrase.trim())
                 .where((phrase) => phrase.isNotEmpty)
                 .toList(growable: false),
+            personalTraits: _personalTraitsController.text
+                .split(',')
+                .map((phrase) => phrase.trim())
+                .where((phrase) => phrase.isNotEmpty)
+                .toList(growable: false),
+            differentiationPoints: _differentiationPointsController.text
+                .split(',')
+                .map((phrase) => phrase.trim())
+                .where((phrase) => phrase.isNotEmpty)
+                .toList(growable: false),
+            customPrompt: _customPromptController.text,
           );
 
       if (!mounted) {
@@ -567,6 +623,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           .map((phrase) => phrase.trim())
           .where((phrase) => phrase.isNotEmpty)
           .toList(growable: false),
+      'personal_traits': _personalTraitsController.text
+          .split(',')
+          .map((phrase) => phrase.trim())
+          .where((phrase) => phrase.isNotEmpty)
+          .toList(growable: false),
+      'differentiation_points': _differentiationPointsController.text
+          .split(',')
+          .map((phrase) => phrase.trim())
+          .where((phrase) => phrase.isNotEmpty)
+          .toList(growable: false),
+      'custom_prompt': _customPromptController.text.trim().isEmpty
+          ? null
+          : _customPromptController.text.trim(),
       'exported_at': DateTime.now().toUtc().toIso8601String(),
     };
     await Clipboard.setData(
@@ -640,6 +709,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final banned = _parseBannedPhrases(
         map['banned_phrases'] ?? map['bannedPhrases'],
       );
+      final traits = _parseBannedPhrases(
+        map['personal_traits'] ?? map['personalTraits'],
+      );
+      final diffPoints = _parseBannedPhrases(
+        map['differentiation_points'] ?? map['differentiationPoints'],
+      );
+      final customPrompt =
+          ((map['custom_prompt'] ?? map['customPrompt']) as String?)?.trim() ??
+              '';
 
       setState(() {
         _voiceController.text = voice;
@@ -647,6 +725,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _punchiness = punchiness;
         _emojiLevel = emojiLevel;
         _bannedPhrasesController.text = banned.join(', ');
+        _personalTraitsController.text = traits.join(', ');
+        _differentiationPointsController.text = diffPoints.join(', ');
+        _customPromptController.text = customPrompt;
       });
       await _saveStyleProfile();
     } catch (error) {
@@ -766,6 +847,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             .map((phrase) => phrase.trim())
             .where((phrase) => phrase.isNotEmpty)
             .toList(growable: false),
+        'personal_traits': _personalTraitsController.text
+            .split(',')
+            .map((phrase) => phrase.trim())
+            .where((phrase) => phrase.isNotEmpty)
+            .toList(growable: false),
+        'differentiation_points': _differentiationPointsController.text
+            .split(',')
+            .map((phrase) => phrase.trim())
+            .where((phrase) => phrase.isNotEmpty)
+            .toList(growable: false),
+        'custom_prompt': _customPromptController.text.trim().isEmpty
+            ? null
+            : _customPromptController.text.trim(),
       },
       'recent_sync_runs': _syncRuns
           .map((run) => {

@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
+import '../widgets/post_scope_header.dart';
 
 class InboxScreen extends ConsumerStatefulWidget {
   const InboxScreen({super.key});
@@ -45,7 +47,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sourceItemsAsync = ref.watch(sourceItemsStreamProvider);
+    final sourceItemsAsync = ref.watch(scopedSourceItemsStreamProvider);
+    final activePost = ref.watch(activePostProvider);
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -74,7 +77,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             orElse: () => const SizedBox.shrink(),
           ),
           IconButton(
-            onPressed: _creatingDraft ? null : _createDraftFromSelected,
+            onPressed: _creatingDraft || activePost == null
+                ? null
+                : _createDraftFromSelected,
             icon: _creatingDraft
                 ? const SizedBox(
                     width: 16,
@@ -105,8 +110,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
           return Column(
             children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: PostScopeHeader(showGlobalToggle: true),
+              ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: TextField(
                   controller: _queryController,
                   decoration: InputDecoration(
@@ -306,65 +315,87 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   }
 
   Future<void> _editSource(SourceItem item) async {
+    final activePost = ref.read(activePostProvider);
     final typeController = TextEditingController(text: item.type);
     final titleController = TextEditingController(text: item.title ?? '');
     final urlController = TextEditingController(text: item.url ?? '');
     final noteController = TextEditingController(text: item.userNote ?? '');
     final tagsController = TextEditingController(text: item.tags.join(', '));
+    var saveAsGlobal = (item.postId == null || item.postId!.isEmpty);
 
     final shouldSave = await showDialog<bool>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Edit source ${item.id.substring(0, 8)}'),
-            content: SizedBox(
-              width: 460,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: typeController,
-                      decoration: const InputDecoration(labelText: 'Type'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: titleController,
-                      decoration: const InputDecoration(labelText: 'Title'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: urlController,
-                      decoration: const InputDecoration(labelText: 'URL'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: noteController,
-                      minLines: 2,
-                      maxLines: 5,
-                      decoration: const InputDecoration(labelText: 'Note'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: tagsController,
-                      decoration: const InputDecoration(
-                        labelText: 'Tags',
-                        hintText: 'ai, product, launch',
+          builder: (context) => StatefulBuilder(
+            builder: (context, setLocalState) => AlertDialog(
+              title: Text('Edit source ${item.id.substring(0, 8)}'),
+              content: SizedBox(
+                width: 460,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: typeController,
+                        decoration: const InputDecoration(labelText: 'Type'),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: titleController,
+                        decoration: const InputDecoration(labelText: 'Title'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: urlController,
+                        decoration: const InputDecoration(labelText: 'URL'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: noteController,
+                        minLines: 2,
+                        maxLines: 5,
+                        decoration: const InputDecoration(labelText: 'Note'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: tagsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Tags',
+                          hintText: 'ai, product, launch',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (activePost != null)
+                        CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          value: saveAsGlobal,
+                          onChanged: (next) {
+                            setLocalState(() {
+                              saveAsGlobal = next ?? false;
+                            });
+                          },
+                          title: const Text('Save as global source'),
+                          subtitle: Text(
+                            saveAsGlobal
+                                ? 'Source reusable across posts'
+                                : 'Source belongs to: ${activePost.title}',
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Save'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Save'),
-              ),
-            ],
           ),
         ) ??
         false;
@@ -405,6 +436,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           url: urlController.text,
           userNote: noteController.text,
           tags: tags,
+          postId: saveAsGlobal ? null : (activePost?.id ?? item.postId),
         );
 
     if (mounted) {
@@ -457,10 +489,20 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   Future<void> _showAddSourceDialog() async {
     final repo = ref.read(sourceRepoProvider);
+    final activePost = ref.read(activePostProvider);
+    if (activePost == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Create a post workspace first.')),
+        );
+      }
+      return;
+    }
     final urlController = TextEditingController();
     final noteController = TextEditingController();
     final tagsController = TextEditingController();
     String selectedType = 'url';
+    var saveAsGlobal = false;
 
     final shouldSave = await showDialog<bool>(
           context: context,
@@ -494,6 +536,27 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                               selectedType = value;
                             });
                           },
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Post: ${activePost.title}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          value: saveAsGlobal,
+                          onChanged: (next) {
+                            setLocalState(() {
+                              saveAsGlobal = next ?? false;
+                            });
+                          },
+                          title: const Text('Save as global source'),
+                          subtitle: const Text(
+                              'Global sources can be reused across posts'),
                         ),
                         const SizedBox(height: 12),
                         TextField(
@@ -552,6 +615,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         url: urlController.text,
         userNote: noteController.text,
         tags: tags,
+        postId: saveAsGlobal ? null : activePost.id,
       );
 
       if (mounted) {
@@ -568,6 +632,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   Future<void> _createDraftFromSelected() async {
     final count = _selectedIds.length;
+    final activePost = ref.read(activePostProvider);
+    if (activePost == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Create/select a post first.')),
+      );
+      return;
+    }
     if (count == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Select source items first.')),
@@ -581,6 +652,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
     final selectedSourceIds = _selectedIds.toList(growable: false);
     final draftRepo = ref.read(draftRepoProvider);
+    final styleProfile =
+        await ref.read(styleProfileRepoProvider).getOrCreateDefault();
     final selectedSourceItems = await ref
         .read(sourceRepoProvider)
         .getSourceItemsByIds(selectedSourceIds);
@@ -604,11 +677,18 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                     },
                   )
                   .toList(growable: false),
-              'intent': 'how_to',
+              'intent': _intentForContentType(activePost.contentType),
               'tone': 0.6,
               'punchiness': 0.7,
-              'audience': 'builders',
+              'audience': activePost.audience ?? 'builders',
               'length_target': 'short',
+              'post_id': activePost.id,
+              'post_title': activePost.title,
+              'post_goal': activePost.goal,
+              'content_type': activePost.contentType,
+              'style_traits': styleProfile.personalTraits,
+              'differentiation_points': styleProfile.differentiationPoints,
+              'personal_prompt': styleProfile.customPrompt,
             }),
           );
 
@@ -626,7 +706,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           throw Exception('Missing draft_id in response');
         }
         if (canonicalMarkdown.isEmpty) {
-          canonicalMarkdown = _buildLocalDraftTemplate(selectedSourceIds);
+          canonicalMarkdown = _buildLocalDraftTemplate(
+            selectedSourceIds,
+            contentType: activePost.contentType,
+          );
         }
       } else {
         draftId = '';
@@ -635,9 +718,14 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
       if (draftId.isEmpty) {
         draftId = await draftRepo.createDraft(
-          canonicalMarkdown: _buildLocalDraftTemplate(selectedSourceIds),
-          intent: 'how_to',
-          audience: 'builders',
+          canonicalMarkdown: _buildLocalDraftTemplate(
+            selectedSourceIds,
+            contentType: activePost.contentType,
+          ),
+          intent: _intentForContentType(activePost.contentType),
+          audience: activePost.audience ?? 'builders',
+          postId: activePost.id,
+          contentType: activePost.contentType,
         );
         if (!mounted) {
           return;
@@ -653,10 +741,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         await draftRepo.createDraft(
           id: draftId,
           canonicalMarkdown: canonicalMarkdown,
-          intent: 'how_to',
+          intent: _intentForContentType(activePost.contentType),
           tone: 0.6,
           punchiness: 0.7,
-          audience: 'builders',
+          audience: activePost.audience ?? 'builders',
+          postId: activePost.id,
+          contentType: activePost.contentType,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -699,18 +789,35 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     }
   }
 
-  String _buildLocalDraftTemplate(List<String> sourceIds) {
+  String _buildLocalDraftTemplate(
+    List<String> sourceIds, {
+    required String contentType,
+  }) {
     final sourceHint = sourceIds.take(3).join(', ');
+    final outlineHint = switch (contentType) {
+      'coding_guide' =>
+        '- Setup and prerequisites\n- Step-by-step implementation\n- Verification and pitfalls',
+      'ai_tool_guide' =>
+        '- Use-case and tool setup\n- Prompt template and parameters\n- Guardrails, cost, and failure modes',
+      _ => '- What changed\n- Why this matters now',
+    };
     return '''
 # Draft
 
 Hook: Quick synthesis from selected inbox captures.
 
 - Source IDs: ${sourceHint.isEmpty ? 'none' : sourceHint}
-- What changed
-- Why this matters now
+$outlineHint
 
 Takeaway: Start with one testable claim and iterate.
 ''';
+  }
+
+  String _intentForContentType(String contentType) {
+    return switch (contentType) {
+      'coding_guide' => 'guide',
+      'ai_tool_guide' => 'tool_guide',
+      _ => 'how_to',
+    };
   }
 }

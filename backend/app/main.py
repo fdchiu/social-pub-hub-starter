@@ -83,6 +83,8 @@ def _serialize_draft(item: Draft) -> dict[str, Any]:
         "punchiness": item.punchiness,
         "emoji_level": item.emoji_level,
         "audience": item.audience,
+        "post_id": item.post_id,
+        "content_type": item.content_type,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
         "deleted_at": item.deleted_at,
@@ -124,6 +126,9 @@ def _serialize_style_profile(item: StyleProfile) -> dict[str, Any]:
         "punchiness": item.punchiness,
         "emoji_level": item.emoji_level,
         "banned_phrases": item.banned_phrases,
+        "personal_traits": item.personal_traits,
+        "differentiation_points": item.differentiation_points,
+        "custom_prompt": item.custom_prompt,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
         "deleted_at": item.deleted_at,
@@ -184,6 +189,8 @@ def _apply_draft_upsert(db: Session, payload: DraftSyncItem) -> None:
     item.punchiness = payload.punchiness
     item.emoji_level = payload.emoji_level
     item.audience = payload.audience
+    item.post_id = payload.post_id
+    item.content_type = payload.content_type
     item.updated_at = incoming_updated_at
     item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None
     item.sync_cursor = _next_cursor(db)
@@ -258,6 +265,9 @@ def _apply_style_profile_upsert(db: Session, payload: StyleProfileSyncItem) -> N
     item.punchiness = payload.punchiness
     item.emoji_level = payload.emoji_level
     item.banned_phrases = payload.banned_phrases
+    item.personal_traits = payload.personal_traits
+    item.differentiation_points = payload.differentiation_points
+    item.custom_prompt = payload.custom_prompt
     item.updated_at = incoming_updated_at
     item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None
     item.sync_cursor = _next_cursor(db)
@@ -317,6 +327,12 @@ def _canonical_template(
     source_ids: list[str],
     audience: str,
     source_materials: list[SourceMaterial],
+    content_type: str,
+    post_title: str | None,
+    post_goal: str | None,
+    style_traits: list[str],
+    differentiation_points: list[str],
+    personal_prompt: str | None,
 ) -> str:
     source_hint = ", ".join(source_ids[:3]) if source_ids else "recent captures"
     evidence_lines = [
@@ -329,18 +345,94 @@ def _canonical_template(
         if evidence_lines
         else "- What changed\n- Why it matters now\n- One tradeoff I would watch"
     )
+    normalized_type = (content_type or "general_post").strip().lower()
+    title_line = f"Title: {post_title.strip()}\n\n" if post_title and post_title.strip() else ""
+    goal_line = f"Goal: {post_goal.strip()}\n\n" if post_goal and post_goal.strip() else ""
+    traits_line = (
+        f"Style traits: {', '.join(style_traits[:6])}\n"
+        if style_traits
+        else ""
+    )
+    diff_line = (
+        f"Differentiation points: {', '.join(differentiation_points[:6])}\n"
+        if differentiation_points
+        else ""
+    )
+    prompt_line = (
+        f"Personal prompt: {personal_prompt.strip()}\n"
+        if personal_prompt and personal_prompt.strip()
+        else ""
+    )
+    style_block = (
+        f"{traits_line}{diff_line}{prompt_line}".strip()
+        if (traits_line or diff_line or prompt_line)
+        else "Style traits: practical, direct, specific"
+    )
+
+    if normalized_type == "coding_guide":
+        return (
+            "# Draft\n\n"
+            f"{title_line}{goal_line}"
+            f"Hook: Practical coding guide for {audience}; source baseline from {source_hint}.\n\n"
+            "## Problem and context\n"
+            f"{evidence_block}\n\n"
+            "## Prerequisites\n"
+            "- Environment\n- Dependencies\n- Constraints\n\n"
+            "## Step-by-step implementation\n"
+            "- Step 1\n- Step 2\n- Step 3\n\n"
+            "## Pitfalls and tradeoffs\n"
+            "- What can fail\n- What to monitor\n\n"
+            "## Verification checklist\n"
+            "- Test case\n- Expected output\n\n"
+            f"{style_block}\n"
+        )
+    if normalized_type == "ai_tool_guide":
+        return (
+            "# Draft\n\n"
+            f"{title_line}{goal_line}"
+            f"Hook: Applied AI tool guide for {audience}; evidence from {source_hint}.\n\n"
+            "## Use-case\n"
+            f"{evidence_block}\n\n"
+            "## Tool setup\n"
+            "- Account/model/config\n\n"
+            "## Prompt template\n"
+            "```text\nRole:\nInput:\nConstraints:\nOutput format:\n```\n\n"
+            "## Parameters and iteration loop\n"
+            "- Temperature / tokens / retries\n- Quality checks\n\n"
+            "## Failure modes and guardrails\n"
+            "- Hallucination control\n- Privacy boundaries\n\n"
+            "## Cost/time notes\n"
+            "- Approximate run cost\n- Latency tradeoffs\n\n"
+            f"{style_block}\n"
+        )
     return (
         "# Draft\n\n"
+        f"{title_line}{goal_line}"
         f"Hook: My latest {intent.replace('_', ' ')} for {audience} came from {source_hint}.\n\n"
         f"{evidence_block}\n\n"
         "Takeaway: Keep it simple, then iterate from feedback.\n\n"
+        f"{style_block}\n"
         "Question: What would you test first?"
     )
 
 
-def _variant_template(platform: str, canonical: str) -> str:
+def _variant_template(platform: str, canonical: str, content_type: str) -> str:
     first_line = canonical.splitlines()[2] if len(canonical.splitlines()) > 2 else "Quick take:"
     bullet = "•"
+    normalized_type = (content_type or "general_post").strip().lower()
+
+    if normalized_type == "coding_guide" and platform == "x":
+        return (
+            f"{first_line}\n\n"
+            f"{bullet} Problem\n{bullet} Fix\n{bullet} Verify\n\n"
+            "Need a deeper walkthrough?"
+        )
+    if normalized_type == "ai_tool_guide" and platform == "x":
+        return (
+            f"{first_line}\n\n"
+            f"{bullet} Prompt shape\n{bullet} Guardrail\n{bullet} Cost note\n\n"
+            "What tool should I benchmark next?"
+        )
 
     if platform == "x":
         return f"{first_line}\n\n{bullet} One key detail\n{bullet} One tradeoff\n\nWhat would you add?"
@@ -588,6 +680,12 @@ def drafts_from_sources(
         payload.source_ids,
         payload.audience,
         payload.source_materials,
+        payload.content_type,
+        payload.post_title,
+        payload.post_goal,
+        payload.style_traits,
+        payload.differentiation_points,
+        payload.personal_prompt,
     )
     polished, model, fallback_reason = _polish_with_llm(
         canonical_markdown=canonical_template,
@@ -603,6 +701,8 @@ def drafts_from_sources(
         tone=payload.tone,
         punchiness=payload.punchiness,
         audience=payload.audience,
+        post_id=payload.post_id,
+        content_type=payload.content_type,
         created_at=now,
         updated_at=now,
         sync_cursor=_next_cursor(db),
@@ -629,12 +729,17 @@ def draft_variants(
         raise HTTPException(status_code=404, detail="Draft not found")
 
     platforms = payload.platforms or ["x", "linkedin"]
+    content_type = payload.content_type or draft.content_type or "general_post"
     variants: list[dict[str, Any]] = []
 
     for platform in platforms:
         variant_id = f"{draft_id}_{platform}"
         now = utc_now()
-        variant_text = _variant_template(platform, draft.canonical_markdown)
+        variant_text = _variant_template(
+            platform,
+            draft.canonical_markdown,
+            content_type,
+        )
         variant = db.get(Variant, variant_id)
         if variant is None:
             variant = Variant(

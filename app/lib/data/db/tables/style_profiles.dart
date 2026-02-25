@@ -17,6 +17,16 @@ class StyleProfiles extends Table {
       .map(const StringListConverter())
       .withDefault(const Constant('[]'))();
 
+  TextColumn get personalTraits => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
+
+  TextColumn get differentiationPoints => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
+
+  TextColumn get customPrompt => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();

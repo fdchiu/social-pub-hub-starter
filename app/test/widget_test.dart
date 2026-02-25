@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:social_pub_hub/data/db/app_db.dart';
 import 'package:social_pub_hub/main.dart';
+import 'package:social_pub_hub/providers/post_scope_providers.dart';
 import 'package:social_pub_hub/providers/repo_providers.dart';
 import 'package:social_pub_hub/providers/sync_providers.dart';
 
@@ -13,6 +14,12 @@ void main() {
         overrides: [
           sourceItemsStreamProvider.overrideWith(
             (ref) => Stream.value(const <SourceItem>[]),
+          ),
+          scopedSourceItemsStreamProvider.overrideWith(
+            (ref) => Stream.value(const <SourceItem>[]),
+          ),
+          postsStreamProvider.overrideWith(
+            (ref) => Stream.value(const <Post>[]),
           ),
           bundlesStreamProvider.overrideWith(
             (ref) => Stream.value(const <Bundle>[]),
