@@ -689,6 +689,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               'style_traits': styleProfile.personalTraits,
               'differentiation_points': styleProfile.differentiationPoints,
               'personal_prompt': styleProfile.customPrompt,
+              'banned_phrases': styleProfile.bannedPhrases,
             }),
           );
 

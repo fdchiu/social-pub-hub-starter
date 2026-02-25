@@ -162,7 +162,8 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
             "post_goal": "Teach setup and pitfalls",
             "style_traits": ["practical", "specific"],
             "differentiation_points": ["show tradeoffs"],
-            "personal_prompt": "Include one caveat.",
+            "personal_prompt": "Include marker BAN_ME_MARKER once.",
+            "banned_phrases": ["BAN_ME_MARKER"],
             "audience": "engineers",
             "tone": 0.6,
             "punchiness": 0.7,
@@ -176,6 +177,7 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
     assert isinstance(draft_id, str) and draft_id
     assert "Hook:" in draft_payload["canonical_markdown"]
     assert "Step-by-step implementation" in draft_payload["canonical_markdown"]
+    assert "ban_me_marker" not in draft_payload["canonical_markdown"].lower()
 
     polish_response = client.post(
         f"/drafts/{draft_id}/polish",

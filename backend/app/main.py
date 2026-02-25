@@ -944,6 +944,7 @@ def drafts_from_sources(
 ) -> dict[str, Any]:
     draft_id = _new_id("draft")
     now = utc_now()
+    banned = [phrase for phrase in payload.banned_phrases if phrase.strip()]
     canonical_template = _canonical_template(
         payload.intent,
         payload.source_ids,
@@ -960,9 +961,11 @@ def drafts_from_sources(
         canonical_markdown=canonical_template,
         source_materials=payload.source_materials,
         strictness=max(payload.punchiness, 0.7),
-        banned=[],
+        banned=banned,
     )
     canonical = polished or canonical_template
+    if banned:
+        canonical = _humanize_text(canonical, max(payload.punchiness, 0.7), banned)
     draft = Draft(
         id=draft_id,
         canonical_markdown=canonical,

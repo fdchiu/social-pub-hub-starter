@@ -177,6 +177,7 @@ class DraftFromSourcesRequest(BaseModel):
     style_traits: list[str] = Field(default_factory=list)
     differentiation_points: list[str] = Field(default_factory=list)
     personal_prompt: str | None = None
+    banned_phrases: list[str] = Field(default_factory=list)
 
 
 class DraftPolishRequest(BaseModel):

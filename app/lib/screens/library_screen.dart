@@ -480,6 +480,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               'style_traits': styleProfile.personalTraits,
               'differentiation_points': styleProfile.differentiationPoints,
               'personal_prompt': styleProfile.customPrompt,
+              'banned_phrases': styleProfile.bannedPhrases,
             }),
           );
 
