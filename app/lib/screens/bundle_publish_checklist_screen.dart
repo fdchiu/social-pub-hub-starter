@@ -359,8 +359,11 @@ class _BundlePublishChecklistScreenState
         await ref.read(styleProfileRepoProvider).getOrCreateDefault();
     final tone = styleProfile.casualFormal.clamp(0.0, 1.0).toDouble();
     final punchiness = styleProfile.punchiness.clamp(0.0, 1.0).toDouble();
-    final localCanonical =
-        _canonicalFromSources(report.bundle, report.linkedSources);
+    final localCanonical = _canonicalFromSources(
+      report.bundle,
+      report.linkedSources,
+      contentType: contentType,
+    );
 
     final draftRepo = ref.read(draftRepoProvider);
     var draftId = '';
@@ -526,6 +529,7 @@ class _BundlePublishChecklistScreenState
 
     final variantRepo = ref.read(variantRepoProvider);
     final createdIds = <String>[];
+    var contentType = 'general_post';
     var fallbackReason = '';
     try {
       final styleProfile =
@@ -536,7 +540,7 @@ class _BundlePublishChecklistScreenState
       final post = postId == null
           ? activePost
           : await ref.read(postRepoProvider).getPostById(postId);
-      final contentType = draft?.contentType ?? post?.contentType;
+      contentType = draft?.contentType ?? post?.contentType ?? 'general_post';
 
       final baseUrl = ref.read(apiBaseUrlProvider);
       final response = await ref.read(httpClientProvider).post(
@@ -579,7 +583,7 @@ class _BundlePublishChecklistScreenState
         final variantId = await variantRepo.createVariant(
           draftId: draftId,
           platform: platform,
-          body: _variantTemplate(platform),
+          body: _variantTemplate(platform, contentType: contentType),
         );
         createdIds.add(variantId);
       }
@@ -627,7 +631,42 @@ class _BundlePublishChecklistScreenState
     }
   }
 
-  String _variantTemplate(String platform) {
+  String _variantTemplate(String platform, {required String contentType}) {
+    final normalizedType = contentType.trim().toLowerCase();
+    if (normalizedType == 'coding_guide') {
+      if (platform == 'x') {
+        return 'Coding guide quick take:\n- Problem\n- Fix\n- Verify\nWhat edge case should I add?';
+      }
+      if (platform == 'linkedin') {
+        return 'Coding guide:\n• Setup\n• Implementation steps\n• Verification\nWhat would you change?';
+      }
+      if (platform == 'reddit') {
+        return 'Context + implementation tradeoff:\nI tested a practical coding path and saw mixed results.\nWhat should I benchmark next?';
+      }
+      if (platform == 'facebook') {
+        return 'Coding walkthrough update:\n- Setup\n- Steps\n- Pitfall to avoid\nThoughts?';
+      }
+      if (platform == 'youtube') {
+        return 'Title: Practical coding guide breakdown\nDescription:\n- Problem\n- Implementation\n- Verification\nPinned comment: Which case should I test next?';
+      }
+    }
+    if (normalizedType == 'ai_tool_guide') {
+      if (platform == 'x') {
+        return 'AI tool guide:\n- Prompt shape\n- Guardrail\n- Cost note\nWhat tool should I compare next?';
+      }
+      if (platform == 'linkedin') {
+        return 'AI workflow note:\n• Use-case\n• Prompt template\n• Guardrails and cost\nHow are you running this?';
+      }
+      if (platform == 'reddit') {
+        return 'AI tooling context + tradeoff:\nI tested a prompt workflow and saw mixed results.\nWhat parameters would you tune first?';
+      }
+      if (platform == 'facebook') {
+        return 'AI tool update:\n- Use-case\n- Prompt template\n- Failure mode to watch\nWould you use this flow?';
+      }
+      if (platform == 'youtube') {
+        return 'Title: Practical AI tool workflow\nDescription:\n- Use-case\n- Prompt + parameters\n- Guardrails/cost\nPinned comment: What tool should I test next?';
+      }
+    }
     if (platform == 'x') {
       return 'Quick build update:\n- What changed\n- Tradeoff\nWhat would you test next?';
     }
@@ -646,7 +685,11 @@ class _BundlePublishChecklistScreenState
     return 'Platform variant draft';
   }
 
-  String _canonicalFromSources(Bundle bundle, List<SourceItem> sources) {
+  String _canonicalFromSources(
+    Bundle bundle,
+    List<SourceItem> sources, {
+    required String contentType,
+  }) {
     final bullets = sources.take(5).map((source) {
       final label = source.title?.trim().isNotEmpty == true
           ? source.title!.trim()
@@ -657,6 +700,41 @@ class _BundlePublishChecklistScreenState
                   : source.type));
       return '- $label';
     }).join('\n');
+    final normalizedType = contentType.trim().toLowerCase();
+    if (normalizedType == 'coding_guide') {
+      return '''
+# ${bundle.name}
+
+Hook: Practical coding walkthrough from this bundle.
+
+Sources:
+$bullets
+
+Guide shape:
+- Setup and prerequisites
+- Step-by-step implementation
+- Verification and pitfalls
+
+Takeaway: Start with one testable path, then iterate.
+''';
+    }
+    if (normalizedType == 'ai_tool_guide') {
+      return '''
+# ${bundle.name}
+
+Hook: Applied AI tool workflow pulled from this bundle.
+
+Sources:
+$bullets
+
+Guide shape:
+- Use-case and setup
+- Prompt template + parameters
+- Guardrails, cost, and failure modes
+
+Takeaway: Start narrow, measure, then harden.
+''';
+    }
     return '''
 # ${bundle.name}
 
