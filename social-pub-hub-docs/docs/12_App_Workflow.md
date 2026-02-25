@@ -80,6 +80,7 @@ Exit criteria:
 
 ### Publish (`/publish`)
 Goal: execute publishing safely.
+- Scope recent publish logs to active post by default; toggle “Include all posts” when needed.
 - Review integration capability/connection state.
 - For each variant: assisted publish (copy/open/confirm) or direct publish if available.
 - Confirm final status in publish logs.

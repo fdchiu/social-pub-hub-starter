@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
+import '../widgets/post_scope_header.dart';
 
 class PublishConsoleScreen extends ConsumerStatefulWidget {
   const PublishConsoleScreen({super.key, this.initialBundleId});
@@ -26,6 +28,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
   String _statusFilter = 'all';
   String _modeFilter = 'all';
   String _query = '';
+  bool _includeAllPosts = false;
 
   @override
   void initState() {
@@ -49,6 +52,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
     final integrationsAsync = ref.watch(integrationsProvider);
     final logsAsync = ref.watch(publishLogsStreamProvider);
     final bundlesAsync = ref.watch(bundlesStreamProvider);
+    final activePost = ref.watch(activePostProvider);
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -109,6 +113,22 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
             error: (error, _) => Text('Failed loading integrations: $error'),
           ),
           const SizedBox(height: 20),
+          const PostScopeHeader(showGlobalToggle: false),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            value: _includeAllPosts,
+            onChanged: (value) {
+              setState(() {
+                _includeAllPosts = value;
+              });
+            },
+            title: const Text('Include all posts'),
+            subtitle: const Text(
+              'Show publish logs from all posts instead of only active post',
+            ),
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Text(
@@ -177,8 +197,13 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                   const SizedBox(height: 8),
                   logsAsync.when(
                     data: (logs) {
+                      final scopedLogs = _scopeLogs(
+                        logs,
+                        activePostId: activePost?.id,
+                        includeAllPosts: _includeAllPosts,
+                      );
                       final bundleFilteredLogs =
-                          _filterLogsForBundle(logs, selectedBundle);
+                          _filterLogsForBundle(scopedLogs, selectedBundle);
                       final statusOptions = <String>{
                         'all',
                         ...bundleFilteredLogs
@@ -204,6 +229,13 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                         selectedMode: selectedMode,
                       );
                       if (bundleFilteredLogs.isEmpty) {
+                        if (scopedLogs.isEmpty) {
+                          return Text(
+                            _includeAllPosts
+                                ? 'No publish logs yet.'
+                                : 'No publish logs for active post scope.',
+                          );
+                        }
                         if (selectedBundle == null) {
                           return const Text('No publish logs yet.');
                         }
@@ -298,6 +330,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                                     '${log.platform.toUpperCase()} · ${log.status}',
                                   ),
                                   subtitle: Text(
+                                    'post=${log.postId == null ? 'unscoped' : _shortId(log.postId!)} · '
                                     'mode=${log.mode} · postedAt=${log.postedAt?.toLocal().toIso8601String() ?? '-'}',
                                   ),
                                   trailing: PopupMenuButton<_LogAction>(
@@ -429,6 +462,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
   Future<void> _exportFilteredLogsCsv() async {
     final logs = ref.read(publishLogsStreamProvider).valueOrNull;
     final bundles = ref.read(bundlesStreamProvider).valueOrNull;
+    final activePost = ref.read(activePostProvider);
 
     if (logs == null) {
       if (!mounted) {
@@ -440,9 +474,30 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
       return;
     }
 
+    final scopedLogs = _scopeLogs(
+      logs,
+      activePostId: activePost?.id,
+      includeAllPosts: _includeAllPosts,
+    );
+    if (scopedLogs.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _includeAllPosts
+                ? 'No publish logs to export'
+                : 'No logs in active post scope',
+          ),
+        ),
+      );
+      return;
+    }
+
     final bundle =
         _findBundleById(bundles ?? const <Bundle>[], _selectedBundleId);
-    final bundleFiltered = _filterLogsForBundle(logs, bundle);
+    final bundleFiltered = _filterLogsForBundle(scopedLogs, bundle);
     final statusOptions = <String>{
       'all',
       ...bundleFiltered.map((row) => row.status.toLowerCase()),
@@ -471,7 +526,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
     }
 
     final lines = <String>[
-      'id,platform,status,mode,variant_id,external_url,posted_at,created_at',
+      'id,platform,status,mode,variant_id,post_id,external_url,posted_at,created_at',
       ...filtered.map((row) {
         return [
           _csv(row.id),
@@ -479,6 +534,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
           _csv(row.status),
           _csv(row.mode),
           _csv(row.variantId ?? ''),
+          _csv(row.postId ?? ''),
           _csv(row.externalUrl ?? ''),
           _csv(row.postedAt?.toUtc().toIso8601String() ?? ''),
           _csv(row.createdAt.toUtc().toIso8601String()),
@@ -530,6 +586,10 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
     if (variantId != null && variantId.isNotEmpty) {
       query['variantId'] = variantId;
     }
+    final postId = log.postId?.trim();
+    if (postId != null && postId.isNotEmpty) {
+      query['postId'] = postId;
+    }
     final uri = Uri(path: '/history', queryParameters: query);
     context.go(uri.toString());
   }
@@ -542,6 +602,26 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
     setState(() {
       _query = next;
     });
+  }
+
+  List<PublishLog> _scopeLogs(
+    List<PublishLog> logs, {
+    required String? activePostId,
+    required bool includeAllPosts,
+  }) {
+    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
+      return logs;
+    }
+    return logs
+        .where((row) => row.postId != null && row.postId == activePostId)
+        .toList(growable: false);
+  }
+
+  String _shortId(String id) {
+    if (id.length <= 8) {
+      return id;
+    }
+    return id.substring(0, 8);
   }
 }
 
