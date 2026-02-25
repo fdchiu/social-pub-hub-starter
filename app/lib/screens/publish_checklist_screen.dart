@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
+import '../widgets/post_scope_header.dart';
 
 class PublishChecklistScreen extends ConsumerStatefulWidget {
   const PublishChecklistScreen({
@@ -26,6 +28,7 @@ class _PublishChecklistScreenState
     extends ConsumerState<PublishChecklistScreen> {
   String? _selectedDraftId;
   late final Future<StyleProfile> _styleProfileFuture;
+  bool _includeAllPosts = false;
 
   @override
   void initState() {
@@ -40,7 +43,10 @@ class _PublishChecklistScreenState
 
   @override
   Widget build(BuildContext context) {
-    final draftsAsync = ref.watch(draftsStreamProvider);
+    final activePost = ref.watch(activePostProvider);
+    final draftsAsync = _includeAllPosts
+        ? ref.watch(allDraftsStreamProvider)
+        : ref.watch(scopedDraftsStreamProvider);
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -50,8 +56,32 @@ class _PublishChecklistScreenState
       body: draftsAsync.when(
         data: (drafts) {
           if (drafts.isEmpty) {
-            return const Center(
-                child: Text('No draft found. Create one first.'));
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const PostScopeHeader(showGlobalToggle: false),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  value: _includeAllPosts,
+                  onChanged: (value) {
+                    setState(() {
+                      _includeAllPosts = value;
+                    });
+                  },
+                  title: const Text('Include all posts'),
+                  subtitle: const Text(
+                    'Show drafts from all posts instead of only active post',
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _includeAllPosts
+                      ? 'No draft found. Create one first.'
+                      : 'No drafts found for active post scope.',
+                ),
+              ],
+            );
           }
 
           final selectedDraft = _resolveSelectedDraft(drafts);
@@ -84,6 +114,22 @@ class _PublishChecklistScreenState
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  const PostScopeHeader(showGlobalToggle: false),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    value: _includeAllPosts,
+                    onChanged: (value) {
+                      setState(() {
+                        _includeAllPosts = value;
+                      });
+                    },
+                    title: const Text('Include all posts'),
+                    subtitle: const Text(
+                      'Show drafts from all posts instead of only active post',
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: selectedValue,
                     decoration: const InputDecoration(
@@ -112,6 +158,15 @@ class _PublishChecklistScreenState
                     'Draft: ${selectedDraft.id.substring(0, 8)}',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
+                  if (selectedDraft.postId != null ||
+                      (!_includeAllPosts && activePost != null))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Post: ${selectedDraft.postId ?? activePost!.id}',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                    ),
                   const SizedBox(height: 4),
                   Text(
                     'Intent: ${selectedDraft.intent ?? 'n/a'}  •  Audience: ${selectedDraft.audience ?? 'n/a'}',
