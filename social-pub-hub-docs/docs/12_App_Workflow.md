@@ -121,6 +121,7 @@ Goal: audit + reuse.
 - Filter by platform/status.
 - Open posted URL.
 - Clone winning variant into a post-scoped draft while preserving content type intent.
+- Delete stale history rows when needed (syncs deletion).
 - Publish logs carry `post_id` when variant is linked.
 Exit criteria:
 - learnings captured and reusable.

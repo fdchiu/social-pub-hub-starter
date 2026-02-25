@@ -389,6 +389,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                                     .openExternalUrl &&
                                             item.externalUrl != null) {
                                           _openExternalUrl(item.externalUrl!);
+                                          return;
+                                        }
+                                        if (action ==
+                                            _HistoryAction.deleteLog) {
+                                          _deleteLog(item);
                                         }
                                       },
                                       itemBuilder: (context) {
@@ -415,6 +420,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                             ),
                                           );
                                         }
+                                        menu.add(
+                                          const PopupMenuItem(
+                                            value: _HistoryAction.deleteLog,
+                                            child: Text('Delete log'),
+                                          ),
+                                        );
                                         if (menu.isEmpty) {
                                           menu.add(
                                             const PopupMenuItem(
@@ -508,6 +519,39 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         const SnackBar(content: Text('Unable to open URL')),
       );
     }
+  }
+
+  Future<void> _deleteLog(PublishLog log) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete history log?'),
+            content: const Text(
+              'This permanently removes the history row and syncs deletion.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) {
+      return;
+    }
+    await ref.read(publishLogRepoProvider).deletePublishLog(log.id);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('History log deleted')),
+    );
   }
 
   String _shortId(String id) {
@@ -705,6 +749,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 enum _HistoryAction {
   cloneAsDraft,
   openExternalUrl,
+  deleteLog,
 }
 
 enum _HistoryWindow {

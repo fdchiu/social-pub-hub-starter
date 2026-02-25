@@ -49,6 +49,23 @@ class PublishLogRepo {
     return id;
   }
 
+  Future<void> deletePublishLog(String publishLogId) async {
+    await _db.transaction(() async {
+      final now = DateTime.now().toUtc();
+      await _db.into(_db.syncTombstones).insertOnConflictUpdate(
+            SyncTombstonesCompanion.insert(
+              id: 'publish_logs:$publishLogId',
+              entityType: 'publish_logs',
+              entityId: publishLogId,
+              createdAt: Value(now),
+            ),
+          );
+      await (_db.delete(_db.publishLogs)
+            ..where((t) => t.id.equals(publishLogId)))
+          .go();
+    });
+  }
+
   Future<String?> _resolvePostId({
     String? variantId,
     String? postId,
