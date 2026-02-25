@@ -918,6 +918,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         '${summary.pushedDrafts}/${summary.pushedVariants}/'
         '${summary.pushedPublishLogs}/${summary.pushedStyleProfiles}/'
         '${summary.pushedScheduledPosts}\n'
+        'Pushed deletes src/proj/post/b/d/v/p/s/q: '
+        '${summary.pushedDeletedSourceItems}/${summary.pushedDeletedProjects}/${summary.pushedDeletedPosts}/'
+        '${summary.pushedDeletedBundles}/'
+        '${summary.pushedDeletedDrafts}/${summary.pushedDeletedVariants}/'
+        '${summary.pushedDeletedPublishLogs}/${summary.pushedDeletedStyleProfiles}/'
+        '${summary.pushedDeletedScheduledPosts}\n'
         'Pulled src/proj/post/b/d/v/p/s/q: '
         '${summary.pulledSourceItems}/${summary.pulledProjects}/${summary.pulledPosts}/'
         '${summary.pulledBundles}/'
@@ -1053,6 +1059,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'publish_logs': summary.pushedPublishLogs,
         'style_profiles': summary.pushedStyleProfiles,
         'scheduled_posts': summary.pushedScheduledPosts,
+      },
+      'pushed_deletes': {
+        'source_items': summary.pushedDeletedSourceItems,
+        'projects': summary.pushedDeletedProjects,
+        'posts': summary.pushedDeletedPosts,
+        'bundles': summary.pushedDeletedBundles,
+        'drafts': summary.pushedDeletedDrafts,
+        'variants': summary.pushedDeletedVariants,
+        'publish_logs': summary.pushedDeletedPublishLogs,
+        'style_profiles': summary.pushedDeletedStyleProfiles,
+        'scheduled_posts': summary.pushedDeletedScheduledPosts,
       },
       'pulled': {
         'source_items': summary.pulledSourceItems,

@@ -19,6 +19,15 @@ class SyncSummary {
     required this.pushedPublishLogs,
     required this.pushedStyleProfiles,
     required this.pushedScheduledPosts,
+    required this.pushedDeletedSourceItems,
+    required this.pushedDeletedProjects,
+    required this.pushedDeletedPosts,
+    required this.pushedDeletedBundles,
+    required this.pushedDeletedDrafts,
+    required this.pushedDeletedVariants,
+    required this.pushedDeletedPublishLogs,
+    required this.pushedDeletedStyleProfiles,
+    required this.pushedDeletedScheduledPosts,
     required this.pulledSourceItems,
     required this.pulledProjects,
     required this.pulledPosts,
@@ -50,6 +59,15 @@ class SyncSummary {
   final int pushedPublishLogs;
   final int pushedStyleProfiles;
   final int pushedScheduledPosts;
+  final int pushedDeletedSourceItems;
+  final int pushedDeletedProjects;
+  final int pushedDeletedPosts;
+  final int pushedDeletedBundles;
+  final int pushedDeletedDrafts;
+  final int pushedDeletedVariants;
+  final int pushedDeletedPublishLogs;
+  final int pushedDeletedStyleProfiles;
+  final int pushedDeletedScheduledPosts;
   final int pulledSourceItems;
   final int pulledProjects;
   final int pulledPosts;
@@ -177,6 +195,15 @@ class SyncService {
       pushedPublishLogs: pushBatch.publishLogIds.length,
       pushedStyleProfiles: pushBatch.styleProfileIds.length,
       pushedScheduledPosts: pushBatch.scheduledPostIds.length,
+      pushedDeletedSourceItems: pushBatch.deletedSourceItems,
+      pushedDeletedProjects: pushBatch.deletedProjects,
+      pushedDeletedPosts: pushBatch.deletedPosts,
+      pushedDeletedBundles: pushBatch.deletedBundles,
+      pushedDeletedDrafts: pushBatch.deletedDrafts,
+      pushedDeletedVariants: pushBatch.deletedVariants,
+      pushedDeletedPublishLogs: pushBatch.deletedPublishLogs,
+      pushedDeletedStyleProfiles: pushBatch.deletedStyleProfiles,
+      pushedDeletedScheduledPosts: pushBatch.deletedScheduledPosts,
       pulledSourceItems: pulledSourceItems.length,
       pulledProjects: pulledProjects.length,
       pulledPosts: pulledPosts.length,
@@ -251,6 +278,17 @@ class SyncService {
       entityDeletes.add(tombstone.entityId);
       pushedTombstoneIds.add(tombstone.id);
     }
+    final pushedDeletedSourceItems = deletesByEntityType['source_items']!.length;
+    final pushedDeletedProjects = deletesByEntityType['projects']!.length;
+    final pushedDeletedPosts = deletesByEntityType['posts']!.length;
+    final pushedDeletedBundles = deletesByEntityType['bundles']!.length;
+    final pushedDeletedDrafts = deletesByEntityType['drafts']!.length;
+    final pushedDeletedVariants = deletesByEntityType['variants']!.length;
+    final pushedDeletedPublishLogs = deletesByEntityType['publish_logs']!.length;
+    final pushedDeletedStyleProfiles =
+        deletesByEntityType['style_profiles']!.length;
+    final pushedDeletedScheduledPosts =
+        deletesByEntityType['scheduled_posts']!.length;
 
     final payload = {
       'upserts': {
@@ -407,6 +445,15 @@ class SyncService {
       styleProfileIds: styleProfiles.map((r) => r.id).toList(growable: false),
       scheduledPostIds: scheduledPosts.map((r) => r.id).toList(growable: false),
       tombstoneIds: pushedTombstoneIds,
+      deletedSourceItems: pushedDeletedSourceItems,
+      deletedProjects: pushedDeletedProjects,
+      deletedPosts: pushedDeletedPosts,
+      deletedBundles: pushedDeletedBundles,
+      deletedDrafts: pushedDeletedDrafts,
+      deletedVariants: pushedDeletedVariants,
+      deletedPublishLogs: pushedDeletedPublishLogs,
+      deletedStyleProfiles: pushedDeletedStyleProfiles,
+      deletedScheduledPosts: pushedDeletedScheduledPosts,
     );
   }
 
@@ -1348,6 +1395,15 @@ class _PushBatch {
     required this.styleProfileIds,
     required this.scheduledPostIds,
     required this.tombstoneIds,
+    required this.deletedSourceItems,
+    required this.deletedProjects,
+    required this.deletedPosts,
+    required this.deletedBundles,
+    required this.deletedDrafts,
+    required this.deletedVariants,
+    required this.deletedPublishLogs,
+    required this.deletedStyleProfiles,
+    required this.deletedScheduledPosts,
   });
 
   final Map<String, dynamic> payload;
@@ -1361,4 +1417,13 @@ class _PushBatch {
   final List<String> styleProfileIds;
   final List<String> scheduledPostIds;
   final List<String> tombstoneIds;
+  final int deletedSourceItems;
+  final int deletedProjects;
+  final int deletedPosts;
+  final int deletedBundles;
+  final int deletedDrafts;
+  final int deletedVariants;
+  final int deletedPublishLogs;
+  final int deletedStyleProfiles;
+  final int deletedScheduledPosts;
 }
