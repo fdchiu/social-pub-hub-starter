@@ -16,6 +16,7 @@ class PublishLogRepo {
 
   Future<String> createPublishLog({
     String? variantId,
+    String? postId,
     required String platform,
     required String mode,
     required String status,
@@ -24,6 +25,10 @@ class PublishLogRepo {
   }) async {
     final id = generateEntityId();
     final now = DateTime.now().toUtc();
+    final resolvedPostId = await _resolvePostId(
+      variantId: variantId,
+      postId: postId,
+    );
 
     await _db.into(_db.publishLogs).insert(
           PublishLogsCompanion.insert(
@@ -32,6 +37,7 @@ class PublishLogRepo {
             mode: mode,
             status: Value(status),
             variantId: Value(variantId),
+            postId: Value(resolvedPostId),
             externalUrl: Value(externalUrl),
             postedAt: Value(postedAt),
             createdAt: Value(now),
@@ -41,5 +47,29 @@ class PublishLogRepo {
         );
 
     return id;
+  }
+
+  Future<String?> _resolvePostId({
+    String? variantId,
+    String? postId,
+  }) async {
+    final normalizedPostId = postId?.trim();
+    if (normalizedPostId != null && normalizedPostId.isNotEmpty) {
+      return normalizedPostId;
+    }
+    final normalizedVariantId = variantId?.trim();
+    if (normalizedVariantId == null || normalizedVariantId.isEmpty) {
+      return null;
+    }
+    final variant = await (_db.select(_db.variants)
+          ..where((t) => t.id.equals(normalizedVariantId)))
+        .getSingleOrNull();
+    if (variant == null) {
+      return null;
+    }
+    final draft = await (_db.select(_db.drafts)
+          ..where((t) => t.id.equals(variant.draftId)))
+        .getSingleOrNull();
+    return draft?.postId;
   }
 }

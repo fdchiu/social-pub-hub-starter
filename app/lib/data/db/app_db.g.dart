@@ -2409,6 +2409,14 @@ class $PublishLogsTable extends PublishLogs
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES variants (id)'));
+  static const VerificationMeta _postIdMeta = const VerificationMeta('postId');
+  @override
+  late final GeneratedColumn<String> postId = GeneratedColumn<String>(
+      'post_id', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES posts (id)'));
   static const VerificationMeta _platformMeta =
       const VerificationMeta('platform');
   @override
@@ -2467,6 +2475,7 @@ class $PublishLogsTable extends PublishLogs
   List<GeneratedColumn> get $columns => [
         id,
         variantId,
+        postId,
         platform,
         mode,
         status,
@@ -2494,6 +2503,10 @@ class $PublishLogsTable extends PublishLogs
     if (data.containsKey('variant_id')) {
       context.handle(_variantIdMeta,
           variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta));
+    }
+    if (data.containsKey('post_id')) {
+      context.handle(_postIdMeta,
+          postId.isAcceptableOrUnknown(data['post_id']!, _postIdMeta));
     }
     if (data.containsKey('platform')) {
       context.handle(_platformMeta,
@@ -2548,6 +2561,8 @@ class $PublishLogsTable extends PublishLogs
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       variantId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}variant_id']),
+      postId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}post_id']),
       platform: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}platform'])!,
       mode: attachedDatabase.typeMapping
@@ -2576,6 +2591,7 @@ class $PublishLogsTable extends PublishLogs
 class PublishLog extends DataClass implements Insertable<PublishLog> {
   final String id;
   final String? variantId;
+  final String? postId;
   final String platform;
   final String mode;
   final String status;
@@ -2587,6 +2603,7 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
   const PublishLog(
       {required this.id,
       this.variantId,
+      this.postId,
       required this.platform,
       required this.mode,
       required this.status,
@@ -2601,6 +2618,9 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
     map['id'] = Variable<String>(id);
     if (!nullToAbsent || variantId != null) {
       map['variant_id'] = Variable<String>(variantId);
+    }
+    if (!nullToAbsent || postId != null) {
+      map['post_id'] = Variable<String>(postId);
     }
     map['platform'] = Variable<String>(platform);
     map['mode'] = Variable<String>(mode);
@@ -2623,6 +2643,8 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
       variantId: variantId == null && nullToAbsent
           ? const Value.absent()
           : Value(variantId),
+      postId:
+          postId == null && nullToAbsent ? const Value.absent() : Value(postId),
       platform: Value(platform),
       mode: Value(mode),
       status: Value(status),
@@ -2644,6 +2666,7 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
     return PublishLog(
       id: serializer.fromJson<String>(json['id']),
       variantId: serializer.fromJson<String?>(json['variantId']),
+      postId: serializer.fromJson<String?>(json['postId']),
       platform: serializer.fromJson<String>(json['platform']),
       mode: serializer.fromJson<String>(json['mode']),
       status: serializer.fromJson<String>(json['status']),
@@ -2660,6 +2683,7 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'variantId': serializer.toJson<String?>(variantId),
+      'postId': serializer.toJson<String?>(postId),
       'platform': serializer.toJson<String>(platform),
       'mode': serializer.toJson<String>(mode),
       'status': serializer.toJson<String>(status),
@@ -2674,6 +2698,7 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
   PublishLog copyWith(
           {String? id,
           Value<String?> variantId = const Value.absent(),
+          Value<String?> postId = const Value.absent(),
           String? platform,
           String? mode,
           String? status,
@@ -2685,6 +2710,7 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
       PublishLog(
         id: id ?? this.id,
         variantId: variantId.present ? variantId.value : this.variantId,
+        postId: postId.present ? postId.value : this.postId,
         platform: platform ?? this.platform,
         mode: mode ?? this.mode,
         status: status ?? this.status,
@@ -2698,6 +2724,7 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
     return PublishLog(
       id: data.id.present ? data.id.value : this.id,
       variantId: data.variantId.present ? data.variantId.value : this.variantId,
+      postId: data.postId.present ? data.postId.value : this.postId,
       platform: data.platform.present ? data.platform.value : this.platform,
       mode: data.mode.present ? data.mode.value : this.mode,
       status: data.status.present ? data.status.value : this.status,
@@ -2716,6 +2743,7 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
     return (StringBuffer('PublishLog(')
           ..write('id: $id, ')
           ..write('variantId: $variantId, ')
+          ..write('postId: $postId, ')
           ..write('platform: $platform, ')
           ..write('mode: $mode, ')
           ..write('status: $status, ')
@@ -2729,7 +2757,7 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
   }
 
   @override
-  int get hashCode => Object.hash(id, variantId, platform, mode, status,
+  int get hashCode => Object.hash(id, variantId, postId, platform, mode, status,
       externalUrl, postedAt, createdAt, updatedAt, syncStatus);
   @override
   bool operator ==(Object other) =>
@@ -2737,6 +2765,7 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
       (other is PublishLog &&
           other.id == this.id &&
           other.variantId == this.variantId &&
+          other.postId == this.postId &&
           other.platform == this.platform &&
           other.mode == this.mode &&
           other.status == this.status &&
@@ -2750,6 +2779,7 @@ class PublishLog extends DataClass implements Insertable<PublishLog> {
 class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
   final Value<String> id;
   final Value<String?> variantId;
+  final Value<String?> postId;
   final Value<String> platform;
   final Value<String> mode;
   final Value<String> status;
@@ -2762,6 +2792,7 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
   const PublishLogsCompanion({
     this.id = const Value.absent(),
     this.variantId = const Value.absent(),
+    this.postId = const Value.absent(),
     this.platform = const Value.absent(),
     this.mode = const Value.absent(),
     this.status = const Value.absent(),
@@ -2775,6 +2806,7 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
   PublishLogsCompanion.insert({
     required String id,
     this.variantId = const Value.absent(),
+    this.postId = const Value.absent(),
     required String platform,
     required String mode,
     this.status = const Value.absent(),
@@ -2790,6 +2822,7 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
   static Insertable<PublishLog> custom({
     Expression<String>? id,
     Expression<String>? variantId,
+    Expression<String>? postId,
     Expression<String>? platform,
     Expression<String>? mode,
     Expression<String>? status,
@@ -2803,6 +2836,7 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (variantId != null) 'variant_id': variantId,
+      if (postId != null) 'post_id': postId,
       if (platform != null) 'platform': platform,
       if (mode != null) 'mode': mode,
       if (status != null) 'status': status,
@@ -2818,6 +2852,7 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
   PublishLogsCompanion copyWith(
       {Value<String>? id,
       Value<String?>? variantId,
+      Value<String?>? postId,
       Value<String>? platform,
       Value<String>? mode,
       Value<String>? status,
@@ -2830,6 +2865,7 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
     return PublishLogsCompanion(
       id: id ?? this.id,
       variantId: variantId ?? this.variantId,
+      postId: postId ?? this.postId,
       platform: platform ?? this.platform,
       mode: mode ?? this.mode,
       status: status ?? this.status,
@@ -2850,6 +2886,9 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
     }
     if (variantId.present) {
       map['variant_id'] = Variable<String>(variantId.value);
+    }
+    if (postId.present) {
+      map['post_id'] = Variable<String>(postId.value);
     }
     if (platform.present) {
       map['platform'] = Variable<String>(platform.value);
@@ -2886,6 +2925,7 @@ class PublishLogsCompanion extends UpdateCompanion<PublishLog> {
     return (StringBuffer('PublishLogsCompanion(')
           ..write('id: $id, ')
           ..write('variantId: $variantId, ')
+          ..write('postId: $postId, ')
           ..write('platform: $platform, ')
           ..write('mode: $mode, ')
           ..write('status: $status, ')
@@ -2920,6 +2960,14 @@ class $ScheduledPostsTable extends ScheduledPosts
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES variants (id)'));
+  static const VerificationMeta _postIdMeta = const VerificationMeta('postId');
+  @override
+  late final GeneratedColumn<String> postId = GeneratedColumn<String>(
+      'post_id', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES posts (id)'));
   static const VerificationMeta _platformMeta =
       const VerificationMeta('platform');
   @override
@@ -2979,6 +3027,7 @@ class $ScheduledPostsTable extends ScheduledPosts
   List<GeneratedColumn> get $columns => [
         id,
         variantId,
+        postId,
         platform,
         content,
         scheduledFor,
@@ -3006,6 +3055,10 @@ class $ScheduledPostsTable extends ScheduledPosts
     if (data.containsKey('variant_id')) {
       context.handle(_variantIdMeta,
           variantId.isAcceptableOrUnknown(data['variant_id']!, _variantIdMeta));
+    }
+    if (data.containsKey('post_id')) {
+      context.handle(_postIdMeta,
+          postId.isAcceptableOrUnknown(data['post_id']!, _postIdMeta));
     }
     if (data.containsKey('platform')) {
       context.handle(_platformMeta,
@@ -3064,6 +3117,8 @@ class $ScheduledPostsTable extends ScheduledPosts
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       variantId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}variant_id']),
+      postId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}post_id']),
       platform: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}platform'])!,
       content: attachedDatabase.typeMapping
@@ -3092,6 +3147,7 @@ class $ScheduledPostsTable extends ScheduledPosts
 class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
   final String id;
   final String? variantId;
+  final String? postId;
   final String platform;
   final String content;
   final DateTime scheduledFor;
@@ -3103,6 +3159,7 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
   const ScheduledPost(
       {required this.id,
       this.variantId,
+      this.postId,
       required this.platform,
       required this.content,
       required this.scheduledFor,
@@ -3117,6 +3174,9 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
     map['id'] = Variable<String>(id);
     if (!nullToAbsent || variantId != null) {
       map['variant_id'] = Variable<String>(variantId);
+    }
+    if (!nullToAbsent || postId != null) {
+      map['post_id'] = Variable<String>(postId);
     }
     map['platform'] = Variable<String>(platform);
     map['content'] = Variable<String>(content);
@@ -3137,6 +3197,8 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
       variantId: variantId == null && nullToAbsent
           ? const Value.absent()
           : Value(variantId),
+      postId:
+          postId == null && nullToAbsent ? const Value.absent() : Value(postId),
       platform: Value(platform),
       content: Value(content),
       scheduledFor: Value(scheduledFor),
@@ -3156,6 +3218,7 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
     return ScheduledPost(
       id: serializer.fromJson<String>(json['id']),
       variantId: serializer.fromJson<String?>(json['variantId']),
+      postId: serializer.fromJson<String?>(json['postId']),
       platform: serializer.fromJson<String>(json['platform']),
       content: serializer.fromJson<String>(json['content']),
       scheduledFor: serializer.fromJson<DateTime>(json['scheduledFor']),
@@ -3172,6 +3235,7 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'variantId': serializer.toJson<String?>(variantId),
+      'postId': serializer.toJson<String?>(postId),
       'platform': serializer.toJson<String>(platform),
       'content': serializer.toJson<String>(content),
       'scheduledFor': serializer.toJson<DateTime>(scheduledFor),
@@ -3186,6 +3250,7 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
   ScheduledPost copyWith(
           {String? id,
           Value<String?> variantId = const Value.absent(),
+          Value<String?> postId = const Value.absent(),
           String? platform,
           String? content,
           DateTime? scheduledFor,
@@ -3197,6 +3262,7 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
       ScheduledPost(
         id: id ?? this.id,
         variantId: variantId.present ? variantId.value : this.variantId,
+        postId: postId.present ? postId.value : this.postId,
         platform: platform ?? this.platform,
         content: content ?? this.content,
         scheduledFor: scheduledFor ?? this.scheduledFor,
@@ -3210,6 +3276,7 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
     return ScheduledPost(
       id: data.id.present ? data.id.value : this.id,
       variantId: data.variantId.present ? data.variantId.value : this.variantId,
+      postId: data.postId.present ? data.postId.value : this.postId,
       platform: data.platform.present ? data.platform.value : this.platform,
       content: data.content.present ? data.content.value : this.content,
       scheduledFor: data.scheduledFor.present
@@ -3230,6 +3297,7 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
     return (StringBuffer('ScheduledPost(')
           ..write('id: $id, ')
           ..write('variantId: $variantId, ')
+          ..write('postId: $postId, ')
           ..write('platform: $platform, ')
           ..write('content: $content, ')
           ..write('scheduledFor: $scheduledFor, ')
@@ -3243,7 +3311,7 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
   }
 
   @override
-  int get hashCode => Object.hash(id, variantId, platform, content,
+  int get hashCode => Object.hash(id, variantId, postId, platform, content,
       scheduledFor, status, externalUrl, createdAt, updatedAt, syncStatus);
   @override
   bool operator ==(Object other) =>
@@ -3251,6 +3319,7 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
       (other is ScheduledPost &&
           other.id == this.id &&
           other.variantId == this.variantId &&
+          other.postId == this.postId &&
           other.platform == this.platform &&
           other.content == this.content &&
           other.scheduledFor == this.scheduledFor &&
@@ -3264,6 +3333,7 @@ class ScheduledPost extends DataClass implements Insertable<ScheduledPost> {
 class ScheduledPostsCompanion extends UpdateCompanion<ScheduledPost> {
   final Value<String> id;
   final Value<String?> variantId;
+  final Value<String?> postId;
   final Value<String> platform;
   final Value<String> content;
   final Value<DateTime> scheduledFor;
@@ -3276,6 +3346,7 @@ class ScheduledPostsCompanion extends UpdateCompanion<ScheduledPost> {
   const ScheduledPostsCompanion({
     this.id = const Value.absent(),
     this.variantId = const Value.absent(),
+    this.postId = const Value.absent(),
     this.platform = const Value.absent(),
     this.content = const Value.absent(),
     this.scheduledFor = const Value.absent(),
@@ -3289,6 +3360,7 @@ class ScheduledPostsCompanion extends UpdateCompanion<ScheduledPost> {
   ScheduledPostsCompanion.insert({
     required String id,
     this.variantId = const Value.absent(),
+    this.postId = const Value.absent(),
     required String platform,
     required String content,
     required DateTime scheduledFor,
@@ -3305,6 +3377,7 @@ class ScheduledPostsCompanion extends UpdateCompanion<ScheduledPost> {
   static Insertable<ScheduledPost> custom({
     Expression<String>? id,
     Expression<String>? variantId,
+    Expression<String>? postId,
     Expression<String>? platform,
     Expression<String>? content,
     Expression<DateTime>? scheduledFor,
@@ -3318,6 +3391,7 @@ class ScheduledPostsCompanion extends UpdateCompanion<ScheduledPost> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (variantId != null) 'variant_id': variantId,
+      if (postId != null) 'post_id': postId,
       if (platform != null) 'platform': platform,
       if (content != null) 'content': content,
       if (scheduledFor != null) 'scheduled_for': scheduledFor,
@@ -3333,6 +3407,7 @@ class ScheduledPostsCompanion extends UpdateCompanion<ScheduledPost> {
   ScheduledPostsCompanion copyWith(
       {Value<String>? id,
       Value<String?>? variantId,
+      Value<String?>? postId,
       Value<String>? platform,
       Value<String>? content,
       Value<DateTime>? scheduledFor,
@@ -3345,6 +3420,7 @@ class ScheduledPostsCompanion extends UpdateCompanion<ScheduledPost> {
     return ScheduledPostsCompanion(
       id: id ?? this.id,
       variantId: variantId ?? this.variantId,
+      postId: postId ?? this.postId,
       platform: platform ?? this.platform,
       content: content ?? this.content,
       scheduledFor: scheduledFor ?? this.scheduledFor,
@@ -3365,6 +3441,9 @@ class ScheduledPostsCompanion extends UpdateCompanion<ScheduledPost> {
     }
     if (variantId.present) {
       map['variant_id'] = Variable<String>(variantId.value);
+    }
+    if (postId.present) {
+      map['post_id'] = Variable<String>(postId.value);
     }
     if (platform.present) {
       map['platform'] = Variable<String>(platform.value);
@@ -3401,6 +3480,7 @@ class ScheduledPostsCompanion extends UpdateCompanion<ScheduledPost> {
     return (StringBuffer('ScheduledPostsCompanion(')
           ..write('id: $id, ')
           ..write('variantId: $variantId, ')
+          ..write('postId: $postId, ')
           ..write('platform: $platform, ')
           ..write('content: $content, ')
           ..write('scheduledFor: $scheduledFor, ')
@@ -5361,6 +5441,35 @@ final class $$PostsTableReferences
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
+
+  static MultiTypedResultKey<$PublishLogsTable, List<PublishLog>>
+      _publishLogsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.publishLogs,
+          aliasName: $_aliasNameGenerator(db.posts.id, db.publishLogs.postId));
+
+  $$PublishLogsTableProcessedTableManager get publishLogsRefs {
+    final manager = $$PublishLogsTableTableManager($_db, $_db.publishLogs)
+        .filter((f) => f.postId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_publishLogsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$ScheduledPostsTable, List<ScheduledPost>>
+      _scheduledPostsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.scheduledPosts,
+              aliasName:
+                  $_aliasNameGenerator(db.posts.id, db.scheduledPosts.postId));
+
+  $$ScheduledPostsTableProcessedTableManager get scheduledPostsRefs {
+    final manager = $$ScheduledPostsTableTableManager($_db, $_db.scheduledPosts)
+        .filter((f) => f.postId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_scheduledPostsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 }
 
 class $$PostsTableFilterComposer extends Composer<_$AppDatabase, $PostsTable> {
@@ -5452,6 +5561,48 @@ class $$PostsTableFilterComposer extends Composer<_$AppDatabase, $PostsTable> {
             $$DraftsTableFilterComposer(
               $db: $db,
               $table: $db.drafts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> publishLogsRefs(
+      Expression<bool> Function($$PublishLogsTableFilterComposer f) f) {
+    final $$PublishLogsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.publishLogs,
+        getReferencedColumn: (t) => t.postId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PublishLogsTableFilterComposer(
+              $db: $db,
+              $table: $db.publishLogs,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> scheduledPostsRefs(
+      Expression<bool> Function($$ScheduledPostsTableFilterComposer f) f) {
+    final $$ScheduledPostsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.scheduledPosts,
+        getReferencedColumn: (t) => t.postId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ScheduledPostsTableFilterComposer(
+              $db: $db,
+              $table: $db.scheduledPosts,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -5615,6 +5766,48 @@ class $$PostsTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> publishLogsRefs<T extends Object>(
+      Expression<T> Function($$PublishLogsTableAnnotationComposer a) f) {
+    final $$PublishLogsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.publishLogs,
+        getReferencedColumn: (t) => t.postId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PublishLogsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.publishLogs,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<T> scheduledPostsRefs<T extends Object>(
+      Expression<T> Function($$ScheduledPostsTableAnnotationComposer a) f) {
+    final $$ScheduledPostsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.scheduledPosts,
+        getReferencedColumn: (t) => t.postId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ScheduledPostsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.scheduledPosts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$PostsTableTableManager extends RootTableManager<
@@ -5629,7 +5822,11 @@ class $$PostsTableTableManager extends RootTableManager<
     (Post, $$PostsTableReferences),
     Post,
     PrefetchHooks Function(
-        {bool projectId, bool sourceItemsRefs, bool draftsRefs})> {
+        {bool projectId,
+        bool sourceItemsRefs,
+        bool draftsRefs,
+        bool publishLogsRefs,
+        bool scheduledPostsRefs})> {
   $$PostsTableTableManager(_$AppDatabase db, $PostsTable table)
       : super(TableManagerState(
           db: db,
@@ -5699,12 +5896,16 @@ class $$PostsTableTableManager extends RootTableManager<
           prefetchHooksCallback: (
               {projectId = false,
               sourceItemsRefs = false,
-              draftsRefs = false}) {
+              draftsRefs = false,
+              publishLogsRefs = false,
+              scheduledPostsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
                 if (sourceItemsRefs) db.sourceItems,
-                if (draftsRefs) db.drafts
+                if (draftsRefs) db.drafts,
+                if (publishLogsRefs) db.publishLogs,
+                if (scheduledPostsRefs) db.scheduledPosts
               ],
               addJoins: <
                   T extends TableManagerState<
@@ -5755,6 +5956,30 @@ class $$PostsTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem: (item,
                                 referencedItems) =>
                             referencedItems.where((e) => e.postId == item.id),
+                        typedResults: items),
+                  if (publishLogsRefs)
+                    await $_getPrefetchedData<Post, $PostsTable, PublishLog>(
+                        currentTable: table,
+                        referencedTable:
+                            $$PostsTableReferences._publishLogsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$PostsTableReferences(db, table, p0)
+                                .publishLogsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.postId == item.id),
+                        typedResults: items),
+                  if (scheduledPostsRefs)
+                    await $_getPrefetchedData<Post, $PostsTable, ScheduledPost>(
+                        currentTable: table,
+                        referencedTable:
+                            $$PostsTableReferences._scheduledPostsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$PostsTableReferences(db, table, p0)
+                                .scheduledPostsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.postId == item.id),
                         typedResults: items)
                 ];
               },
@@ -5775,7 +6000,11 @@ typedef $$PostsTableProcessedTableManager = ProcessedTableManager<
     (Post, $$PostsTableReferences),
     Post,
     PrefetchHooks Function(
-        {bool projectId, bool sourceItemsRefs, bool draftsRefs})>;
+        {bool projectId,
+        bool sourceItemsRefs,
+        bool draftsRefs,
+        bool publishLogsRefs,
+        bool scheduledPostsRefs})>;
 typedef $$SourceItemsTableCreateCompanionBuilder = SourceItemsCompanion
     Function({
   required String id,
@@ -7024,6 +7253,7 @@ typedef $$PublishLogsTableCreateCompanionBuilder = PublishLogsCompanion
     Function({
   required String id,
   Value<String?> variantId,
+  Value<String?> postId,
   required String platform,
   required String mode,
   Value<String> status,
@@ -7038,6 +7268,7 @@ typedef $$PublishLogsTableUpdateCompanionBuilder = PublishLogsCompanion
     Function({
   Value<String> id,
   Value<String?> variantId,
+  Value<String?> postId,
   Value<String> platform,
   Value<String> mode,
   Value<String> status,
@@ -7063,6 +7294,20 @@ final class $$PublishLogsTableReferences
     final manager = $$VariantsTableTableManager($_db, $_db.variants)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_variantIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $PostsTable _postIdTable(_$AppDatabase db) => db.posts
+      .createAlias($_aliasNameGenerator(db.publishLogs.postId, db.posts.id));
+
+  $$PostsTableProcessedTableManager? get postId {
+    final $_column = $_itemColumn<String>('post_id');
+    if ($_column == null) return null;
+    final manager = $$PostsTableTableManager($_db, $_db.posts)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_postIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
@@ -7117,6 +7362,26 @@ class $$PublishLogsTableFilterComposer
             $$VariantsTableFilterComposer(
               $db: $db,
               $table: $db.variants,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$PostsTableFilterComposer get postId {
+    final $$PostsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableFilterComposer(
+              $db: $db,
+              $table: $db.posts,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -7181,6 +7446,26 @@ class $$PublishLogsTableOrderingComposer
             ));
     return composer;
   }
+
+  $$PostsTableOrderingComposer get postId {
+    final $$PostsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableOrderingComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$PublishLogsTableAnnotationComposer
@@ -7238,6 +7523,26 @@ class $$PublishLogsTableAnnotationComposer
             ));
     return composer;
   }
+
+  $$PostsTableAnnotationComposer get postId {
+    final $$PostsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$PublishLogsTableTableManager extends RootTableManager<
@@ -7251,7 +7556,7 @@ class $$PublishLogsTableTableManager extends RootTableManager<
     $$PublishLogsTableUpdateCompanionBuilder,
     (PublishLog, $$PublishLogsTableReferences),
     PublishLog,
-    PrefetchHooks Function({bool variantId})> {
+    PrefetchHooks Function({bool variantId, bool postId})> {
   $$PublishLogsTableTableManager(_$AppDatabase db, $PublishLogsTable table)
       : super(TableManagerState(
           db: db,
@@ -7265,6 +7570,7 @@ class $$PublishLogsTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
             Value<String?> variantId = const Value.absent(),
+            Value<String?> postId = const Value.absent(),
             Value<String> platform = const Value.absent(),
             Value<String> mode = const Value.absent(),
             Value<String> status = const Value.absent(),
@@ -7278,6 +7584,7 @@ class $$PublishLogsTableTableManager extends RootTableManager<
               PublishLogsCompanion(
             id: id,
             variantId: variantId,
+            postId: postId,
             platform: platform,
             mode: mode,
             status: status,
@@ -7291,6 +7598,7 @@ class $$PublishLogsTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             required String id,
             Value<String?> variantId = const Value.absent(),
+            Value<String?> postId = const Value.absent(),
             required String platform,
             required String mode,
             Value<String> status = const Value.absent(),
@@ -7304,6 +7612,7 @@ class $$PublishLogsTableTableManager extends RootTableManager<
               PublishLogsCompanion.insert(
             id: id,
             variantId: variantId,
+            postId: postId,
             platform: platform,
             mode: mode,
             status: status,
@@ -7320,7 +7629,7 @@ class $$PublishLogsTableTableManager extends RootTableManager<
                     $$PublishLogsTableReferences(db, table, e)
                   ))
               .toList(),
-          prefetchHooksCallback: ({variantId = false}) {
+          prefetchHooksCallback: ({variantId = false, postId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -7347,6 +7656,16 @@ class $$PublishLogsTableTableManager extends RootTableManager<
                         $$PublishLogsTableReferences._variantIdTable(db).id,
                   ) as T;
                 }
+                if (postId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.postId,
+                    referencedTable:
+                        $$PublishLogsTableReferences._postIdTable(db),
+                    referencedColumn:
+                        $$PublishLogsTableReferences._postIdTable(db).id,
+                  ) as T;
+                }
 
                 return state;
               },
@@ -7369,11 +7688,12 @@ typedef $$PublishLogsTableProcessedTableManager = ProcessedTableManager<
     $$PublishLogsTableUpdateCompanionBuilder,
     (PublishLog, $$PublishLogsTableReferences),
     PublishLog,
-    PrefetchHooks Function({bool variantId})>;
+    PrefetchHooks Function({bool variantId, bool postId})>;
 typedef $$ScheduledPostsTableCreateCompanionBuilder = ScheduledPostsCompanion
     Function({
   required String id,
   Value<String?> variantId,
+  Value<String?> postId,
   required String platform,
   required String content,
   required DateTime scheduledFor,
@@ -7388,6 +7708,7 @@ typedef $$ScheduledPostsTableUpdateCompanionBuilder = ScheduledPostsCompanion
     Function({
   Value<String> id,
   Value<String?> variantId,
+  Value<String?> postId,
   Value<String> platform,
   Value<String> content,
   Value<DateTime> scheduledFor,
@@ -7414,6 +7735,20 @@ final class $$ScheduledPostsTableReferences
     final manager = $$VariantsTableTableManager($_db, $_db.variants)
         .filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_variantIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $PostsTable _postIdTable(_$AppDatabase db) => db.posts
+      .createAlias($_aliasNameGenerator(db.scheduledPosts.postId, db.posts.id));
+
+  $$PostsTableProcessedTableManager? get postId {
+    final $_column = $_itemColumn<String>('post_id');
+    if ($_column == null) return null;
+    final manager = $$PostsTableTableManager($_db, $_db.posts)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_postIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: [item]));
@@ -7468,6 +7803,26 @@ class $$ScheduledPostsTableFilterComposer
             $$VariantsTableFilterComposer(
               $db: $db,
               $table: $db.variants,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$PostsTableFilterComposer get postId {
+    final $$PostsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableFilterComposer(
+              $db: $db,
+              $table: $db.posts,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -7533,6 +7888,26 @@ class $$ScheduledPostsTableOrderingComposer
             ));
     return composer;
   }
+
+  $$PostsTableOrderingComposer get postId {
+    final $$PostsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableOrderingComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$ScheduledPostsTableAnnotationComposer
@@ -7590,6 +7965,26 @@ class $$ScheduledPostsTableAnnotationComposer
             ));
     return composer;
   }
+
+  $$PostsTableAnnotationComposer get postId {
+    final $$PostsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.postId,
+        referencedTable: $db.posts,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$PostsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$ScheduledPostsTableTableManager extends RootTableManager<
@@ -7603,7 +7998,7 @@ class $$ScheduledPostsTableTableManager extends RootTableManager<
     $$ScheduledPostsTableUpdateCompanionBuilder,
     (ScheduledPost, $$ScheduledPostsTableReferences),
     ScheduledPost,
-    PrefetchHooks Function({bool variantId})> {
+    PrefetchHooks Function({bool variantId, bool postId})> {
   $$ScheduledPostsTableTableManager(
       _$AppDatabase db, $ScheduledPostsTable table)
       : super(TableManagerState(
@@ -7618,6 +8013,7 @@ class $$ScheduledPostsTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
             Value<String?> variantId = const Value.absent(),
+            Value<String?> postId = const Value.absent(),
             Value<String> platform = const Value.absent(),
             Value<String> content = const Value.absent(),
             Value<DateTime> scheduledFor = const Value.absent(),
@@ -7631,6 +8027,7 @@ class $$ScheduledPostsTableTableManager extends RootTableManager<
               ScheduledPostsCompanion(
             id: id,
             variantId: variantId,
+            postId: postId,
             platform: platform,
             content: content,
             scheduledFor: scheduledFor,
@@ -7644,6 +8041,7 @@ class $$ScheduledPostsTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             required String id,
             Value<String?> variantId = const Value.absent(),
+            Value<String?> postId = const Value.absent(),
             required String platform,
             required String content,
             required DateTime scheduledFor,
@@ -7657,6 +8055,7 @@ class $$ScheduledPostsTableTableManager extends RootTableManager<
               ScheduledPostsCompanion.insert(
             id: id,
             variantId: variantId,
+            postId: postId,
             platform: platform,
             content: content,
             scheduledFor: scheduledFor,
@@ -7673,7 +8072,7 @@ class $$ScheduledPostsTableTableManager extends RootTableManager<
                     $$ScheduledPostsTableReferences(db, table, e)
                   ))
               .toList(),
-          prefetchHooksCallback: ({variantId = false}) {
+          prefetchHooksCallback: ({variantId = false, postId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -7700,6 +8099,16 @@ class $$ScheduledPostsTableTableManager extends RootTableManager<
                         $$ScheduledPostsTableReferences._variantIdTable(db).id,
                   ) as T;
                 }
+                if (postId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.postId,
+                    referencedTable:
+                        $$ScheduledPostsTableReferences._postIdTable(db),
+                    referencedColumn:
+                        $$ScheduledPostsTableReferences._postIdTable(db).id,
+                  ) as T;
+                }
 
                 return state;
               },
@@ -7722,7 +8131,7 @@ typedef $$ScheduledPostsTableProcessedTableManager = ProcessedTableManager<
     $$ScheduledPostsTableUpdateCompanionBuilder,
     (ScheduledPost, $$ScheduledPostsTableReferences),
     ScheduledPost,
-    PrefetchHooks Function({bool variantId})>;
+    PrefetchHooks Function({bool variantId, bool postId})>;
 typedef $$StyleProfilesTableCreateCompanionBuilder = StyleProfilesCompanion
     Function({
   required String id,

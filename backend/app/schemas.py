@@ -65,6 +65,7 @@ class VariantSyncItem(BaseModel):
 class PublishLogSyncItem(BaseModel):
     id: str
     variant_id: str | None = None
+    post_id: str | None = None
     platform: str = ""
     mode: str = "assisted"
     status: str = "draft"
@@ -93,6 +94,7 @@ class StyleProfileSyncItem(BaseModel):
 class ScheduledPostSyncItem(BaseModel):
     id: str
     variant_id: str | None = None
+    post_id: str | None = None
     platform: str = ""
     content: str = ""
     scheduled_for: datetime | None = None

@@ -19,16 +19,22 @@ class ScheduledPostRepo {
 
   Future<String> createScheduledPost({
     String? variantId,
+    String? postId,
     required String platform,
     required String content,
     required DateTime scheduledFor,
   }) async {
     final now = DateTime.now().toUtc();
     final id = generateEntityId();
+    final resolvedPostId = await _resolvePostId(
+      variantId: variantId,
+      postId: postId,
+    );
     await _db.into(_db.scheduledPosts).insert(
           ScheduledPostsCompanion.insert(
             id: id,
             variantId: Value(variantId),
+            postId: Value(resolvedPostId),
             platform: platform,
             content: content,
             scheduledFor: scheduledFor,
@@ -39,6 +45,30 @@ class ScheduledPostRepo {
           ),
         );
     return id;
+  }
+
+  Future<String?> _resolvePostId({
+    String? variantId,
+    String? postId,
+  }) async {
+    final normalizedPostId = postId?.trim();
+    if (normalizedPostId != null && normalizedPostId.isNotEmpty) {
+      return normalizedPostId;
+    }
+    final normalizedVariantId = variantId?.trim();
+    if (normalizedVariantId == null || normalizedVariantId.isEmpty) {
+      return null;
+    }
+    final variant = await (_db.select(_db.variants)
+          ..where((t) => t.id.equals(normalizedVariantId)))
+        .getSingleOrNull();
+    if (variant == null) {
+      return null;
+    }
+    final draft = await (_db.select(_db.drafts)
+          ..where((t) => t.id.equals(variant.draftId)))
+        .getSingleOrNull();
+    return draft?.postId;
   }
 
   Future<void> markPosted({

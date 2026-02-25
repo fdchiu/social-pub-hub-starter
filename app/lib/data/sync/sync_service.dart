@@ -259,6 +259,7 @@ class SyncService {
               (row) => {
                 'id': row.id,
                 'variant_id': row.variantId,
+                'post_id': row.postId,
                 'platform': row.platform,
                 'mode': row.mode,
                 'status': row.status,
@@ -291,6 +292,7 @@ class SyncService {
               (row) => {
                 'id': row.id,
                 'variant_id': row.variantId,
+                'post_id': row.postId,
                 'platform': row.platform,
                 'content': row.content,
                 'scheduled_for': row.scheduledFor.toIso8601String(),
@@ -459,6 +461,7 @@ class SyncService {
                 PublishLogsCompanion(
                   id: Value(conflict.entityId),
                   variantId: Value(payload['variant_id'] as String?),
+                  postId: Value(payload['post_id'] as String?),
                   platform: Value((payload['platform'] as String?) ?? ''),
                   mode: Value((payload['mode'] as String?) ?? 'assisted'),
                   status: Value((payload['status'] as String?) ?? 'draft'),
@@ -499,6 +502,7 @@ class SyncService {
                 ScheduledPostsCompanion(
                   id: Value(conflict.entityId),
                   variantId: Value(payload['variant_id'] as String?),
+                  postId: Value(payload['post_id'] as String?),
                   platform: Value((payload['platform'] as String?) ?? ''),
                   content: Value((payload['content'] as String?) ?? ''),
                   scheduledFor:
@@ -721,6 +725,7 @@ class SyncService {
             PublishLogsCompanion(
               id: Value(id),
               variantId: Value(row['variant_id'] as String?),
+              postId: Value(row['post_id'] as String?),
               platform: Value((row['platform'] as String?) ?? ''),
               mode: Value((row['mode'] as String?) ?? 'assisted'),
               status: Value((row['status'] as String?) ?? 'draft'),
@@ -810,6 +815,7 @@ class SyncService {
             ScheduledPostsCompanion(
               id: Value(id),
               variantId: Value(row['variant_id'] as String?),
+              postId: Value(row['post_id'] as String?),
               platform: Value((row['platform'] as String?) ?? ''),
               content: Value((row['content'] as String?) ?? ''),
               scheduledFor: Value(_asDateTime(row['scheduled_for']) ?? now),
@@ -838,6 +844,12 @@ class SyncService {
           .write(const SourceItemsCompanion(postId: Value(null)));
       await (_db.update(_db.drafts)..where((t) => t.postId.isIn(deletedPosts)))
           .write(const DraftsCompanion(postId: Value(null)));
+      await (_db.update(_db.publishLogs)
+            ..where((t) => t.postId.isIn(deletedPosts)))
+          .write(const PublishLogsCompanion(postId: Value(null)));
+      await (_db.update(_db.scheduledPosts)
+            ..where((t) => t.postId.isIn(deletedPosts)))
+          .write(const ScheduledPostsCompanion(postId: Value(null)));
       await (_db.delete(_db.posts)..where((t) => t.id.isIn(deletedPosts))).go();
     }
 
@@ -978,6 +990,7 @@ class SyncService {
     return {
       'id': row.id,
       'variant_id': row.variantId,
+      'post_id': row.postId,
       'platform': row.platform,
       'mode': row.mode,
       'status': row.status,
@@ -1008,6 +1021,7 @@ class SyncService {
     return {
       'id': row.id,
       'variant_id': row.variantId,
+      'post_id': row.postId,
       'platform': row.platform,
       'content': row.content,
       'scheduled_for': row.scheduledFor.toIso8601String(),

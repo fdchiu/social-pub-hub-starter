@@ -102,6 +102,7 @@ class PublishLog(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     variant_id: Mapped[str | None] = mapped_column(String, ForeignKey("variants.id"), nullable=True)
+    post_id: Mapped[str | None] = mapped_column(String, nullable=True)
     platform: Mapped[str] = mapped_column(String, nullable=False)
     mode: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, default="draft", nullable=False)
@@ -140,6 +141,7 @@ class ScheduledPost(Base):
     variant_id: Mapped[str | None] = mapped_column(
         String, ForeignKey("variants.id"), nullable=True
     )
+    post_id: Mapped[str | None] = mapped_column(String, nullable=True)
     platform: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     scheduled_for: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

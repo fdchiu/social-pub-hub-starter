@@ -91,6 +91,7 @@ Goal: manage scheduled execution.
 - Filter queued/overdue.
 - Copy/open composer for manual assisted posting.
 - Mark posted or cancel.
+- Queue rows carry `post_id` when variant is linked, enabling per-post audits.
 Exit criteria:
 - no stale overdue items.
 
@@ -106,6 +107,7 @@ Goal: audit + reuse.
 - Filter by platform/status.
 - Open posted URL.
 - Clone winning variant into new draft.
+- Publish logs carry `post_id` when variant is linked.
 Exit criteria:
 - learnings captured and reusable.
 

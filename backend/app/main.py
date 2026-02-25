@@ -138,6 +138,7 @@ def _serialize_publish_log(item: PublishLog) -> dict[str, Any]:
     return {
         "id": item.id,
         "variant_id": item.variant_id,
+        "post_id": item.post_id,
         "platform": item.platform,
         "mode": item.mode,
         "status": item.status,
@@ -170,6 +171,7 @@ def _serialize_scheduled_post(item: ScheduledPost) -> dict[str, Any]:
     return {
         "id": item.id,
         "variant_id": item.variant_id,
+        "post_id": item.post_id,
         "platform": item.platform,
         "content": item.content,
         "scheduled_for": item.scheduled_for,
@@ -319,6 +321,7 @@ def _apply_publish_log_upsert(db: Session, payload: PublishLogSyncItem) -> None:
         db.add(item)
 
     item.variant_id = payload.variant_id
+    item.post_id = payload.post_id
     item.platform = payload.platform
     item.mode = payload.mode
     item.status = payload.status
@@ -373,6 +376,7 @@ def _apply_scheduled_post_upsert(db: Session, payload: ScheduledPostSyncItem) ->
         db.add(item)
 
     item.variant_id = payload.variant_id
+    item.post_id = payload.post_id
     item.platform = payload.platform
     item.content = payload.content
     item.scheduled_for = _to_utc(payload.scheduled_for)
@@ -940,9 +944,11 @@ def publish_confirm(
         raise HTTPException(status_code=404, detail="Variant not found")
 
     now = utc_now()
+    draft = db.get(Draft, variant.draft_id)
     publish_log = PublishLog(
         id=_new_id("publish"),
         variant_id=variant.id,
+        post_id=draft.post_id if draft is not None else None,
         platform=variant.platform,
         mode="assisted",
         status="posted",

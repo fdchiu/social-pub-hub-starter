@@ -163,6 +163,7 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
             "tone": 0.6,
             "punchiness": 0.7,
             "length_target": "short",
+            "post_id": "post_generation_flow",
         },
     )
     assert create_response.status_code == 200
@@ -227,6 +228,7 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
     assert changes_response.status_code == 200
     logs = changes_response.json()["upserts"]["publish_logs"]
     assert any(log["external_url"] == external_url for log in logs)
+    assert any(log["post_id"] == "post_generation_flow" for log in logs)
 
 
 def test_sync_scheduled_posts_and_deletes(client: TestClient) -> None:
@@ -243,6 +245,7 @@ def test_sync_scheduled_posts_and_deletes(client: TestClient) -> None:
                 {
                     "id": row_id,
                     "platform": "x",
+                    "post_id": "post_sync_case",
                     "content": "Ship update tonight",
                     "status": "queued",
                     "scheduled_for": now.isoformat(),
