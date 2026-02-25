@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -717,7 +718,7 @@ def _humanize_text(text: str, strictness: float, banned: list[str]) -> str:
     result = text
     for phrase in banned:
         if phrase:
-            result = result.replace(phrase, "")
+            result = re.sub(re.escape(phrase), "", result, flags=re.IGNORECASE)
     if strictness >= 0.6:
         result = result.replace("very ", "").replace("really ", "")
     result = "\n".join(line.rstrip() for line in result.splitlines())
