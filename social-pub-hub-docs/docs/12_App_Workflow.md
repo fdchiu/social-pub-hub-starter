@@ -116,7 +116,7 @@ Goal: audit + reuse.
 - Scope history to active post by default; toggle “Include all posts” when needed.
 - Filter by platform/status.
 - Open posted URL.
-- Clone winning variant into a post-scoped draft.
+- Clone winning variant into a post-scoped draft while preserving content type intent.
 - Publish logs carry `post_id` when variant is linked.
 Exit criteria:
 - learnings captured and reusable.

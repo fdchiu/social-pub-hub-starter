@@ -466,10 +466,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       return;
     }
 
+    final activePost = ref.read(activePostProvider);
+    final postId = log.postId ?? activePost?.id;
+    final post = postId == null
+        ? activePost
+        : await ref.read(postRepoProvider).getPostById(postId);
+    final contentType = post?.contentType ?? 'general_post';
+
     final draftId = await ref.read(draftRepoProvider).createDraft(
           canonicalMarkdown: variant.body,
-          intent: 'how_to',
-          postId: log.postId ?? ref.read(activePostProvider)?.id,
+          intent: _intentForContentType(contentType),
+          audience: post?.audience,
+          postId: postId,
+          contentType: contentType,
         );
     if (!mounted) {
       return;
@@ -681,6 +690,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       '90d' => _HistoryWindow.days90,
       'all' => _HistoryWindow.all,
       _ => null,
+    };
+  }
+
+  String _intentForContentType(String contentType) {
+    return switch (contentType) {
+      'coding_guide' => 'guide',
+      'ai_tool_guide' => 'tool_guide',
+      _ => 'how_to',
     };
   }
 }
