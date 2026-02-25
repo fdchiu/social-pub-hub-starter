@@ -37,8 +37,29 @@ class ProjectRepo {
             status: Value(status),
             createdAt: Value(now),
             updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
           ),
         );
     return id;
+  }
+
+  Future<void> updateProject({
+    required String projectId,
+    required String name,
+    String? description,
+    String? status,
+  }) async {
+    await (_db.update(_db.projects)..where((t) => t.id.equals(projectId)))
+        .write(
+      ProjectsCompanion(
+        name: Value(name.trim()),
+        description: Value(
+          description?.trim().isEmpty ?? true ? null : description?.trim(),
+        ),
+        status: status == null ? const Value.absent() : Value(status),
+        updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
+      ),
+    );
   }
 }

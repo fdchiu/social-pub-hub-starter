@@ -55,6 +55,7 @@ class PostRepo {
             status: Value(status),
             createdAt: Value(now),
             updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
           ),
         );
     return id;
@@ -81,6 +82,7 @@ class PostRepo {
             Value(projectId?.trim().isEmpty ?? true ? null : projectId?.trim()),
         status: status == null ? const Value.absent() : Value(status),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
       ),
     );
   }

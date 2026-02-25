@@ -10,16 +10,22 @@ import '../db/app_db.dart';
 class SyncSummary {
   const SyncSummary({
     required this.cursor,
+    required this.pushedProjects,
+    required this.pushedPosts,
     required this.pushedDrafts,
     required this.pushedVariants,
     required this.pushedPublishLogs,
     required this.pushedStyleProfiles,
     required this.pushedScheduledPosts,
+    required this.pulledProjects,
+    required this.pulledPosts,
     required this.pulledDrafts,
     required this.pulledVariants,
     required this.pulledPublishLogs,
     required this.pulledStyleProfiles,
     required this.pulledScheduledPosts,
+    required this.deletedProjects,
+    required this.deletedPosts,
     required this.deletedDrafts,
     required this.deletedVariants,
     required this.deletedPublishLogs,
@@ -29,16 +35,22 @@ class SyncSummary {
   });
 
   final int cursor;
+  final int pushedProjects;
+  final int pushedPosts;
   final int pushedDrafts;
   final int pushedVariants;
   final int pushedPublishLogs;
   final int pushedStyleProfiles;
   final int pushedScheduledPosts;
+  final int pulledProjects;
+  final int pulledPosts;
   final int pulledDrafts;
   final int pulledVariants;
   final int pulledPublishLogs;
   final int pulledStyleProfiles;
   final int pulledScheduledPosts;
+  final int deletedProjects;
+  final int deletedPosts;
   final int deletedDrafts;
   final int deletedVariants;
   final int deletedPublishLogs;
@@ -96,12 +108,16 @@ class SyncService {
     final upserts = (changes['upserts'] as Map<String, dynamic>? ?? const {});
     final deletes = (changes['deletes'] as Map<String, dynamic>? ?? const {});
 
+    final pulledProjects = _asMapList(upserts['projects']);
+    final pulledPosts = _asMapList(upserts['posts']);
     final pulledDrafts = _asMapList(upserts['drafts']);
     final pulledVariants = _asMapList(upserts['variants']);
     final pulledPublishLogs = _asMapList(upserts['publish_logs']);
     final pulledStyleProfiles = _asMapList(upserts['style_profiles']);
     final pulledScheduledPosts = _asMapList(upserts['scheduled_posts']);
 
+    final deletedProjects = _asStringList(deletes['projects']);
+    final deletedPosts = _asStringList(deletes['posts']);
     final deletedDrafts = _asStringList(deletes['drafts']);
     final deletedVariants = _asStringList(deletes['variants']);
     final deletedPublishLogs = _asStringList(deletes['publish_logs']);
@@ -109,12 +125,16 @@ class SyncService {
     final deletedScheduledPosts = _asStringList(deletes['scheduled_posts']);
 
     await _db.transaction(() async {
+      await _applyProjectUpserts(pulledProjects);
+      await _applyPostUpserts(pulledPosts);
       await _applyDraftUpserts(pulledDrafts);
       await _applyVariantUpserts(pulledVariants);
       await _applyPublishLogUpserts(pulledPublishLogs);
       await _applyStyleProfileUpserts(pulledStyleProfiles);
       await _applyScheduledPostUpserts(pulledScheduledPosts);
       await _applyDeletes(
+        deletedProjects: deletedProjects,
+        deletedPosts: deletedPosts,
         deletedDrafts: deletedDrafts,
         deletedVariants: deletedVariants,
         deletedPublishLogs: deletedPublishLogs,
@@ -128,16 +148,22 @@ class SyncService {
 
     return SyncSummary(
       cursor: nextCursor,
+      pushedProjects: pushBatch.projectIds.length,
+      pushedPosts: pushBatch.postIds.length,
       pushedDrafts: pushBatch.draftIds.length,
       pushedVariants: pushBatch.variantIds.length,
       pushedPublishLogs: pushBatch.publishLogIds.length,
       pushedStyleProfiles: pushBatch.styleProfileIds.length,
       pushedScheduledPosts: pushBatch.scheduledPostIds.length,
+      pulledProjects: pulledProjects.length,
+      pulledPosts: pulledPosts.length,
       pulledDrafts: pulledDrafts.length,
       pulledVariants: pulledVariants.length,
       pulledPublishLogs: pulledPublishLogs.length,
       pulledStyleProfiles: pulledStyleProfiles.length,
       pulledScheduledPosts: pulledScheduledPosts.length,
+      deletedProjects: deletedProjects.length,
+      deletedPosts: deletedPosts.length,
       deletedDrafts: deletedDrafts.length,
       deletedVariants: deletedVariants.length,
       deletedPublishLogs: deletedPublishLogs.length,
@@ -148,6 +174,12 @@ class SyncService {
   }
 
   Future<_PushBatch> _buildPushBatch() async {
+    final projects = await (_db.select(_db.projects)
+          ..where((t) => t.syncStatus.equals('dirty')))
+        .get();
+    final posts = await (_db.select(_db.posts)
+          ..where((t) => t.syncStatus.equals('dirty')))
+        .get();
     final drafts = await (_db.select(_db.drafts)
           ..where((t) => t.syncStatus.equals('dirty')))
         .get();
@@ -166,6 +198,33 @@ class SyncService {
 
     final payload = {
       'upserts': {
+        'projects': projects
+            .map(
+              (row) => {
+                'id': row.id,
+                'name': row.name,
+                'description': row.description,
+                'status': row.status,
+                'created_at': row.createdAt.toIso8601String(),
+                'updated_at': row.updatedAt.toIso8601String(),
+              },
+            )
+            .toList(),
+        'posts': posts
+            .map(
+              (row) => {
+                'id': row.id,
+                'project_id': row.projectId,
+                'title': row.title,
+                'content_type': row.contentType,
+                'goal': row.goal,
+                'audience': row.audience,
+                'status': row.status,
+                'created_at': row.createdAt.toIso8601String(),
+                'updated_at': row.updatedAt.toIso8601String(),
+              },
+            )
+            .toList(),
         'drafts': drafts
             .map(
               (row) => {
@@ -244,6 +303,8 @@ class SyncService {
             .toList(),
       },
       'deletes': {
+        'projects': const <String>[],
+        'posts': const <String>[],
         'drafts': const <String>[],
         'variants': const <String>[],
         'publish_logs': const <String>[],
@@ -254,6 +315,8 @@ class SyncService {
 
     return _PushBatch(
       payload: payload,
+      projectIds: projects.map((r) => r.id).toList(growable: false),
+      postIds: posts.map((r) => r.id).toList(growable: false),
       draftIds: drafts.map((r) => r.id).toList(growable: false),
       variantIds: variants.map((r) => r.id).toList(growable: false),
       publishLogIds: publishLogs.map((r) => r.id).toList(growable: false),
@@ -264,6 +327,15 @@ class SyncService {
 
   Future<void> _markPushedRowsClean(_PushBatch batch) async {
     await _db.transaction(() async {
+      if (batch.projectIds.isNotEmpty) {
+        await (_db.update(_db.projects)
+              ..where((t) => t.id.isIn(batch.projectIds)))
+            .write(const ProjectsCompanion(syncStatus: Value('clean')));
+      }
+      if (batch.postIds.isNotEmpty) {
+        await (_db.update(_db.posts)..where((t) => t.id.isIn(batch.postIds)))
+            .write(const PostsCompanion(syncStatus: Value('clean')));
+      }
       if (batch.draftIds.isNotEmpty) {
         await (_db.update(_db.drafts)..where((t) => t.id.isIn(batch.draftIds)))
             .write(const DraftsCompanion(syncStatus: Value('clean')));
@@ -314,6 +386,38 @@ class SyncService {
     final now = DateTime.now().toUtc();
     await _db.transaction(() async {
       switch (conflict.entityType) {
+        case 'projects':
+          await _db.into(_db.projects).insertOnConflictUpdate(
+                ProjectsCompanion(
+                  id: Value(conflict.entityId),
+                  name:
+                      Value((payload['name'] as String?) ?? 'Untitled project'),
+                  description: Value(payload['description'] as String?),
+                  status: Value((payload['status'] as String?) ?? 'active'),
+                  createdAt: Value(_asDateTime(payload['created_at']) ?? now),
+                  updatedAt: Value(now),
+                  syncStatus: const Value('dirty'),
+                ),
+              );
+          break;
+        case 'posts':
+          await _db.into(_db.posts).insertOnConflictUpdate(
+                PostsCompanion(
+                  id: Value(conflict.entityId),
+                  projectId: Value(payload['project_id'] as String?),
+                  title:
+                      Value((payload['title'] as String?) ?? 'Untitled post'),
+                  contentType: Value(
+                      (payload['content_type'] as String?) ?? 'general_post'),
+                  goal: Value(payload['goal'] as String?),
+                  audience: Value(payload['audience'] as String?),
+                  status: Value((payload['status'] as String?) ?? 'active'),
+                  createdAt: Value(_asDateTime(payload['created_at']) ?? now),
+                  updatedAt: Value(now),
+                  syncStatus: const Value('dirty'),
+                ),
+              );
+          break;
         case 'drafts':
           await _db.into(_db.drafts).insertOnConflictUpdate(
                 DraftsCompanion(
@@ -418,6 +522,89 @@ class SyncService {
         ),
       );
     });
+  }
+
+  Future<void> _applyProjectUpserts(List<Map<String, dynamic>> rows) async {
+    for (final row in rows) {
+      final id = row['id'] as String?;
+      if (id == null || id.isEmpty) {
+        continue;
+      }
+
+      final now = DateTime.now().toUtc();
+      final incomingUpdatedAt = _asDateTime(row['updated_at']) ?? now;
+      final existing = await (_db.select(_db.projects)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing != null && existing.syncStatus == 'dirty') {
+        if (incomingUpdatedAt.isAfter(existing.updatedAt)) {
+          await _recordConflict(
+            entityType: 'projects',
+            entityId: id,
+            localPayload: _projectToPayload(existing),
+            remotePayload: row,
+          );
+        } else {
+          continue;
+        }
+      }
+
+      await _db.into(_db.projects).insertOnConflictUpdate(
+            ProjectsCompanion(
+              id: Value(id),
+              name: Value((row['name'] as String?) ?? 'Untitled project'),
+              description: Value(row['description'] as String?),
+              status: Value((row['status'] as String?) ?? 'active'),
+              createdAt: Value(_asDateTime(row['created_at']) ?? now),
+              updatedAt: Value(incomingUpdatedAt),
+              syncStatus: const Value('clean'),
+            ),
+          );
+    }
+  }
+
+  Future<void> _applyPostUpserts(List<Map<String, dynamic>> rows) async {
+    for (final row in rows) {
+      final id = row['id'] as String?;
+      if (id == null || id.isEmpty) {
+        continue;
+      }
+
+      final now = DateTime.now().toUtc();
+      final incomingUpdatedAt = _asDateTime(row['updated_at']) ?? now;
+      final existing = await (_db.select(_db.posts)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing != null && existing.syncStatus == 'dirty') {
+        if (incomingUpdatedAt.isAfter(existing.updatedAt)) {
+          await _recordConflict(
+            entityType: 'posts',
+            entityId: id,
+            localPayload: _postToPayload(existing),
+            remotePayload: row,
+          );
+        } else {
+          continue;
+        }
+      }
+
+      await _db.into(_db.posts).insertOnConflictUpdate(
+            PostsCompanion(
+              id: Value(id),
+              projectId: Value(row['project_id'] as String?),
+              title: Value((row['title'] as String?) ?? 'Untitled post'),
+              contentType: Value(
+                (row['content_type'] as String?) ?? 'general_post',
+              ),
+              goal: Value(row['goal'] as String?),
+              audience: Value(row['audience'] as String?),
+              status: Value((row['status'] as String?) ?? 'active'),
+              createdAt: Value(_asDateTime(row['created_at']) ?? now),
+              updatedAt: Value(incomingUpdatedAt),
+              syncStatus: const Value('clean'),
+            ),
+          );
+    }
   }
 
   Future<void> _applyDraftUpserts(List<Map<String, dynamic>> rows) async {
@@ -637,12 +824,31 @@ class SyncService {
   }
 
   Future<void> _applyDeletes({
+    required List<String> deletedProjects,
+    required List<String> deletedPosts,
     required List<String> deletedDrafts,
     required List<String> deletedVariants,
     required List<String> deletedPublishLogs,
     required List<String> deletedStyleProfiles,
     required List<String> deletedScheduledPosts,
   }) async {
+    if (deletedPosts.isNotEmpty) {
+      await (_db.update(_db.sourceItems)
+            ..where((t) => t.postId.isIn(deletedPosts)))
+          .write(const SourceItemsCompanion(postId: Value(null)));
+      await (_db.update(_db.drafts)..where((t) => t.postId.isIn(deletedPosts)))
+          .write(const DraftsCompanion(postId: Value(null)));
+      await (_db.delete(_db.posts)..where((t) => t.id.isIn(deletedPosts))).go();
+    }
+
+    if (deletedProjects.isNotEmpty) {
+      await (_db.update(_db.posts)
+            ..where((t) => t.projectId.isIn(deletedProjects)))
+          .write(const PostsCompanion(projectId: Value(null)));
+      await (_db.delete(_db.projects)..where((t) => t.id.isIn(deletedProjects)))
+          .go();
+    }
+
     if (deletedScheduledPosts.isNotEmpty) {
       await (_db.delete(_db.scheduledPosts)
             ..where((t) => t.id.isIn(deletedScheduledPosts)))
@@ -714,6 +920,31 @@ class SyncService {
             resolution: const Value(null),
           ),
         );
+  }
+
+  Map<String, dynamic> _projectToPayload(Project row) {
+    return {
+      'id': row.id,
+      'name': row.name,
+      'description': row.description,
+      'status': row.status,
+      'created_at': row.createdAt.toIso8601String(),
+      'updated_at': row.updatedAt.toIso8601String(),
+    };
+  }
+
+  Map<String, dynamic> _postToPayload(Post row) {
+    return {
+      'id': row.id,
+      'project_id': row.projectId,
+      'title': row.title,
+      'content_type': row.contentType,
+      'goal': row.goal,
+      'audience': row.audience,
+      'status': row.status,
+      'created_at': row.createdAt.toIso8601String(),
+      'updated_at': row.updatedAt.toIso8601String(),
+    };
   }
 
   Map<String, dynamic> _draftToPayload(Draft row) {
@@ -822,6 +1053,8 @@ class SyncService {
 class _PushBatch {
   const _PushBatch({
     required this.payload,
+    required this.projectIds,
+    required this.postIds,
     required this.draftIds,
     required this.variantIds,
     required this.publishLogIds,
@@ -830,6 +1063,8 @@ class _PushBatch {
   });
 
   final Map<String, dynamic> payload;
+  final List<String> projectIds;
+  final List<String> postIds;
   final List<String> draftIds;
   final List<String> variantIds;
   final List<String> publishLogIds;

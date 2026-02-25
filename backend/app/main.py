@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 from .db import Base, SessionLocal, engine, get_db
 from .models import (
     Draft,
+    Post,
+    Project,
     PublishLog,
     ScheduledPost,
     SYNC_TABLES,
@@ -29,6 +31,8 @@ from .schemas import (
     DraftSyncItem,
     PublishConfirmRequest,
     PublishLogSyncItem,
+    PostSyncItem,
+    ProjectSyncItem,
     ScheduledPostSyncItem,
     StyleProfileSyncItem,
     SyncPushRequest,
@@ -72,6 +76,33 @@ def _next_cursor(db: Session) -> int:
     counter.value += 1
     db.flush()
     return counter.value
+
+
+def _serialize_project(item: Project) -> dict[str, Any]:
+    return {
+        "id": item.id,
+        "name": item.name,
+        "description": item.description,
+        "status": item.status,
+        "created_at": item.created_at,
+        "updated_at": item.updated_at,
+        "deleted_at": item.deleted_at,
+    }
+
+
+def _serialize_post(item: Post) -> dict[str, Any]:
+    return {
+        "id": item.id,
+        "project_id": item.project_id,
+        "title": item.title,
+        "content_type": item.content_type,
+        "goal": item.goal,
+        "audience": item.audience,
+        "status": item.status,
+        "created_at": item.created_at,
+        "updated_at": item.updated_at,
+        "deleted_at": item.deleted_at,
+    }
 
 
 def _serialize_draft(item: Draft) -> dict[str, Any]:
@@ -151,6 +182,10 @@ def _serialize_scheduled_post(item: ScheduledPost) -> dict[str, Any]:
 
 
 def _serialize(name: str, item: Any) -> dict[str, Any]:
+    if name == "projects":
+        return _serialize_project(item)
+    if name == "posts":
+        return _serialize_post(item)
     if name == "drafts":
         return _serialize_draft(item)
     if name == "variants":
@@ -166,6 +201,55 @@ def _serialize(name: str, item: Any) -> dict[str, Any]:
 
 def _new_id(prefix: str) -> str:
     return f"{prefix}_{uuid4().hex}"
+
+
+def _apply_project_upsert(db: Session, payload: ProjectSyncItem) -> None:
+    now = utc_now()
+    incoming_updated_at = _to_utc(payload.updated_at)
+    item = db.get(Project, payload.id)
+
+    if item is not None and incoming_updated_at <= _to_utc(item.updated_at):
+        return
+
+    if item is None:
+        item = Project(
+            id=payload.id,
+            created_at=_to_utc(payload.created_at) if payload.created_at else now,
+        )
+        db.add(item)
+
+    item.name = payload.name
+    item.description = payload.description
+    item.status = payload.status
+    item.updated_at = incoming_updated_at
+    item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None
+    item.sync_cursor = _next_cursor(db)
+
+
+def _apply_post_upsert(db: Session, payload: PostSyncItem) -> None:
+    now = utc_now()
+    incoming_updated_at = _to_utc(payload.updated_at)
+    item = db.get(Post, payload.id)
+
+    if item is not None and incoming_updated_at <= _to_utc(item.updated_at):
+        return
+
+    if item is None:
+        item = Post(
+            id=payload.id,
+            created_at=_to_utc(payload.created_at) if payload.created_at else now,
+        )
+        db.add(item)
+
+    item.project_id = payload.project_id
+    item.title = payload.title
+    item.content_type = payload.content_type
+    item.goal = payload.goal
+    item.audience = payload.audience
+    item.status = payload.status
+    item.updated_at = incoming_updated_at
+    item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None
+    item.sync_cursor = _next_cursor(db)
 
 
 def _apply_draft_upsert(db: Session, payload: DraftSyncItem) -> None:
@@ -641,6 +725,10 @@ def sync_changes(since: int = 0, db: Session = Depends(get_db)) -> dict[str, Any
 
 @app.post("/sync/push")
 def sync_push(payload: SyncPushRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
+    for item in payload.upserts.projects:
+        _apply_project_upsert(db, item)
+    for item in payload.upserts.posts:
+        _apply_post_upsert(db, item)
     for item in payload.upserts.drafts:
         _apply_draft_upsert(db, item)
     for item in payload.upserts.variants:
@@ -652,6 +740,10 @@ def sync_push(payload: SyncPushRequest, db: Session = Depends(get_db)) -> dict[s
     for item in payload.upserts.scheduled_posts:
         _apply_scheduled_post_upsert(db, item)
 
+    for entity_id in payload.deletes.projects:
+        _soft_delete(db, Project, entity_id)
+    for entity_id in payload.deletes.posts:
+        _soft_delete(db, Post, entity_id)
     for entity_id in payload.deletes.drafts:
         _soft_delete(db, Draft, entity_id)
     for entity_id in payload.deletes.variants:

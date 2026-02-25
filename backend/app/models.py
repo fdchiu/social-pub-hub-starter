@@ -19,6 +19,53 @@ class SyncCounter(Base):
     value: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
 
 
+class Project(Base):
+    __tablename__ = "projects"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="active", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    sync_cursor: Mapped[int] = mapped_column(
+        BigInteger, default=0, nullable=False, index=True
+    )
+
+
+class Post(Base):
+    __tablename__ = "posts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    content_type: Mapped[str] = mapped_column(
+        String, default="general_post", nullable=False
+    )
+    goal: Mapped[str | None] = mapped_column(Text, nullable=True)
+    audience: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="active", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    sync_cursor: Mapped[int] = mapped_column(
+        BigInteger, default=0, nullable=False, index=True
+    )
+
+
 class Draft(Base):
     __tablename__ = "drafts"
 
@@ -105,6 +152,8 @@ class ScheduledPost(Base):
 
 
 SYNC_TABLES = {
+    "projects": Project,
+    "posts": Post,
     "drafts": Draft,
     "variants": Variant,
     "publish_logs": PublishLog,

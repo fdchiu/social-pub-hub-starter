@@ -799,15 +799,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   String _summaryText(SyncSummary summary) {
-    return 'Pushed d/v/p/s/q: '
+    return 'Pushed proj/post/d/v/p/s/q: '
+        '${summary.pushedProjects}/${summary.pushedPosts}/'
         '${summary.pushedDrafts}/${summary.pushedVariants}/'
         '${summary.pushedPublishLogs}/${summary.pushedStyleProfiles}/'
         '${summary.pushedScheduledPosts}\n'
-        'Pulled d/v/p/s/q: '
+        'Pulled proj/post/d/v/p/s/q: '
+        '${summary.pulledProjects}/${summary.pulledPosts}/'
         '${summary.pulledDrafts}/${summary.pulledVariants}/'
         '${summary.pulledPublishLogs}/${summary.pulledStyleProfiles}/'
         '${summary.pulledScheduledPosts}\n'
-        'Deleted d/v/p/s/q: '
+        'Deleted proj/post/d/v/p/s/q: '
+        '${summary.deletedProjects}/${summary.deletedPosts}/'
         '${summary.deletedDrafts}/${summary.deletedVariants}/'
         '${summary.deletedPublishLogs}/${summary.deletedStyleProfiles}/'
         '${summary.deletedScheduledPosts}\n'
@@ -925,6 +928,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return {
       'cursor': summary.cursor,
       'pushed': {
+        'projects': summary.pushedProjects,
+        'posts': summary.pushedPosts,
         'drafts': summary.pushedDrafts,
         'variants': summary.pushedVariants,
         'publish_logs': summary.pushedPublishLogs,
@@ -932,6 +937,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'scheduled_posts': summary.pushedScheduledPosts,
       },
       'pulled': {
+        'projects': summary.pulledProjects,
+        'posts': summary.pulledPosts,
         'drafts': summary.pulledDrafts,
         'variants': summary.pulledVariants,
         'publish_logs': summary.pulledPublishLogs,
@@ -939,6 +946,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'scheduled_posts': summary.pulledScheduledPosts,
       },
       'deleted': {
+        'projects': summary.deletedProjects,
+        'posts': summary.deletedPosts,
         'drafts': summary.deletedDrafts,
         'variants': summary.deletedVariants,
         'publish_logs': summary.deletedPublishLogs,

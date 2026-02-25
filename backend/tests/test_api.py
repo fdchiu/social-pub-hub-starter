@@ -20,6 +20,8 @@ def _sync_payload(
 ) -> dict[str, Any]:
     return {
         "upserts": {
+            "projects": [],
+            "posts": [],
             "drafts": draft_rows,
             "variants": [],
             "publish_logs": [],
@@ -27,6 +29,8 @@ def _sync_payload(
             "scheduled_posts": [],
         },
         "deletes": {
+            "projects": [],
+            "posts": [],
             "drafts": [],
             "variants": [],
             "publish_logs": [],
@@ -288,3 +292,60 @@ def test_sync_scheduled_posts_and_deletes(client: TestClient) -> None:
     delta = client.get("/sync/changes", params={"since": first_cursor})
     assert delta.status_code == 200
     assert row_id in delta.json()["deletes"]["scheduled_posts"]
+
+
+def test_sync_projects_and_posts_roundtrip(client: TestClient) -> None:
+    project_id = "proj_sync_1"
+    post_id = "post_sync_1"
+    now = datetime.now(timezone.utc)
+
+    create_payload = {
+        "upserts": {
+            "projects": [
+                {
+                    "id": project_id,
+                    "name": "AI Guides",
+                    "description": "Long-running guides series",
+                    "status": "active",
+                    "created_at": now.isoformat(),
+                    "updated_at": now.isoformat(),
+                }
+            ],
+            "posts": [
+                {
+                    "id": post_id,
+                    "project_id": project_id,
+                    "title": "RAG setup guide",
+                    "content_type": "coding_guide",
+                    "goal": "Ship practical guide",
+                    "audience": "builders",
+                    "status": "active",
+                    "created_at": now.isoformat(),
+                    "updated_at": now.isoformat(),
+                }
+            ],
+            "drafts": [],
+            "variants": [],
+            "publish_logs": [],
+            "style_profiles": [],
+            "scheduled_posts": [],
+        },
+        "deletes": {
+            "projects": [],
+            "posts": [],
+            "drafts": [],
+            "variants": [],
+            "publish_logs": [],
+            "style_profiles": [],
+            "scheduled_posts": [],
+        },
+    }
+    push_create = client.post("/sync/push", json=create_payload)
+    assert push_create.status_code == 200
+
+    changes_after_create = client.get("/sync/changes", params={"since": 0})
+    assert changes_after_create.status_code == 200
+    projects = changes_after_create.json()["upserts"]["projects"]
+    posts = changes_after_create.json()["upserts"]["posts"]
+    assert any(row["id"] == project_id for row in projects)
+    assert any(row["id"] == post_id and row["project_id"] == project_id for row in posts)

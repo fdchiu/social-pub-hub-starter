@@ -47,9 +47,17 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('dirty'));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, name, description, status, createdAt, updatedAt];
+      [id, name, description, status, createdAt, updatedAt, syncStatus];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -89,6 +97,12 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
     return context;
   }
 
@@ -110,6 +124,8 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
     );
   }
 
@@ -126,13 +142,15 @@ class Project extends DataClass implements Insertable<Project> {
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String syncStatus;
   const Project(
       {required this.id,
       required this.name,
       this.description,
       required this.status,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      required this.syncStatus});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -144,6 +162,7 @@ class Project extends DataClass implements Insertable<Project> {
     map['status'] = Variable<String>(status);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
 
@@ -157,6 +176,7 @@ class Project extends DataClass implements Insertable<Project> {
       status: Value(status),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
     );
   }
 
@@ -170,6 +190,7 @@ class Project extends DataClass implements Insertable<Project> {
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
   @override
@@ -182,6 +203,7 @@ class Project extends DataClass implements Insertable<Project> {
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
 
@@ -191,7 +213,8 @@ class Project extends DataClass implements Insertable<Project> {
           Value<String?> description = const Value.absent(),
           String? status,
           DateTime? createdAt,
-          DateTime? updatedAt}) =>
+          DateTime? updatedAt,
+          String? syncStatus}) =>
       Project(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -199,6 +222,7 @@ class Project extends DataClass implements Insertable<Project> {
         status: status ?? this.status,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
       );
   Project copyWithCompanion(ProjectsCompanion data) {
     return Project(
@@ -209,6 +233,8 @@ class Project extends DataClass implements Insertable<Project> {
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
     );
   }
 
@@ -220,14 +246,15 @@ class Project extends DataClass implements Insertable<Project> {
           ..write('description: $description, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, description, status, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id, name, description, status, createdAt, updatedAt, syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -237,7 +264,8 @@ class Project extends DataClass implements Insertable<Project> {
           other.description == this.description &&
           other.status == this.status &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
 }
 
 class ProjectsCompanion extends UpdateCompanion<Project> {
@@ -247,6 +275,7 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
   final Value<String> status;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
   final Value<int> rowid;
   const ProjectsCompanion({
     this.id = const Value.absent(),
@@ -255,6 +284,7 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ProjectsCompanion.insert({
@@ -264,6 +294,7 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name);
@@ -274,6 +305,7 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     Expression<String>? status,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -283,6 +315,7 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -294,6 +327,7 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
       Value<String>? status,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
+      Value<String>? syncStatus,
       Value<int>? rowid}) {
     return ProjectsCompanion(
       id: id ?? this.id,
@@ -302,6 +336,7 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -327,6 +362,9 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -342,6 +380,7 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -414,6 +453,14 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('dirty'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -424,7 +471,8 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
         audience,
         status,
         createdAt,
-        updatedAt
+        updatedAt,
+        syncStatus
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -477,6 +525,12 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
     return context;
   }
 
@@ -504,6 +558,8 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
     );
   }
 
@@ -523,6 +579,7 @@ class Post extends DataClass implements Insertable<Post> {
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String syncStatus;
   const Post(
       {required this.id,
       this.projectId,
@@ -532,7 +589,8 @@ class Post extends DataClass implements Insertable<Post> {
       this.audience,
       required this.status,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      required this.syncStatus});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -551,6 +609,7 @@ class Post extends DataClass implements Insertable<Post> {
     map['status'] = Variable<String>(status);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
 
@@ -569,6 +628,7 @@ class Post extends DataClass implements Insertable<Post> {
       status: Value(status),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
     );
   }
 
@@ -585,6 +645,7 @@ class Post extends DataClass implements Insertable<Post> {
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
   @override
@@ -600,6 +661,7 @@ class Post extends DataClass implements Insertable<Post> {
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
 
@@ -612,7 +674,8 @@ class Post extends DataClass implements Insertable<Post> {
           Value<String?> audience = const Value.absent(),
           String? status,
           DateTime? createdAt,
-          DateTime? updatedAt}) =>
+          DateTime? updatedAt,
+          String? syncStatus}) =>
       Post(
         id: id ?? this.id,
         projectId: projectId.present ? projectId.value : this.projectId,
@@ -623,6 +686,7 @@ class Post extends DataClass implements Insertable<Post> {
         status: status ?? this.status,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
       );
   Post copyWithCompanion(PostsCompanion data) {
     return Post(
@@ -636,6 +700,8 @@ class Post extends DataClass implements Insertable<Post> {
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
     );
   }
 
@@ -650,14 +716,15 @@ class Post extends DataClass implements Insertable<Post> {
           ..write('audience: $audience, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, projectId, title, contentType, goal,
-      audience, status, createdAt, updatedAt);
+      audience, status, createdAt, updatedAt, syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -670,7 +737,8 @@ class Post extends DataClass implements Insertable<Post> {
           other.audience == this.audience &&
           other.status == this.status &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
 }
 
 class PostsCompanion extends UpdateCompanion<Post> {
@@ -683,6 +751,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
   final Value<String> status;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
   final Value<int> rowid;
   const PostsCompanion({
     this.id = const Value.absent(),
@@ -694,6 +763,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PostsCompanion.insert({
@@ -706,6 +776,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         title = Value(title);
@@ -719,6 +790,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
     Expression<String>? status,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -731,6 +803,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -745,6 +818,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
       Value<String>? status,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
+      Value<String>? syncStatus,
       Value<int>? rowid}) {
     return PostsCompanion(
       id: id ?? this.id,
@@ -756,6 +830,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -790,6 +865,9 @@ class PostsCompanion extends UpdateCompanion<Post> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -808,6 +886,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4939,6 +5018,7 @@ typedef $$ProjectsTableCreateCompanionBuilder = ProjectsCompanion Function({
   Value<String> status,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 typedef $$ProjectsTableUpdateCompanionBuilder = ProjectsCompanion Function({
@@ -4948,6 +5028,7 @@ typedef $$ProjectsTableUpdateCompanionBuilder = ProjectsCompanion Function({
   Value<String> status,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 
@@ -4997,6 +5078,9 @@ class $$ProjectsTableFilterComposer
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
   Expression<bool> postsRefs(
       Expression<bool> Function($$PostsTableFilterComposer f) f) {
     final $$PostsTableFilterComposer composer = $composerBuilder(
@@ -5045,6 +5129,9 @@ class $$ProjectsTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
 }
 
 class $$ProjectsTableAnnotationComposer
@@ -5073,6 +5160,9 @@ class $$ProjectsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
 
   Expression<T> postsRefs<T extends Object>(
       Expression<T> Function($$PostsTableAnnotationComposer a) f) {
@@ -5125,6 +5215,7 @@ class $$ProjectsTableTableManager extends RootTableManager<
             Value<String> status = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ProjectsCompanion(
@@ -5134,6 +5225,7 @@ class $$ProjectsTableTableManager extends RootTableManager<
             status: status,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -5143,6 +5235,7 @@ class $$ProjectsTableTableManager extends RootTableManager<
             Value<String> status = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ProjectsCompanion.insert(
@@ -5152,6 +5245,7 @@ class $$ProjectsTableTableManager extends RootTableManager<
             status: status,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -5205,6 +5299,7 @@ typedef $$PostsTableCreateCompanionBuilder = PostsCompanion Function({
   Value<String> status,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 typedef $$PostsTableUpdateCompanionBuilder = PostsCompanion Function({
@@ -5217,6 +5312,7 @@ typedef $$PostsTableUpdateCompanionBuilder = PostsCompanion Function({
   Value<String> status,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 
@@ -5298,6 +5394,9 @@ class $$PostsTableFilterComposer extends Composer<_$AppDatabase, $PostsTable> {
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
 
   $$ProjectsTableFilterComposer get projectId {
     final $$ProjectsTableFilterComposer composer = $composerBuilder(
@@ -5395,6 +5494,9 @@ class $$PostsTableOrderingComposer
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
+
   $$ProjectsTableOrderingComposer get projectId {
     final $$ProjectsTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -5448,6 +5550,9 @@ class $$PostsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
 
   $$ProjectsTableAnnotationComposer get projectId {
     final $$ProjectsTableAnnotationComposer composer = $composerBuilder(
@@ -5545,6 +5650,7 @@ class $$PostsTableTableManager extends RootTableManager<
             Value<String> status = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PostsCompanion(
@@ -5557,6 +5663,7 @@ class $$PostsTableTableManager extends RootTableManager<
             status: status,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -5569,6 +5676,7 @@ class $$PostsTableTableManager extends RootTableManager<
             Value<String> status = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               PostsCompanion.insert(
@@ -5581,6 +5689,7 @@ class $$PostsTableTableManager extends RootTableManager<
             status: status,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

@@ -14,6 +14,29 @@ class SourceMaterial(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class ProjectSyncItem(BaseModel):
+    id: str
+    name: str = ""
+    description: str | None = None
+    status: str = "active"
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    deleted_at: datetime | None = None
+
+
+class PostSyncItem(BaseModel):
+    id: str
+    project_id: str | None = None
+    title: str = ""
+    content_type: str = "general_post"
+    goal: str | None = None
+    audience: str | None = None
+    status: str = "active"
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    deleted_at: datetime | None = None
+
+
 class DraftSyncItem(BaseModel):
     id: str
     canonical_markdown: str = ""
@@ -81,6 +104,8 @@ class ScheduledPostSyncItem(BaseModel):
 
 
 class SyncUpserts(BaseModel):
+    projects: list[ProjectSyncItem] = Field(default_factory=list)
+    posts: list[PostSyncItem] = Field(default_factory=list)
     drafts: list[DraftSyncItem] = Field(default_factory=list)
     variants: list[VariantSyncItem] = Field(default_factory=list)
     publish_logs: list[PublishLogSyncItem] = Field(default_factory=list)
@@ -90,6 +115,8 @@ class SyncUpserts(BaseModel):
 
 
 class SyncDeletes(BaseModel):
+    projects: list[str] = Field(default_factory=list)
+    posts: list[str] = Field(default_factory=list)
     drafts: list[str] = Field(default_factory=list)
     variants: list[str] = Field(default_factory=list)
     publish_logs: list[str] = Field(default_factory=list)
