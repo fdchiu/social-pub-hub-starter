@@ -13,6 +13,7 @@ import 'tables/scheduled_posts.dart';
 import 'tables/source_items.dart';
 import 'tables/style_profiles.dart';
 import 'tables/sync_conflicts.dart';
+import 'tables/sync_tombstones.dart';
 import 'tables/variants.dart';
 
 part 'app_db.g.dart';
@@ -26,6 +27,7 @@ part 'app_db.g.dart';
     ScheduledPosts,
     StyleProfiles,
     SyncConflicts,
+    SyncTombstones,
     Bundles,
     Projects,
     Posts,
@@ -36,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -91,6 +93,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 13) {
             await m.addColumn(sourceItems, sourceItems.syncStatus);
+          }
+          if (from < 14) {
+            await m.createTable(syncTombstones);
           }
         },
       );

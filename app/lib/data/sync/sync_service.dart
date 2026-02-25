@@ -227,6 +227,30 @@ class SyncService {
     final scheduledPosts = await (_db.select(_db.scheduledPosts)
           ..where((t) => t.syncStatus.equals('dirty')))
         .get();
+    final tombstones = await (_db.select(_db.syncTombstones)
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+
+    final deletesByEntityType = <String, List<String>>{
+      'source_items': <String>[],
+      'projects': <String>[],
+      'posts': <String>[],
+      'bundles': <String>[],
+      'drafts': <String>[],
+      'variants': <String>[],
+      'publish_logs': <String>[],
+      'style_profiles': <String>[],
+      'scheduled_posts': <String>[],
+    };
+    final pushedTombstoneIds = <String>[];
+    for (final tombstone in tombstones) {
+      final entityDeletes = deletesByEntityType[tombstone.entityType];
+      if (entityDeletes == null) {
+        continue;
+      }
+      entityDeletes.add(tombstone.entityId);
+      pushedTombstoneIds.add(tombstone.id);
+    }
 
     final payload = {
       'upserts': {
@@ -368,17 +392,7 @@ class SyncService {
             )
             .toList(),
       },
-      'deletes': {
-        'source_items': const <String>[],
-        'projects': const <String>[],
-        'posts': const <String>[],
-        'bundles': const <String>[],
-        'drafts': const <String>[],
-        'variants': const <String>[],
-        'publish_logs': const <String>[],
-        'style_profiles': const <String>[],
-        'scheduled_posts': const <String>[],
-      },
+      'deletes': deletesByEntityType,
     };
 
     return _PushBatch(
@@ -392,6 +406,7 @@ class SyncService {
       publishLogIds: publishLogs.map((r) => r.id).toList(growable: false),
       styleProfileIds: styleProfiles.map((r) => r.id).toList(growable: false),
       scheduledPostIds: scheduledPosts.map((r) => r.id).toList(growable: false),
+      tombstoneIds: pushedTombstoneIds,
     );
   }
 
@@ -439,6 +454,11 @@ class SyncService {
         await (_db.update(_db.scheduledPosts)
               ..where((t) => t.id.isIn(batch.scheduledPostIds)))
             .write(const ScheduledPostsCompanion(syncStatus: Value('clean')));
+      }
+      if (batch.tombstoneIds.isNotEmpty) {
+        await (_db.delete(_db.syncTombstones)
+              ..where((t) => t.id.isIn(batch.tombstoneIds)))
+            .go();
       }
     });
   }
@@ -1327,6 +1347,7 @@ class _PushBatch {
     required this.publishLogIds,
     required this.styleProfileIds,
     required this.scheduledPostIds,
+    required this.tombstoneIds,
   });
 
   final Map<String, dynamic> payload;
@@ -1339,4 +1360,5 @@ class _PushBatch {
   final List<String> publishLogIds;
   final List<String> styleProfileIds;
   final List<String> scheduledPostIds;
+  final List<String> tombstoneIds;
 }

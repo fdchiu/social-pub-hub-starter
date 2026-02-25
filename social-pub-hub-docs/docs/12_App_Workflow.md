@@ -29,7 +29,7 @@ Exit criteria:
 Goal: collect evidence and start a draft.
 - Add source (`url`, `note`, `snippet`).
 - Scope source to active post or global reusable pool.
-- Source items sync across devices in the sync loop.
+- Source items sync across devices in the sync loop (including deletions).
 - Select one or more sources.
 - Trigger “create draft from selected sources”.
 Exit criteria:
@@ -68,7 +68,7 @@ Exit criteria:
 ### Bundles (`/bundles`) + Bundle Checklist (`/bundle-checklist`)
 Goal: coordinated distribution around an anchor post.
 - Bundle records now carry `post_id` and default to active post scope; use “Include all posts” for cross-post review.
-- Bundle records sync across devices with the main sync flow.
+- Bundle records sync across devices with the main sync flow (including deletions).
 - Create bundle (`youtube` or `social` anchor).
 - Link variants/sources.
 - Run checklist and backfill missing parts.

@@ -207,12 +207,22 @@ class BundleRepo {
 
   Future<void> deleteBundle(String bundleId) async {
     await _db.transaction(() async {
+      final now = DateTime.now().toUtc();
+      await _db.into(_db.syncTombstones).insertOnConflictUpdate(
+            SyncTombstonesCompanion.insert(
+              id: 'bundles:$bundleId',
+              entityType: 'bundles',
+              entityId: bundleId,
+              createdAt: Value(now),
+            ),
+          );
       await (_db.update(_db.sourceItems)
             ..where((t) => t.bundleId.equals(bundleId)))
           .write(
         SourceItemsCompanion(
           bundleId: const Value(null),
-          updatedAt: Value(DateTime.now().toUtc()),
+          updatedAt: Value(now),
+          syncStatus: const Value('dirty'),
         ),
       );
       await (_db.delete(_db.bundles)..where((t) => t.id.equals(bundleId))).go();

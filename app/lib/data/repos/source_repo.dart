@@ -182,7 +182,17 @@ class SourceRepo {
   }
 
   Future<void> deleteSourceItemById(String sourceId) async {
-    await (_db.delete(_db.sourceItems)..where((t) => t.id.equals(sourceId)))
-        .go();
+    await _db.transaction(() async {
+      await _db.into(_db.syncTombstones).insertOnConflictUpdate(
+            SyncTombstonesCompanion.insert(
+              id: 'source_items:$sourceId',
+              entityType: 'source_items',
+              entityId: sourceId,
+              createdAt: Value(DateTime.now().toUtc()),
+            ),
+          );
+      await (_db.delete(_db.sourceItems)..where((t) => t.id.equals(sourceId)))
+          .go();
+    });
   }
 }
