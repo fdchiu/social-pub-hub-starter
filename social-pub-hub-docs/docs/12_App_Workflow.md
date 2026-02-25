@@ -73,6 +73,7 @@ Goal: coordinated distribution around an anchor post.
 - Bundle records sync across devices with the main sync flow (including deletions).
 - Create bundle (`youtube` or `social` anchor).
 - Link variants/sources.
+- Canonical draft generation from bundle sources inherits post content type + audience.
 - Run checklist and backfill missing parts.
 Exit criteria:
 - bundle is complete and ready to distribute.

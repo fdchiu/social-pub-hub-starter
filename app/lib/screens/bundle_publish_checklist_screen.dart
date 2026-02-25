@@ -349,11 +349,17 @@ class _BundlePublishChecklistScreenState
     }
     final canonical =
         _canonicalFromSources(report.bundle, report.linkedSources);
+    final postId = report.bundle.postId ?? activePost?.id;
+    final post = postId == null
+        ? activePost
+        : await ref.read(postRepoProvider).getPostById(postId);
+    final contentType = post?.contentType ?? 'general_post';
     final draftId = await ref.read(draftRepoProvider).createDraft(
           canonicalMarkdown: canonical,
-          intent: 'how_to',
-          audience: 'engineers',
-          postId: report.bundle.postId ?? activePost?.id,
+          intent: _intentForContentType(contentType),
+          audience: post?.audience ?? activePost?.audience ?? 'engineers',
+          postId: postId,
+          contentType: contentType,
         );
     await ref.read(bundleRepoProvider).setCanonicalDraftId(
           bundleId: report.bundle.id,
@@ -628,6 +634,14 @@ Takeaway: Start with a concrete step and ask for feedback.
         .where(
             (bundle) => bundle.postId == null || bundle.postId == activePostId)
         .toList(growable: false);
+  }
+
+  String _intentForContentType(String contentType) {
+    return switch (contentType) {
+      'coding_guide' => 'guide',
+      'ai_tool_guide' => 'tool_guide',
+      _ => 'how_to',
+    };
   }
 }
 
