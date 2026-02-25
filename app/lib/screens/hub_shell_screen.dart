@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/db/app_db.dart';
+import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import 'analytics_screen.dart';
@@ -108,9 +110,16 @@ class _Sidebar extends ConsumerWidget {
     for (final item in hubNavItems) {
       sections.putIfAbsent(item.section, () => <HubNavItem>[]).add(item);
     }
-    final sourceItems = ref.watch(sourceItemsStreamProvider).valueOrNull;
-    final bundles = ref.watch(bundlesStreamProvider).valueOrNull;
-    final queueItems = ref.watch(scheduledPostsStreamProvider).valueOrNull;
+    final activePost = ref.watch(activePostProvider);
+    final sourceItems = ref.watch(scopedSourceItemsStreamProvider).valueOrNull;
+    final bundles = _scopeBundles(
+      ref.watch(bundlesStreamProvider).valueOrNull,
+      activePostId: activePost?.id,
+    );
+    final queueItems = _scopeQueueItems(
+      ref.watch(scheduledPostsStreamProvider).valueOrNull,
+      activePostId: activePost?.id,
+    );
     final conflicts = ref.watch(openSyncConflictsStreamProvider).valueOrNull;
     final integrations = ref.watch(integrationsProvider).maybeWhen(
           data: (rows) => rows,
@@ -260,6 +269,37 @@ class _Sidebar extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  List<Bundle>? _scopeBundles(
+    List<Bundle>? bundles, {
+    required String? activePostId,
+  }) {
+    if (bundles == null) {
+      return null;
+    }
+    if (activePostId == null || activePostId.isEmpty) {
+      return bundles;
+    }
+    return bundles
+        .where(
+            (bundle) => bundle.postId == null || bundle.postId == activePostId)
+        .toList(growable: false);
+  }
+
+  List<ScheduledPost>? _scopeQueueItems(
+    List<ScheduledPost>? queueItems, {
+    required String? activePostId,
+  }) {
+    if (queueItems == null) {
+      return null;
+    }
+    if (activePostId == null || activePostId.isEmpty) {
+      return queueItems;
+    }
+    return queueItems
+        .where((row) => row.postId == null || row.postId == activePostId)
+        .toList(growable: false);
   }
 }
 
