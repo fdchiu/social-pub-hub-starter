@@ -40,6 +40,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final sourceItemsAsync = ref.watch(scopedSourceItemsStreamProvider);
     final bundlesAsync = ref.watch(bundlesStreamProvider);
     final activePost = ref.watch(activePostProvider);
+    final scopedBundles = _scopeBundles(
+      bundlesAsync.valueOrNull ?? const <Bundle>[],
+      activePostId: activePost?.id,
+    );
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -144,7 +148,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         itemBuilder: (context, index) {
                           final item = filtered[index];
                           final subtitle = _itemSubtitle(item);
-                          final bundles = bundlesAsync.valueOrNull;
                           return ListTile(
                             title: Text(_itemTitle(item)),
                             subtitle: Text(subtitle),
@@ -275,7 +278,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                 if (action == _LibraryAction.addToBundle) {
                                   await _showAssignBundleDialog(
                                     item: item,
-                                    bundles: bundles ?? const <Bundle>[],
+                                    bundles: scopedBundles,
                                   );
                                   return;
                                 }
@@ -391,6 +394,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   String _itemSubtitle(SourceItem item) {
     final parts = <String>[
       item.type,
+      if (item.postId != null && item.postId!.isNotEmpty)
+        'post:${item.postId!.substring(0, 8)}',
       if (item.bundleId != null && item.bundleId!.isNotEmpty)
         'bundle:${item.bundleId!.substring(0, 8)}',
       if (item.url != null && item.url!.trim().isNotEmpty) item.url!.trim(),
@@ -510,7 +515,7 @@ Takeaway: Start with one clear point, then iterate.
   }
 
   Future<void> _exportFilteredCsv() async {
-    final items = ref.read(sourceItemsStreamProvider).valueOrNull;
+    final items = ref.read(scopedSourceItemsStreamProvider).valueOrNull;
     if (items == null) {
       if (!mounted) {
         return;
@@ -533,7 +538,7 @@ Takeaway: Start with one clear point, then iterate.
     }
 
     final lines = <String>[
-      'id,type,title,url,user_note,tags,bundle_id,created_at,updated_at',
+      'id,type,title,url,user_note,tags,post_id,bundle_id,created_at,updated_at',
       ...filtered.map((item) {
         return [
           _csv(item.id),
@@ -542,6 +547,7 @@ Takeaway: Start with one clear point, then iterate.
           _csv(item.url ?? ''),
           _csv(item.userNote ?? ''),
           _csv(item.tags.join('|')),
+          _csv(item.postId ?? ''),
           _csv(item.bundleId ?? ''),
           _csv(item.createdAt.toUtc().toIso8601String()),
           _csv(item.updatedAt.toUtc().toIso8601String()),
@@ -561,6 +567,19 @@ Takeaway: Start with one clear point, then iterate.
   String _csv(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
+  }
+
+  List<Bundle> _scopeBundles(
+    List<Bundle> bundles, {
+    required String? activePostId,
+  }) {
+    if (activePostId == null || activePostId.isEmpty) {
+      return bundles;
+    }
+    return bundles
+        .where(
+            (bundle) => bundle.postId == null || bundle.postId == activePostId)
+        .toList(growable: false);
   }
 }
 
