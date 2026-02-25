@@ -94,6 +94,7 @@ Goal: execute publishing safely.
 - Review integration capability/connection state.
 - For each variant: assisted publish (copy/open/confirm) or direct publish if available.
 - Confirm final status in publish logs.
+- Delete stale publish logs when needed (syncs deletion).
 Exit criteria:
 - post status recorded (`posted`/`queued`/`failed` with reason).
 

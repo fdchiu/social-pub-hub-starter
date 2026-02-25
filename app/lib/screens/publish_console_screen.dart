@@ -343,6 +343,10 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                                           log.externalUrl != null &&
                                           log.externalUrl!.trim().isNotEmpty) {
                                         _openExternalUrl(log.externalUrl!);
+                                        return;
+                                      }
+                                      if (action == _LogAction.deleteLog) {
+                                        _deleteLog(log);
                                       }
                                     },
                                     itemBuilder: (context) {
@@ -362,15 +366,12 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                                           ),
                                         );
                                       }
-                                      if (items.isEmpty) {
-                                        items.add(
-                                          const PopupMenuItem(
-                                            enabled: false,
-                                            value: _LogAction.openHistory,
-                                            child: Text('No actions'),
-                                          ),
-                                        );
-                                      }
+                                      items.add(
+                                        const PopupMenuItem(
+                                          value: _LogAction.deleteLog,
+                                          child: Text('Delete log'),
+                                        ),
+                                      );
                                       return items;
                                     },
                                   ),
@@ -571,6 +572,40 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
     }
   }
 
+  Future<void> _deleteLog(PublishLog log) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete publish log?'),
+            content: const Text(
+              'This permanently removes the publish log and syncs deletion.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) {
+      return;
+    }
+
+    await ref.read(publishLogRepoProvider).deletePublishLog(log.id);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Publish log deleted')),
+    );
+  }
+
   String _csv(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
@@ -628,4 +663,5 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
 enum _LogAction {
   openHistory,
   openExternal,
+  deleteLog,
 }
