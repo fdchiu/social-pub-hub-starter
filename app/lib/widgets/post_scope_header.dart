@@ -18,6 +18,10 @@ class PostScopeHeader extends ConsumerWidget {
     'coding_guide',
     'ai_tool_guide',
   ];
+  static const List<String> _statusOptions = <String>[
+    'active',
+    'archived',
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,6 +43,15 @@ class PostScopeHeader extends ConsumerWidget {
 
     final projects = projectsAsync.valueOrNull ?? const <Project>[];
     final posts = postsAsync.valueOrNull ?? const <Post>[];
+    Project? activeProject;
+    if (selectedProjectId != null && selectedProjectId.isNotEmpty) {
+      for (final project in projects) {
+        if (project.id == selectedProjectId) {
+          activeProject = project;
+          break;
+        }
+      }
+    }
 
     Post? activePost;
     for (final post in posts) {
@@ -96,6 +109,20 @@ class PostScopeHeader extends ConsumerWidget {
                   onPressed: () => _showCreateProjectDialog(context, ref),
                   child: const Text('New project'),
                 ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: activeProject == null
+                      ? 'Select project to edit'
+                      : 'Edit project',
+                  onPressed: activeProject == null
+                      ? null
+                      : () => _showEditProjectDialog(
+                            context,
+                            ref,
+                            project: activeProject!,
+                          ),
+                  icon: const Icon(Icons.edit_outlined),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -144,6 +171,16 @@ class PostScopeHeader extends ConsumerWidget {
                   FilledButton.tonal(
                     onPressed: () => _showCreatePostDialog(context, ref),
                     child: const Text('New post'),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Edit post',
+                    onPressed: () => _showEditPostDialog(
+                      context,
+                      ref,
+                      post: activePost!,
+                    ),
+                    icon: const Icon(Icons.edit_outlined),
                   ),
                 ],
               ),
@@ -379,6 +416,253 @@ class PostScopeHeader extends ConsumerWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Post workspace created')),
+      );
+    }
+
+    titleController.dispose();
+    goalController.dispose();
+    audienceController.dispose();
+  }
+
+  Future<void> _showEditProjectDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    required Project project,
+  }) async {
+    final nameController = TextEditingController(text: project.name);
+    final descriptionController =
+        TextEditingController(text: project.description ?? '');
+    var status = project.status;
+
+    final shouldSave = await showDialog<bool>(
+          context: context,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setLocalState) => AlertDialog(
+              title: Text('Edit project ${project.id.substring(0, 8)}'),
+              content: SizedBox(
+                width: 500,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration:
+                          const InputDecoration(labelText: 'Project name'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration:
+                          const InputDecoration(labelText: 'Description'),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value:
+                          _statusOptions.contains(status) ? status : 'active',
+                      items: _statusOptions
+                          .map(
+                            (value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(value),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setLocalState(() {
+                          status = value;
+                        });
+                      },
+                      decoration: const InputDecoration(labelText: 'Status'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+
+    if (!shouldSave) {
+      nameController.dispose();
+      descriptionController.dispose();
+      return;
+    }
+
+    final name = nameController.text.trim();
+    if (name.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Project name is required')),
+        );
+      }
+      nameController.dispose();
+      descriptionController.dispose();
+      return;
+    }
+
+    await ref.read(projectRepoProvider).updateProject(
+          projectId: project.id,
+          name: name,
+          description: descriptionController.text,
+          status: status,
+        );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Project updated')),
+      );
+    }
+    nameController.dispose();
+    descriptionController.dispose();
+  }
+
+  Future<void> _showEditPostDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    required Post post,
+  }) async {
+    final titleController = TextEditingController(text: post.title);
+    final goalController = TextEditingController(text: post.goal ?? '');
+    final audienceController = TextEditingController(text: post.audience ?? '');
+    var contentType = post.contentType;
+    var status = post.status;
+
+    final shouldSave = await showDialog<bool>(
+          context: context,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setLocalState) => AlertDialog(
+              title: Text('Edit post ${post.id.substring(0, 8)}'),
+              content: SizedBox(
+                width: 560,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Title'),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _contentTypeOptions.contains(contentType)
+                          ? contentType
+                          : _contentTypeOptions.first,
+                      items: _contentTypeOptions
+                          .map(
+                            (value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(value),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setLocalState(() {
+                          contentType = value;
+                        });
+                      },
+                      decoration:
+                          const InputDecoration(labelText: 'Content type'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: goalController,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(labelText: 'Goal'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: audienceController,
+                      decoration: const InputDecoration(labelText: 'Audience'),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value:
+                          _statusOptions.contains(status) ? status : 'active',
+                      items: _statusOptions
+                          .map(
+                            (value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(value),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setLocalState(() {
+                          status = value;
+                        });
+                      },
+                      decoration: const InputDecoration(labelText: 'Status'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+
+    if (!shouldSave) {
+      titleController.dispose();
+      goalController.dispose();
+      audienceController.dispose();
+      return;
+    }
+
+    final title = titleController.text.trim();
+    if (title.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post title is required')),
+        );
+      }
+      titleController.dispose();
+      goalController.dispose();
+      audienceController.dispose();
+      return;
+    }
+
+    await ref.read(postRepoProvider).updatePost(
+          postId: post.id,
+          title: title,
+          contentType: contentType,
+          goal: goalController.text,
+          audience: audienceController.text,
+          projectId: post.projectId,
+          status: status,
+        );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Post updated')),
       );
     }
 
