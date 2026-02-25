@@ -848,12 +848,15 @@ Takeaway:
     });
 
     try {
+      final styleProfile =
+          await ref.read(styleProfileRepoProvider).getOrCreateDefault();
       final baseUrl = ref.read(apiBaseUrlProvider);
       final response = await ref.read(httpClientProvider).post(
             Uri.parse('$baseUrl/drafts/$draftId/variants'),
             headers: const {'content-type': 'application/json'},
             body: jsonEncode({
               'platforms': platforms,
+              'style_profile_id': styleProfile.id,
               'content_type': ref.read(activePostProvider)?.contentType,
             }),
           );
