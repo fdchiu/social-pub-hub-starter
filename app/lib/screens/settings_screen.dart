@@ -64,6 +64,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final draftCount = ref.watch(draftsStreamProvider).valueOrNull?.length;
     final variantCount =
         ref.watch(allVariantsStreamProvider).valueOrNull?.length;
+    final postCount = ref.watch(postsStreamProvider).valueOrNull?.length;
+    final projectCount = ref.watch(projectsStreamProvider).valueOrNull?.length;
     final bundleCount = ref.watch(bundlesStreamProvider).valueOrNull?.length;
     final publishLogCount =
         ref.watch(publishLogsStreamProvider).valueOrNull?.length;
@@ -117,6 +119,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             sourceCount: sourceCount,
             draftCount: draftCount,
             variantCount: variantCount,
+            postCount: postCount,
+            projectCount: projectCount,
             bundleCount: bundleCount,
             publishLogCount: publishLogCount,
             queueCount: queueCount,
@@ -202,6 +206,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required int? sourceCount,
     required int? draftCount,
     required int? variantCount,
+    required int? postCount,
+    required int? projectCount,
     required int? bundleCount,
     required int? publishLogCount,
     required int? queueCount,
@@ -224,7 +230,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 8),
             Text(
               'sources=${showCount(sourceCount)}  drafts=${showCount(draftCount)}  '
-              'variants=${showCount(variantCount)}  bundles=${showCount(bundleCount)}',
+              'variants=${showCount(variantCount)}  posts=${showCount(postCount)}  '
+              'projects=${showCount(projectCount)}  bundles=${showCount(bundleCount)}',
             ),
             Text(
               'logs=${showCount(publishLogCount)}  queue=${showCount(queueCount)}  '
@@ -244,6 +251,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     sourceCount: sourceCount,
                     draftCount: draftCount,
                     variantCount: variantCount,
+                    postCount: postCount,
+                    projectCount: projectCount,
                     bundleCount: bundleCount,
                     publishLogCount: publishLogCount,
                     queueCount: queueCount,
@@ -809,6 +818,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required int? sourceCount,
     required int? draftCount,
     required int? variantCount,
+    required int? postCount,
+    required int? projectCount,
     required int? bundleCount,
     required int? publishLogCount,
     required int? queueCount,
@@ -829,6 +840,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'source_items': sourceCount,
         'drafts': draftCount,
         'variants': variantCount,
+        'posts': postCount,
+        'projects': projectCount,
         'bundles': bundleCount,
         'publish_logs': publishLogCount,
         'scheduled_posts': queueCount,

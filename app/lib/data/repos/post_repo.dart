@@ -8,9 +8,12 @@ class PostRepo {
 
   final AppDatabase _db;
 
-  Stream<List<Post>> watchPosts() {
-    final query = _db.select(_db.posts)
-      ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)]);
+  Stream<List<Post>> watchPosts({String? projectId}) {
+    final query = _db.select(_db.posts);
+    if (projectId != null && projectId.trim().isNotEmpty) {
+      query.where((t) => t.projectId.equals(projectId.trim()));
+    }
+    query.orderBy([(t) => OrderingTerm.desc(t.updatedAt)]);
     return query.watch();
   }
 

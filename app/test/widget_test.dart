@@ -21,6 +21,9 @@ void main() {
           postsStreamProvider.overrideWith(
             (ref) => Stream.value(const <Post>[]),
           ),
+          scopedPostsStreamProvider.overrideWith(
+            (ref) => Stream.value(const <Post>[]),
+          ),
           bundlesStreamProvider.overrideWith(
             (ref) => Stream.value(const <Bundle>[]),
           ),
