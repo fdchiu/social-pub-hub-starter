@@ -41,7 +41,7 @@ Goal: improve source quality before drafting.
 - Keep current-post sources + optional global sources in one scoped list.
 - Bundle assignment dialog is scoped to active post bundles (plus legacy unscoped bundles).
 - Open source detail; adjust note/tags.
-- Start draft from a source, or assign to bundle.
+- Start draft from one source or all filtered sources (LLM first, template fallback), or assign to bundle.
 - Move a source to active post or promote it to global.
 Exit criteria:
 - source set is clean and relevant.

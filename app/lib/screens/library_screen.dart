@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/db/app_db.dart';
 import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
+import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
 
@@ -21,6 +24,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final TextEditingController _queryController = TextEditingController();
   String _query = '';
   String _tagFilter = 'all';
+  bool _creatingDraft = false;
 
   @override
   void initState() {
@@ -50,6 +54,28 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         context: context,
         title: 'Library',
         actions: [
+          sourceItemsAsync.maybeWhen(
+            data: (items) {
+              final filtered = items.where((item) => _matches(item)).toList();
+              return IconButton(
+                tooltip: 'Create draft from filtered',
+                onPressed: _creatingDraft || activePost == null || filtered.isEmpty
+                    ? null
+                    : () => _createDraftFromSources(
+                          filtered,
+                          activePost: activePost,
+                        ),
+                icon: _creatingDraft
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.note_add_outlined),
+              );
+            },
+            orElse: () => const SizedBox.shrink(),
+          ),
           IconButton(
             tooltip: 'Export filtered CSV',
             onPressed: _exportFilteredCsv,
@@ -166,8 +192,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                     }
                                     return;
                                   }
-                                  await _createDraftFromSource(
-                                    item,
+                                  await _createDraftFromSources(
+                                    <SourceItem>[item],
                                     activePost: activePost,
                                   );
                                   return;
@@ -406,41 +432,160 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     return parts.join('  •  ');
   }
 
-  Future<void> _createDraftFromSource(
-    SourceItem item, {
+  Future<void> _createDraftFromSources(
+    List<SourceItem> items, {
     required Post activePost,
   }) async {
-    final canonical = '''
-# Draft
+    if (items.isEmpty) {
+      return;
+    }
 
-Hook: I pulled this from my library and want to turn it into a post.
+    setState(() {
+      _creatingDraft = true;
+    });
 
-Source:
-- Type: ${item.type}
-- URL: ${item.url ?? '-'}
-- Notes: ${item.userNote ?? '-'}
-- Tags: ${item.tags.isEmpty ? '-' : item.tags.join(', ')}
+    final sourceIds = items.map((item) => item.id).toList(growable: false);
+    final draftRepo = ref.read(draftRepoProvider);
+    final styleProfile =
+        await ref.read(styleProfileRepoProvider).getOrCreateDefault();
 
-Takeaway: Start with one clear point, then iterate.
-''';
-    final draftId = await ref.read(draftRepoProvider).createDraft(
-          canonicalMarkdown: canonical,
-          intent: activePost.contentType == 'ai_tool_guide'
-              ? 'tool_guide'
-              : activePost.contentType == 'coding_guide'
-                  ? 'guide'
-                  : 'how_to',
-          audience: activePost.audience,
+    try {
+      final baseUrl = ref.read(apiBaseUrlProvider);
+      final response = await ref.read(httpClientProvider).post(
+            Uri.parse('$baseUrl/drafts/from_sources'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({
+              'source_ids': sourceIds,
+              'source_materials': items
+                  .map(
+                    (item) => {
+                      'id': item.id,
+                      'type': item.type,
+                      'title': item.title,
+                      'url': item.url,
+                      'note': item.userNote,
+                      'tags': item.tags,
+                    },
+                  )
+                  .toList(growable: false),
+              'intent': _intentForContentType(activePost.contentType),
+              'tone': 0.6,
+              'punchiness': 0.7,
+              'audience': activePost.audience ?? 'builders',
+              'length_target': 'short',
+              'post_id': activePost.id,
+              'post_title': activePost.title,
+              'post_goal': activePost.goal,
+              'content_type': activePost.contentType,
+              'style_traits': styleProfile.personalTraits,
+              'differentiation_points': styleProfile.differentiationPoints,
+              'personal_prompt': styleProfile.customPrompt,
+            }),
+          );
+
+      String draftId = '';
+      String canonicalMarkdown = '';
+      var llmUsed = false;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+        draftId = (parsed['draft_id'] as String?)?.trim() ?? '';
+        canonicalMarkdown =
+            (parsed['canonical_markdown'] as String?)?.trim() ?? '';
+        llmUsed = parsed['llm_used'] as bool? ?? false;
+        if (canonicalMarkdown.isEmpty) {
+          canonicalMarkdown = _buildLocalDraftTemplate(
+            items,
+            contentType: activePost.contentType,
+          );
+        }
+      }
+
+      if (draftId.isEmpty) {
+        draftId = await draftRepo.createDraft(
+          canonicalMarkdown: _buildLocalDraftTemplate(
+            items,
+            contentType: activePost.contentType,
+          ),
+          intent: _intentForContentType(activePost.contentType),
+          audience: activePost.audience ?? 'builders',
           postId: activePost.id,
           contentType: activePost.contentType,
         );
-    if (!mounted) {
-      return;
+      } else {
+        await draftRepo.createDraft(
+          id: draftId,
+          canonicalMarkdown: canonicalMarkdown,
+          intent: _intentForContentType(activePost.contentType),
+          tone: 0.6,
+          punchiness: 0.7,
+          audience: activePost.audience ?? 'builders',
+          postId: activePost.id,
+          contentType: activePost.contentType,
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            llmUsed
+                ? 'Draft generated from ${items.length} library sources.'
+                : 'Draft template created from ${items.length} library sources.',
+          ),
+        ),
+      );
+      context.go(
+        Uri(path: '/compose', queryParameters: {'draftId': draftId}).toString(),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed creating draft: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _creatingDraft = false;
+        });
+      }
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Draft ${draftId.substring(0, 8)} created')),
-    );
-    context.go('/compose');
+  }
+
+  String _buildLocalDraftTemplate(
+    List<SourceItem> items, {
+    required String contentType,
+  }) {
+    final sourceHint = items.map((item) => item.id).take(3).join(', ');
+    final outlineHint = switch (contentType) {
+      'coding_guide' =>
+        '- Setup and prerequisites\n- Step-by-step implementation\n- Verification and pitfalls',
+      'ai_tool_guide' =>
+        '- Use-case and tool setup\n- Prompt template and parameters\n- Guardrails, cost, and failure modes',
+      _ => '- What changed\n- Why this matters now',
+    };
+    return '''
+# Draft
+
+Hook: Quick synthesis from selected library evidence.
+
+- Source IDs: ${sourceHint.isEmpty ? 'none' : sourceHint}
+$outlineHint
+
+Takeaway: Start with one clear claim, then expand.
+''';
+  }
+
+  String _intentForContentType(String contentType) {
+    return switch (contentType) {
+      'coding_guide' => 'guide',
+      'ai_tool_guide' => 'tool_guide',
+      _ => 'how_to',
+    };
   }
 
   Future<void> _showAssignBundleDialog({
