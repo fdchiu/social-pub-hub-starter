@@ -912,20 +912,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   String _summaryText(SyncSummary summary) {
-    return 'Pushed proj/post/b/d/v/p/s/q: '
-        '${summary.pushedProjects}/${summary.pushedPosts}/'
+    return 'Pushed src/proj/post/b/d/v/p/s/q: '
+        '${summary.pushedSourceItems}/${summary.pushedProjects}/${summary.pushedPosts}/'
         '${summary.pushedBundles}/'
         '${summary.pushedDrafts}/${summary.pushedVariants}/'
         '${summary.pushedPublishLogs}/${summary.pushedStyleProfiles}/'
         '${summary.pushedScheduledPosts}\n'
-        'Pulled proj/post/b/d/v/p/s/q: '
-        '${summary.pulledProjects}/${summary.pulledPosts}/'
+        'Pulled src/proj/post/b/d/v/p/s/q: '
+        '${summary.pulledSourceItems}/${summary.pulledProjects}/${summary.pulledPosts}/'
         '${summary.pulledBundles}/'
         '${summary.pulledDrafts}/${summary.pulledVariants}/'
         '${summary.pulledPublishLogs}/${summary.pulledStyleProfiles}/'
         '${summary.pulledScheduledPosts}\n'
-        'Deleted proj/post/b/d/v/p/s/q: '
-        '${summary.deletedProjects}/${summary.deletedPosts}/'
+        'Deleted src/proj/post/b/d/v/p/s/q: '
+        '${summary.deletedSourceItems}/${summary.deletedProjects}/${summary.deletedPosts}/'
         '${summary.deletedBundles}/'
         '${summary.deletedDrafts}/${summary.deletedVariants}/'
         '${summary.deletedPublishLogs}/${summary.deletedStyleProfiles}/'
@@ -1044,6 +1044,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return {
       'cursor': summary.cursor,
       'pushed': {
+        'source_items': summary.pushedSourceItems,
         'projects': summary.pushedProjects,
         'posts': summary.pushedPosts,
         'bundles': summary.pushedBundles,
@@ -1054,6 +1055,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'scheduled_posts': summary.pushedScheduledPosts,
       },
       'pulled': {
+        'source_items': summary.pulledSourceItems,
         'projects': summary.pulledProjects,
         'posts': summary.pulledPosts,
         'bundles': summary.pulledBundles,
@@ -1064,6 +1066,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'scheduled_posts': summary.pulledScheduledPosts,
       },
       'deleted': {
+        'source_items': summary.deletedSourceItems,
         'projects': summary.deletedProjects,
         'posts': summary.deletedPosts,
         'bundles': summary.deletedBundles,

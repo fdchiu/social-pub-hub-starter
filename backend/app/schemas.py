@@ -14,6 +14,20 @@ class SourceMaterial(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class SourceItemSyncItem(BaseModel):
+    id: str
+    type: str = "note"
+    url: str | None = None
+    title: str | None = None
+    user_note: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    bundle_id: str | None = None
+    post_id: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    deleted_at: datetime | None = None
+
+
 class ProjectSyncItem(BaseModel):
     id: str
     name: str = ""
@@ -120,6 +134,7 @@ class ScheduledPostSyncItem(BaseModel):
 
 
 class SyncUpserts(BaseModel):
+    source_items: list[SourceItemSyncItem] = Field(default_factory=list)
     projects: list[ProjectSyncItem] = Field(default_factory=list)
     posts: list[PostSyncItem] = Field(default_factory=list)
     bundles: list[BundleSyncItem] = Field(default_factory=list)
@@ -128,10 +143,10 @@ class SyncUpserts(BaseModel):
     publish_logs: list[PublishLogSyncItem] = Field(default_factory=list)
     style_profiles: list[StyleProfileSyncItem] = Field(default_factory=list)
     scheduled_posts: list[ScheduledPostSyncItem] = Field(default_factory=list)
-    source_items: list[dict] = Field(default_factory=list)
 
 
 class SyncDeletes(BaseModel):
+    source_items: list[str] = Field(default_factory=list)
     projects: list[str] = Field(default_factory=list)
     posts: list[str] = Field(default_factory=list)
     bundles: list[str] = Field(default_factory=list)
@@ -140,7 +155,6 @@ class SyncDeletes(BaseModel):
     publish_logs: list[str] = Field(default_factory=list)
     style_profiles: list[str] = Field(default_factory=list)
     scheduled_posts: list[str] = Field(default_factory=list)
-    source_items: list[str] = Field(default_factory=list)
 
 
 class SyncPushRequest(BaseModel):

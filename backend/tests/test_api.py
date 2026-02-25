@@ -20,6 +20,7 @@ def _sync_payload(
 ) -> dict[str, Any]:
     return {
         "upserts": {
+            "source_items": [],
             "projects": [],
             "posts": [],
             "bundles": [],
@@ -30,6 +31,7 @@ def _sync_payload(
             "scheduled_posts": [],
         },
         "deletes": {
+            "source_items": [],
             "projects": [],
             "posts": [],
             "bundles": [],
@@ -420,4 +422,59 @@ def test_sync_bundles_roundtrip(client: TestClient) -> None:
         and row["post_id"] == "post_sync_1"
         and row["related_variant_ids"] == ["var_1", "var_2"]
         for row in bundles
+    )
+
+
+def test_sync_source_items_roundtrip(client: TestClient) -> None:
+    source_id = "src_sync_1"
+    now = datetime.now(timezone.utc)
+
+    push_payload = {
+        "upserts": {
+            "source_items": [
+                {
+                    "id": source_id,
+                    "type": "note",
+                    "title": "Draft hook",
+                    "user_note": "Lead with a concrete change and tradeoff.",
+                    "tags": ["hook", "voice"],
+                    "post_id": "post_sync_1",
+                    "bundle_id": "bundle_sync_1",
+                    "created_at": now.isoformat(),
+                    "updated_at": now.isoformat(),
+                }
+            ],
+            "projects": [],
+            "posts": [],
+            "bundles": [],
+            "drafts": [],
+            "variants": [],
+            "publish_logs": [],
+            "style_profiles": [],
+            "scheduled_posts": [],
+        },
+        "deletes": {
+            "source_items": [],
+            "projects": [],
+            "posts": [],
+            "bundles": [],
+            "drafts": [],
+            "variants": [],
+            "publish_logs": [],
+            "style_profiles": [],
+            "scheduled_posts": [],
+        },
+    }
+    push_response = client.post("/sync/push", json=push_payload)
+    assert push_response.status_code == 200
+
+    changes = client.get("/sync/changes", params={"since": 0})
+    assert changes.status_code == 200
+    source_items = changes.json()["upserts"]["source_items"]
+    assert any(
+        row["id"] == source_id
+        and row["post_id"] == "post_sync_1"
+        and row["bundle_id"] == "bundle_sync_1"
+        and row["tags"] == ["hook", "voice"]
+        for row in source_items
     )

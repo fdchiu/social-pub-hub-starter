@@ -66,6 +66,31 @@ class Post(Base):
     )
 
 
+class SourceItem(Base):
+    __tablename__ = "source_items"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    bundle_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    post_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    sync_cursor: Mapped[int] = mapped_column(
+        BigInteger, default=0, nullable=False, index=True
+    )
+
+
 class Bundle(Base):
     __tablename__ = "bundles"
 
@@ -181,6 +206,7 @@ class ScheduledPost(Base):
 
 
 SYNC_TABLES = {
+    "source_items": SourceItem,
     "projects": Project,
     "posts": Post,
     "bundles": Bundle,

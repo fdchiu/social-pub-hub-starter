@@ -115,6 +115,7 @@ class SourceRepo {
                 Value(postId?.trim().isEmpty ?? true ? null : postId?.trim()),
             createdAt: Value(now),
             updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
           ),
         );
 
@@ -130,6 +131,7 @@ class SourceRepo {
       SourceItemsCompanion(
         bundleId: Value(bundleId),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
       ),
     );
   }
@@ -160,6 +162,7 @@ class SourceRepo {
             : Value(normalizedTags),
         postId: postId == null ? const Value.absent() : Value(postId),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
       ),
     );
   }
@@ -173,6 +176,7 @@ class SourceRepo {
       SourceItemsCompanion(
         postId: Value(postId),
         updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
       ),
     );
   }

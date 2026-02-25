@@ -19,6 +19,7 @@ from .models import (
     Project,
     PublishLog,
     ScheduledPost,
+    SourceItem,
     SYNC_TABLES,
     StyleProfile,
     SyncCounter,
@@ -36,6 +37,7 @@ from .schemas import (
     PostSyncItem,
     ProjectSyncItem,
     ScheduledPostSyncItem,
+    SourceItemSyncItem,
     StyleProfileSyncItem,
     SyncPushRequest,
     SourceMaterial,
@@ -101,6 +103,22 @@ def _serialize_post(item: Post) -> dict[str, Any]:
         "goal": item.goal,
         "audience": item.audience,
         "status": item.status,
+        "created_at": item.created_at,
+        "updated_at": item.updated_at,
+        "deleted_at": item.deleted_at,
+    }
+
+
+def _serialize_source_item(item: SourceItem) -> dict[str, Any]:
+    return {
+        "id": item.id,
+        "type": item.type,
+        "url": item.url,
+        "title": item.title,
+        "user_note": item.user_note,
+        "tags": item.tags,
+        "bundle_id": item.bundle_id,
+        "post_id": item.post_id,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
         "deleted_at": item.deleted_at,
@@ -202,6 +220,8 @@ def _serialize_scheduled_post(item: ScheduledPost) -> dict[str, Any]:
 
 
 def _serialize(name: str, item: Any) -> dict[str, Any]:
+    if name == "source_items":
+        return _serialize_source_item(item)
     if name == "projects":
         return _serialize_project(item)
     if name == "posts":
@@ -223,6 +243,33 @@ def _serialize(name: str, item: Any) -> dict[str, Any]:
 
 def _new_id(prefix: str) -> str:
     return f"{prefix}_{uuid4().hex}"
+
+
+def _apply_source_item_upsert(db: Session, payload: SourceItemSyncItem) -> None:
+    now = utc_now()
+    incoming_updated_at = _to_utc(payload.updated_at)
+    item = db.get(SourceItem, payload.id)
+
+    if item is not None and incoming_updated_at <= _to_utc(item.updated_at):
+        return
+
+    if item is None:
+        item = SourceItem(
+            id=payload.id,
+            created_at=_to_utc(payload.created_at) if payload.created_at else now,
+        )
+        db.add(item)
+
+    item.type = payload.type
+    item.url = payload.url
+    item.title = payload.title
+    item.user_note = payload.user_note
+    item.tags = payload.tags
+    item.bundle_id = payload.bundle_id
+    item.post_id = payload.post_id
+    item.updated_at = incoming_updated_at
+    item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None
+    item.sync_cursor = _next_cursor(db)
 
 
 def _apply_project_upsert(db: Session, payload: ProjectSyncItem) -> None:
@@ -776,6 +823,8 @@ def sync_changes(since: int = 0, db: Session = Depends(get_db)) -> dict[str, Any
 
 @app.post("/sync/push")
 def sync_push(payload: SyncPushRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
+    for item in payload.upserts.source_items:
+        _apply_source_item_upsert(db, item)
     for item in payload.upserts.projects:
         _apply_project_upsert(db, item)
     for item in payload.upserts.posts:
@@ -793,6 +842,8 @@ def sync_push(payload: SyncPushRequest, db: Session = Depends(get_db)) -> dict[s
     for item in payload.upserts.scheduled_posts:
         _apply_scheduled_post_upsert(db, item)
 
+    for entity_id in payload.deletes.source_items:
+        _soft_delete(db, SourceItem, entity_id)
     for entity_id in payload.deletes.projects:
         _soft_delete(db, Project, entity_id)
     for entity_id in payload.deletes.posts:

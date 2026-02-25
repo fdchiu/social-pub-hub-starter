@@ -962,6 +962,14 @@ class $SourceItemsTable extends SourceItems
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
+  static const VerificationMeta _syncStatusMeta =
+      const VerificationMeta('syncStatus');
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+      'sync_status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('dirty'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -973,7 +981,8 @@ class $SourceItemsTable extends SourceItems
         bundleId,
         postId,
         createdAt,
-        updatedAt
+        updatedAt,
+        syncStatus
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1024,6 +1033,12 @@ class $SourceItemsTable extends SourceItems
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+          _syncStatusMeta,
+          syncStatus.isAcceptableOrUnknown(
+              data['sync_status']!, _syncStatusMeta));
+    }
     return context;
   }
 
@@ -1054,6 +1069,8 @@ class $SourceItemsTable extends SourceItems
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      syncStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sync_status'])!,
     );
   }
 
@@ -1077,6 +1094,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
   final String? postId;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String syncStatus;
   const SourceItem(
       {required this.id,
       required this.type,
@@ -1087,7 +1105,8 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       this.bundleId,
       this.postId,
       required this.createdAt,
-      required this.updatedAt});
+      required this.updatedAt,
+      required this.syncStatus});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1114,6 +1133,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['sync_status'] = Variable<String>(syncStatus);
     return map;
   }
 
@@ -1135,6 +1155,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           postId == null && nullToAbsent ? const Value.absent() : Value(postId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
     );
   }
 
@@ -1152,6 +1173,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       postId: serializer.fromJson<String?>(json['postId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
     );
   }
   @override
@@ -1168,6 +1190,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       'postId': serializer.toJson<String?>(postId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
     };
   }
 
@@ -1181,7 +1204,8 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           Value<String?> bundleId = const Value.absent(),
           Value<String?> postId = const Value.absent(),
           DateTime? createdAt,
-          DateTime? updatedAt}) =>
+          DateTime? updatedAt,
+          String? syncStatus}) =>
       SourceItem(
         id: id ?? this.id,
         type: type ?? this.type,
@@ -1193,6 +1217,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
         postId: postId.present ? postId.value : this.postId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        syncStatus: syncStatus ?? this.syncStatus,
       );
   SourceItem copyWithCompanion(SourceItemsCompanion data) {
     return SourceItem(
@@ -1206,6 +1231,8 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       postId: data.postId.present ? data.postId.value : this.postId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus:
+          data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
     );
   }
 
@@ -1221,14 +1248,15 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           ..write('bundleId: $bundleId, ')
           ..write('postId: $postId, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode => Object.hash(id, type, url, title, userNote, tags,
-      bundleId, postId, createdAt, updatedAt);
+      bundleId, postId, createdAt, updatedAt, syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1242,7 +1270,8 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           other.bundleId == this.bundleId &&
           other.postId == this.postId &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
 }
 
 class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
@@ -1256,6 +1285,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
   final Value<String?> postId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> syncStatus;
   final Value<int> rowid;
   const SourceItemsCompanion({
     this.id = const Value.absent(),
@@ -1268,6 +1298,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     this.postId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SourceItemsCompanion.insert({
@@ -1281,6 +1312,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     this.postId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         type = Value(type);
@@ -1295,6 +1327,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     Expression<String>? postId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1308,6 +1341,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       if (postId != null) 'post_id': postId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1323,6 +1357,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       Value<String?>? postId,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
+      Value<String>? syncStatus,
       Value<int>? rowid}) {
     return SourceItemsCompanion(
       id: id ?? this.id,
@@ -1335,6 +1370,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       postId: postId ?? this.postId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1373,6 +1409,9 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1392,6 +1431,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
           ..write('postId: $postId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6104,6 +6144,7 @@ typedef $$SourceItemsTableCreateCompanionBuilder = SourceItemsCompanion
   Value<String?> postId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 typedef $$SourceItemsTableUpdateCompanionBuilder = SourceItemsCompanion
@@ -6118,6 +6159,7 @@ typedef $$SourceItemsTableUpdateCompanionBuilder = SourceItemsCompanion
   Value<String?> postId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<String> syncStatus,
   Value<int> rowid,
 });
 
@@ -6178,6 +6220,9 @@ class $$SourceItemsTableFilterComposer
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
   $$PostsTableFilterComposer get postId {
     final $$PostsTableFilterComposer composer = $composerBuilder(
         composer: this,
@@ -6234,6 +6279,9 @@ class $$SourceItemsTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
 
   $$PostsTableOrderingComposer get postId {
     final $$PostsTableOrderingComposer composer = $composerBuilder(
@@ -6292,6 +6340,9 @@ class $$SourceItemsTableAnnotationComposer
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+      column: $table.syncStatus, builder: (column) => column);
+
   $$PostsTableAnnotationComposer get postId {
     final $$PostsTableAnnotationComposer composer = $composerBuilder(
         composer: this,
@@ -6346,6 +6397,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             Value<String?> postId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SourceItemsCompanion(
@@ -6359,6 +6411,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             postId: postId,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -6372,6 +6425,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             Value<String?> postId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<String> syncStatus = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SourceItemsCompanion.insert(
@@ -6385,6 +6439,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             postId: postId,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            syncStatus: syncStatus,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

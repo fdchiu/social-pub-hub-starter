@@ -10,6 +10,7 @@ import '../db/app_db.dart';
 class SyncSummary {
   const SyncSummary({
     required this.cursor,
+    required this.pushedSourceItems,
     required this.pushedProjects,
     required this.pushedPosts,
     required this.pushedBundles,
@@ -18,6 +19,7 @@ class SyncSummary {
     required this.pushedPublishLogs,
     required this.pushedStyleProfiles,
     required this.pushedScheduledPosts,
+    required this.pulledSourceItems,
     required this.pulledProjects,
     required this.pulledPosts,
     required this.pulledBundles,
@@ -26,6 +28,7 @@ class SyncSummary {
     required this.pulledPublishLogs,
     required this.pulledStyleProfiles,
     required this.pulledScheduledPosts,
+    required this.deletedSourceItems,
     required this.deletedProjects,
     required this.deletedPosts,
     required this.deletedBundles,
@@ -38,6 +41,7 @@ class SyncSummary {
   });
 
   final int cursor;
+  final int pushedSourceItems;
   final int pushedProjects;
   final int pushedPosts;
   final int pushedBundles;
@@ -46,6 +50,7 @@ class SyncSummary {
   final int pushedPublishLogs;
   final int pushedStyleProfiles;
   final int pushedScheduledPosts;
+  final int pulledSourceItems;
   final int pulledProjects;
   final int pulledPosts;
   final int pulledBundles;
@@ -54,6 +59,7 @@ class SyncSummary {
   final int pulledPublishLogs;
   final int pulledStyleProfiles;
   final int pulledScheduledPosts;
+  final int deletedSourceItems;
   final int deletedProjects;
   final int deletedPosts;
   final int deletedBundles;
@@ -114,6 +120,7 @@ class SyncService {
     final upserts = (changes['upserts'] as Map<String, dynamic>? ?? const {});
     final deletes = (changes['deletes'] as Map<String, dynamic>? ?? const {});
 
+    final pulledSourceItems = _asMapList(upserts['source_items']);
     final pulledProjects = _asMapList(upserts['projects']);
     final pulledPosts = _asMapList(upserts['posts']);
     final pulledBundles = _asMapList(upserts['bundles']);
@@ -123,6 +130,7 @@ class SyncService {
     final pulledStyleProfiles = _asMapList(upserts['style_profiles']);
     final pulledScheduledPosts = _asMapList(upserts['scheduled_posts']);
 
+    final deletedSourceItems = _asStringList(deletes['source_items']);
     final deletedProjects = _asStringList(deletes['projects']);
     final deletedPosts = _asStringList(deletes['posts']);
     final deletedBundles = _asStringList(deletes['bundles']);
@@ -133,6 +141,7 @@ class SyncService {
     final deletedScheduledPosts = _asStringList(deletes['scheduled_posts']);
 
     await _db.transaction(() async {
+      await _applySourceItemUpserts(pulledSourceItems);
       await _applyProjectUpserts(pulledProjects);
       await _applyPostUpserts(pulledPosts);
       await _applyBundleUpserts(pulledBundles);
@@ -142,6 +151,7 @@ class SyncService {
       await _applyStyleProfileUpserts(pulledStyleProfiles);
       await _applyScheduledPostUpserts(pulledScheduledPosts);
       await _applyDeletes(
+        deletedSourceItems: deletedSourceItems,
         deletedProjects: deletedProjects,
         deletedPosts: deletedPosts,
         deletedBundles: deletedBundles,
@@ -158,6 +168,7 @@ class SyncService {
 
     return SyncSummary(
       cursor: nextCursor,
+      pushedSourceItems: pushBatch.sourceItemIds.length,
       pushedProjects: pushBatch.projectIds.length,
       pushedPosts: pushBatch.postIds.length,
       pushedBundles: pushBatch.bundleIds.length,
@@ -166,6 +177,7 @@ class SyncService {
       pushedPublishLogs: pushBatch.publishLogIds.length,
       pushedStyleProfiles: pushBatch.styleProfileIds.length,
       pushedScheduledPosts: pushBatch.scheduledPostIds.length,
+      pulledSourceItems: pulledSourceItems.length,
       pulledProjects: pulledProjects.length,
       pulledPosts: pulledPosts.length,
       pulledBundles: pulledBundles.length,
@@ -174,6 +186,7 @@ class SyncService {
       pulledPublishLogs: pulledPublishLogs.length,
       pulledStyleProfiles: pulledStyleProfiles.length,
       pulledScheduledPosts: pulledScheduledPosts.length,
+      deletedSourceItems: deletedSourceItems.length,
       deletedProjects: deletedProjects.length,
       deletedPosts: deletedPosts.length,
       deletedBundles: deletedBundles.length,
@@ -187,6 +200,9 @@ class SyncService {
   }
 
   Future<_PushBatch> _buildPushBatch() async {
+    final sourceItems = await (_db.select(_db.sourceItems)
+          ..where((t) => t.syncStatus.equals('dirty')))
+        .get();
     final projects = await (_db.select(_db.projects)
           ..where((t) => t.syncStatus.equals('dirty')))
         .get();
@@ -214,6 +230,22 @@ class SyncService {
 
     final payload = {
       'upserts': {
+        'source_items': sourceItems
+            .map(
+              (row) => {
+                'id': row.id,
+                'type': row.type,
+                'url': row.url,
+                'title': row.title,
+                'user_note': row.userNote,
+                'tags': row.tags,
+                'bundle_id': row.bundleId,
+                'post_id': row.postId,
+                'created_at': row.createdAt.toIso8601String(),
+                'updated_at': row.updatedAt.toIso8601String(),
+              },
+            )
+            .toList(),
         'projects': projects
             .map(
               (row) => {
@@ -337,6 +369,7 @@ class SyncService {
             .toList(),
       },
       'deletes': {
+        'source_items': const <String>[],
         'projects': const <String>[],
         'posts': const <String>[],
         'bundles': const <String>[],
@@ -350,6 +383,7 @@ class SyncService {
 
     return _PushBatch(
       payload: payload,
+      sourceItemIds: sourceItems.map((r) => r.id).toList(growable: false),
       projectIds: projects.map((r) => r.id).toList(growable: false),
       postIds: posts.map((r) => r.id).toList(growable: false),
       bundleIds: bundles.map((r) => r.id).toList(growable: false),
@@ -363,6 +397,11 @@ class SyncService {
 
   Future<void> _markPushedRowsClean(_PushBatch batch) async {
     await _db.transaction(() async {
+      if (batch.sourceItemIds.isNotEmpty) {
+        await (_db.update(_db.sourceItems)
+              ..where((t) => t.id.isIn(batch.sourceItemIds)))
+            .write(const SourceItemsCompanion(syncStatus: Value('clean')));
+      }
       if (batch.projectIds.isNotEmpty) {
         await (_db.update(_db.projects)
               ..where((t) => t.id.isIn(batch.projectIds)))
@@ -427,6 +466,23 @@ class SyncService {
     final now = DateTime.now().toUtc();
     await _db.transaction(() async {
       switch (conflict.entityType) {
+        case 'source_items':
+          await _db.into(_db.sourceItems).insertOnConflictUpdate(
+                SourceItemsCompanion(
+                  id: Value(conflict.entityId),
+                  type: Value((payload['type'] as String?) ?? 'note'),
+                  url: Value(payload['url'] as String?),
+                  title: Value(payload['title'] as String?),
+                  userNote: Value(payload['user_note'] as String?),
+                  tags: Value(_asStringList(payload['tags'])),
+                  bundleId: Value(payload['bundle_id'] as String?),
+                  postId: Value(payload['post_id'] as String?),
+                  createdAt: Value(_asDateTime(payload['created_at']) ?? now),
+                  updatedAt: Value(now),
+                  syncStatus: const Value('dirty'),
+                ),
+              );
+          break;
         case 'projects':
           await _db.into(_db.projects).insertOnConflictUpdate(
                 ProjectsCompanion(
@@ -586,6 +642,49 @@ class SyncService {
         ),
       );
     });
+  }
+
+  Future<void> _applySourceItemUpserts(List<Map<String, dynamic>> rows) async {
+    for (final row in rows) {
+      final id = row['id'] as String?;
+      if (id == null || id.isEmpty) {
+        continue;
+      }
+
+      final now = DateTime.now().toUtc();
+      final incomingUpdatedAt = _asDateTime(row['updated_at']) ?? now;
+      final existing = await (_db.select(_db.sourceItems)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (existing != null && existing.syncStatus == 'dirty') {
+        if (incomingUpdatedAt.isAfter(existing.updatedAt)) {
+          await _recordConflict(
+            entityType: 'source_items',
+            entityId: id,
+            localPayload: _sourceItemToPayload(existing),
+            remotePayload: row,
+          );
+        } else {
+          continue;
+        }
+      }
+
+      await _db.into(_db.sourceItems).insertOnConflictUpdate(
+            SourceItemsCompanion(
+              id: Value(id),
+              type: Value((row['type'] as String?) ?? 'note'),
+              url: Value(row['url'] as String?),
+              title: Value(row['title'] as String?),
+              userNote: Value(row['user_note'] as String?),
+              tags: Value(_asStringList(row['tags'])),
+              bundleId: Value(row['bundle_id'] as String?),
+              postId: Value(row['post_id'] as String?),
+              createdAt: Value(_asDateTime(row['created_at']) ?? now),
+              updatedAt: Value(incomingUpdatedAt),
+              syncStatus: const Value('clean'),
+            ),
+          );
+    }
   }
 
   Future<void> _applyProjectUpserts(List<Map<String, dynamic>> rows) async {
@@ -934,6 +1033,7 @@ class SyncService {
   }
 
   Future<void> _applyDeletes({
+    required List<String> deletedSourceItems,
     required List<String> deletedProjects,
     required List<String> deletedPosts,
     required List<String> deletedBundles,
@@ -943,6 +1043,12 @@ class SyncService {
     required List<String> deletedStyleProfiles,
     required List<String> deletedScheduledPosts,
   }) async {
+    if (deletedSourceItems.isNotEmpty) {
+      await (_db.delete(_db.sourceItems)
+            ..where((t) => t.id.isIn(deletedSourceItems)))
+          .go();
+    }
+
     if (deletedPosts.isNotEmpty) {
       await (_db.update(_db.sourceItems)
             ..where((t) => t.postId.isIn(deletedPosts)))
@@ -1047,6 +1153,21 @@ class SyncService {
             resolution: const Value(null),
           ),
         );
+  }
+
+  Map<String, dynamic> _sourceItemToPayload(SourceItem row) {
+    return {
+      'id': row.id,
+      'type': row.type,
+      'url': row.url,
+      'title': row.title,
+      'user_note': row.userNote,
+      'tags': row.tags,
+      'bundle_id': row.bundleId,
+      'post_id': row.postId,
+      'created_at': row.createdAt.toIso8601String(),
+      'updated_at': row.updatedAt.toIso8601String(),
+    };
   }
 
   Map<String, dynamic> _projectToPayload(Project row) {
@@ -1197,6 +1318,7 @@ class SyncService {
 class _PushBatch {
   const _PushBatch({
     required this.payload,
+    required this.sourceItemIds,
     required this.projectIds,
     required this.postIds,
     required this.bundleIds,
@@ -1208,6 +1330,7 @@ class _PushBatch {
   });
 
   final Map<String, dynamic> payload;
+  final List<String> sourceItemIds;
   final List<String> projectIds;
   final List<String> postIds;
   final List<String> bundleIds;
