@@ -579,8 +579,20 @@ Takeaway:
       final parsed = jsonDecode(response.body) as Map<String, dynamic>;
       final variantsRaw = parsed['variants'];
       final variants = variantsRaw is List
-          ? variantsRaw.whereType<Map>().map((e) => e.cast<String, dynamic>())
-          : const Iterable<Map<String, dynamic>>.empty();
+          ? variantsRaw
+              .whereType<Map>()
+              .map((e) => e.cast<String, dynamic>())
+              .toList(growable: false)
+          : const <Map<String, dynamic>>[];
+      final llmCount = variants
+          .where((row) => (row['llm_used'] as bool?) ?? false)
+          .length;
+      final fallbackReasons = variants
+          .map((row) => (row['fallback_reason'] as String?)?.trim())
+          .whereType<String>()
+          .where((reason) => reason.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
 
       final repo = ref.read(variantRepoProvider);
 
@@ -600,8 +612,15 @@ Takeaway:
         _generatingVariants = false;
         _variantError = null;
       });
+      final templateCount = variants.length - llmCount;
+      final summary = templateCount == 0
+          ? 'Generated ${variants.length} variants with LLM.'
+          : llmCount == 0
+              ? 'Generated ${variants.length} variants with template fallback.'
+              : 'Generated ${variants.length} variants (LLM $llmCount, fallback $templateCount).';
+      final detail = fallbackReasons.isEmpty ? '' : ' ${fallbackReasons.first}.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Generated ${variants.length} variants')),
+        SnackBar(content: Text('$summary$detail')),
       );
     } catch (e) {
       if (!mounted) {
@@ -867,8 +886,20 @@ Takeaway:
       final parsed = jsonDecode(response.body) as Map<String, dynamic>;
       final variantsRaw = parsed['variants'];
       final regenerated = variantsRaw is List
-          ? variantsRaw.whereType<Map>().map((e) => e.cast<String, dynamic>())
-          : const Iterable<Map<String, dynamic>>.empty();
+          ? variantsRaw
+              .whereType<Map>()
+              .map((e) => e.cast<String, dynamic>())
+              .toList(growable: false)
+          : const <Map<String, dynamic>>[];
+      final llmCount = regenerated
+          .where((row) => (row['llm_used'] as bool?) ?? false)
+          .length;
+      final fallbackReasons = regenerated
+          .map((row) => (row['fallback_reason'] as String?)?.trim())
+          .whereType<String>()
+          .where((reason) => reason.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
 
       final repo = ref.read(variantRepoProvider);
       await repo.deleteVariantsForDraftPlatforms(
@@ -891,12 +922,15 @@ Takeaway:
         _regeneratingVisibleVariants = false;
         _variantError = null;
       });
+      final templateCount = regenerated.length - llmCount;
+      final summary = templateCount == 0
+          ? 'Regenerated ${regenerated.length} variants with LLM.'
+          : llmCount == 0
+              ? 'Regenerated ${regenerated.length} variants with template fallback.'
+              : 'Regenerated ${regenerated.length} variants (LLM $llmCount, fallback $templateCount).';
+      final detail = fallbackReasons.isEmpty ? '' : ' ${fallbackReasons.first}.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Regenerated ${platforms.length} platform variants',
-          ),
-        ),
+        SnackBar(content: Text('$summary$detail')),
       );
     } catch (e) {
       if (!mounted) {
