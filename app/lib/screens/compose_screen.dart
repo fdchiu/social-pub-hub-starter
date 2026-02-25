@@ -131,6 +131,11 @@ Takeaway:
             tooltip: 'Open publish checklist',
             icon: const Icon(Icons.checklist_outlined),
           ),
+          IconButton(
+            onPressed: _draftId == null ? null : _deleteDraft,
+            tooltip: 'Delete draft',
+            icon: const Icon(Icons.delete_outline),
+          ),
           if (_saveError != null)
             Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -1133,6 +1138,58 @@ Takeaway:
     }
     final encoded = Uri.encodeQueryComponent(draftId);
     context.go('/publish-checklist?draftId=$encoded');
+  }
+
+  Future<void> _deleteDraft() async {
+    final draftId = _draftId;
+    if (draftId == null || draftId.isEmpty) {
+      return;
+    }
+
+    final shouldDelete = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete draft?'),
+            content: const Text(
+              'This permanently removes the draft, linked variants, and syncs the deletion.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!shouldDelete) {
+      return;
+    }
+
+    _saveDebounce?.cancel();
+    await ref.read(draftRepoProvider).deleteDraftById(draftId);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _draftId = null;
+      _loadedForPostId = null;
+      _variantError = null;
+      _saveError = null;
+      _loading = true;
+    });
+    await _loadOrCreateDraft();
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Draft ${draftId.substring(0, 8)} deleted')),
+    );
   }
 
   Future<void> _exportVariantsCsv() async {

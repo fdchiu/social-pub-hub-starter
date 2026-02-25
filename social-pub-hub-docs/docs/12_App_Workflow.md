@@ -55,6 +55,7 @@ Goal: produce canonical draft.
 - Content type drives structure (`general_post`, `coding_guide`, `ai_tool_guide`).
 - Style profile traits + differentiation + custom prompt feed LLM.
 - Generate variants.
+- Delete draft when needed (linked variants are removed and deletion syncs).
 Exit criteria:
 - canonical draft approved by user.
 

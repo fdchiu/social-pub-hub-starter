@@ -99,4 +99,81 @@ class DraftRepo {
       ),
     );
   }
+
+  Future<void> deleteDraftById(String draftId) async {
+    await _db.transaction(() async {
+      final now = DateTime.now().toUtc();
+      final linkedVariants = await (_db.select(_db.variants)
+            ..where((t) => t.draftId.equals(draftId)))
+          .get();
+      final variantIds = linkedVariants.map((row) => row.id).toSet();
+
+      await _db.into(_db.syncTombstones).insertOnConflictUpdate(
+            SyncTombstonesCompanion.insert(
+              id: 'drafts:$draftId',
+              entityType: 'drafts',
+              entityId: draftId,
+              createdAt: Value(now),
+            ),
+          );
+      for (final variantId in variantIds) {
+        await _db.into(_db.syncTombstones).insertOnConflictUpdate(
+              SyncTombstonesCompanion.insert(
+                id: 'variants:$variantId',
+                entityType: 'variants',
+                entityId: variantId,
+                createdAt: Value(now),
+              ),
+            );
+      }
+
+      if (variantIds.isNotEmpty) {
+        await (_db.update(_db.publishLogs)
+              ..where((t) => t.variantId.isIn(variantIds)))
+            .write(
+          PublishLogsCompanion(
+            variantId: const Value(null),
+            updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
+          ),
+        );
+        await (_db.update(_db.scheduledPosts)
+              ..where((t) => t.variantId.isIn(variantIds)))
+            .write(
+          ScheduledPostsCompanion(
+            variantId: const Value(null),
+            updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
+          ),
+        );
+      }
+
+      final bundles = await _db.select(_db.bundles).get();
+      for (final bundle in bundles) {
+        final updatedVariantIds = bundle.relatedVariantIds
+            .where((id) => !variantIds.contains(id))
+            .toList(growable: false);
+        final relatedChanged =
+            updatedVariantIds.length != bundle.relatedVariantIds.length;
+        final canonicalChanged = bundle.canonicalDraftId == draftId;
+        if (!relatedChanged && !canonicalChanged) {
+          continue;
+        }
+        await (_db.update(_db.bundles)..where((t) => t.id.equals(bundle.id)))
+            .write(
+          BundlesCompanion(
+            relatedVariantIds: Value(updatedVariantIds),
+            canonicalDraftId:
+                canonicalChanged ? const Value(null) : const Value.absent(),
+            updatedAt: Value(now),
+            syncStatus: const Value('dirty'),
+          ),
+        );
+      }
+
+      await (_db.delete(_db.variants)..where((t) => t.draftId.equals(draftId)))
+          .go();
+      await (_db.delete(_db.drafts)..where((t) => t.id.equals(draftId))).go();
+    });
+  }
 }
