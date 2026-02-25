@@ -108,6 +108,9 @@ class _PublishChecklistScreenState
               final checks = _evaluateDraft(
                 markdown: selectedDraft.canonicalMarkdown,
                 bannedPhrases: styleProfile?.bannedPhrases ?? const <String>[],
+                contentType: selectedDraft.contentType ??
+                    activePost?.contentType ??
+                    'general_post',
               );
               final passedChecks = checks.where((row) => row.passed).length;
 
@@ -170,6 +173,10 @@ class _PublishChecklistScreenState
                   const SizedBox(height: 4),
                   Text(
                     'Intent: ${selectedDraft.intent ?? 'n/a'}  •  Audience: ${selectedDraft.audience ?? 'n/a'}',
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Content type: ${selectedDraft.contentType ?? activePost?.contentType ?? 'general_post'}',
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -290,9 +297,11 @@ class _PublishChecklistScreenState
   List<_ChecklistResult> _evaluateDraft({
     required String markdown,
     required List<String> bannedPhrases,
+    required String contentType,
   }) {
     final text = markdown.trim();
     final lowerText = text.toLowerCase();
+    final normalizedType = contentType.trim().toLowerCase();
     final lines =
         text.split('\n').map((line) => line.trim()).where((l) => l.isNotEmpty);
     final firstLine = lines.isEmpty ? '' : lines.first;
@@ -314,6 +323,23 @@ class _PublishChecklistScreenState
       text,
     );
     final hasQuestion = text.contains('?');
+    final hasNumberedSteps =
+        RegExp(r'^\s*\d+[.)\s]', multiLine: true).hasMatch(text);
+    final hasBulletSteps =
+        RegExp(r'^\s*[-*]\s+', multiLine: true).hasMatch(text);
+    final hasCodeFence = text.contains('```');
+    final hasPromptLanguage = lowerText.contains('prompt') ||
+        lowerText.contains('input') ||
+        lowerText.contains('parameter') ||
+        lowerText.contains('template');
+    final hasRiskLanguage = lowerText.contains('risk') ||
+        lowerText.contains('guardrail') ||
+        lowerText.contains('failure') ||
+        lowerText.contains('cost');
+    final hasSetupLanguage = lowerText.contains('setup') ||
+        lowerText.contains('prereq') ||
+        lowerText.contains('requirement') ||
+        lowerText.contains('install');
 
     final normalizedBanned = bannedPhrases
         .map((phrase) => phrase.trim())
@@ -325,7 +351,7 @@ class _PublishChecklistScreenState
         .toList(growable: false)
       ..sort();
 
-    return [
+    final checks = <_ChecklistResult>[
       _ChecklistResult(
         label: 'Hook in first 1-2 lines',
         passed: hasHook,
@@ -369,6 +395,50 @@ class _PublishChecklistScreenState
             : 'Detected: ${foundBanned.join(', ')}',
       ),
     ];
+
+    if (normalizedType == 'coding_guide') {
+      checks.addAll(
+        [
+          _ChecklistResult(
+            label: 'Coding guide: setup/prerequisites',
+            passed: hasSetupLanguage,
+            detail: hasSetupLanguage
+                ? 'Detected setup/prerequisite language.'
+                : 'Add setup, install steps, or prerequisites.',
+          ),
+          _ChecklistResult(
+            label: 'Coding guide: actionable steps/code',
+            passed: hasNumberedSteps || hasBulletSteps || hasCodeFence,
+            detail: hasNumberedSteps || hasBulletSteps || hasCodeFence
+                ? 'Detected actionable steps or code block.'
+                : 'Add explicit steps and at least one concrete code snippet.',
+          ),
+        ],
+      );
+    }
+
+    if (normalizedType == 'ai_tool_guide') {
+      checks.addAll(
+        [
+          _ChecklistResult(
+            label: 'AI tool guide: prompt/inputs',
+            passed: hasPromptLanguage,
+            detail: hasPromptLanguage
+                ? 'Detected prompt/input language.'
+                : 'Add prompt template, key inputs, or parameters.',
+          ),
+          _ChecklistResult(
+            label: 'AI tool guide: guardrails/cost/failure modes',
+            passed: hasRiskLanguage,
+            detail: hasRiskLanguage
+                ? 'Detected guardrail/risk language.'
+                : 'Add cost, guardrails, and likely failure modes.',
+          ),
+        ],
+      );
+    }
+
+    return checks;
   }
 
   Future<void> _copyChecklistReport({
@@ -384,6 +454,7 @@ class _PublishChecklistScreenState
       'score': {'passed': passedChecks, 'total': checks.length},
       'intent': draft.intent,
       'audience': draft.audience,
+      'content_type': draft.contentType ?? 'general_post',
       'failed_checks': failedChecks
           .map((row) => {'label': row.label, 'detail': row.detail})
           .toList(growable: false),
@@ -404,6 +475,7 @@ class _PublishChecklistScreenState
       ..writeln('score=$passedChecks/${checks.length}')
       ..writeln(
           'intent=${draft.intent ?? 'n/a'} audience=${draft.audience ?? 'n/a'}')
+      ..writeln('content_type=${draft.contentType ?? 'general_post'}')
       ..writeln('generated_at=${DateTime.now().toUtc().toIso8601String()}')
       ..writeln()
       ..writeln('failed_checks=${failedChecks.length}');
@@ -436,6 +508,7 @@ class _PublishChecklistScreenState
     final intent = draft.intent?.trim().isEmpty ?? true ? 'n/a' : draft.intent!;
     final audience =
         draft.audience?.trim().isEmpty ?? true ? 'n/a' : draft.audience!;
+    final contentType = draft.contentType ?? 'general_post';
     final voice = styleProfile?.voiceName.trim().isEmpty ?? true
         ? 'default'
         : styleProfile!.voiceName;
@@ -445,6 +518,7 @@ class _PublishChecklistScreenState
       ..writeln('Keep claims accurate. Keep original meaning.')
       ..writeln('style_voice=$voice')
       ..writeln('intent=$intent audience=$audience')
+      ..writeln('content_type=$contentType')
       ..writeln('banned_phrases=$bannedText')
       ..writeln()
       ..writeln('failed_checks=${failedChecks.length}');

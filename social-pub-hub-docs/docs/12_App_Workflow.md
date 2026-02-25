@@ -79,7 +79,7 @@ Exit criteria:
 ### Publish Checklist (`/publish-checklist`)
 Goal: quality gate before posting.
 - Scope drafts to active post by default; toggle “Include all posts” for cross-post review.
-- Run rubric checks (hook, specifics, stance, CTA/question).
+- Run rubric checks (hook, specifics, stance, CTA/question), plus content-type checks for coding/AI guides.
 - Confirm assisted publish steps.
 Exit criteria:
 - checklist pass, no blockers.
