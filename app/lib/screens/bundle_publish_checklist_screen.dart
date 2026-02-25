@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../data/db/app_db.dart';
 import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
+import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
 
@@ -447,21 +450,76 @@ class _BundlePublishChecklistScreenState
 
     final variantRepo = ref.read(variantRepoProvider);
     final createdIds = <String>[];
-    for (final platform in report.missingPlatforms) {
-      final variantId = await variantRepo.createVariant(
-        draftId: draftId,
-        platform: platform,
-        body: _variantTemplate(platform),
-      );
-      createdIds.add(variantId);
+    var fallbackReason = '';
+    try {
+      final styleProfile =
+          await ref.read(styleProfileRepoProvider).getOrCreateDefault();
+      final draft = await ref.read(draftRepoProvider).getDraftById(draftId);
+      final activePost = ref.read(activePostProvider);
+      final postId = report.bundle.postId ?? activePost?.id;
+      final post = postId == null
+          ? activePost
+          : await ref.read(postRepoProvider).getPostById(postId);
+      final contentType = draft?.contentType ?? post?.contentType;
+
+      final baseUrl = ref.read(apiBaseUrlProvider);
+      final response = await ref.read(httpClientProvider).post(
+            Uri.parse('$baseUrl/drafts/$draftId/variants'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({
+              'platforms': report.missingPlatforms,
+              'style_profile_id': styleProfile.id,
+              'content_type': contentType,
+            }),
+          );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+
+      final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+      final variantsRaw = parsed['variants'];
+      final generated = variantsRaw is List
+          ? variantsRaw
+              .whereType<Map>()
+              .map((row) => row.cast<String, dynamic>())
+              .toList(growable: false)
+          : const <Map<String, dynamic>>[];
+      if (generated.isEmpty) {
+        throw Exception('empty response');
+      }
+
+      for (final variant in generated) {
+        final variantId = await variantRepo.createVariant(
+          id: variant['id'] as String?,
+          draftId: draftId,
+          platform: (variant['platform'] as String?) ?? 'x',
+          body: (variant['text'] as String?) ?? '',
+        );
+        createdIds.add(variantId);
+      }
+    } catch (error) {
+      fallbackReason = '$error';
+      for (final platform in report.missingPlatforms) {
+        final variantId = await variantRepo.createVariant(
+          draftId: draftId,
+          platform: platform,
+          body: _variantTemplate(platform),
+        );
+        createdIds.add(variantId);
+      }
     }
     await ref.read(bundleRepoProvider).addRelatedVariantIds(
           bundleId: report.bundle.id,
           variantIds: createdIds,
         );
     if (context.mounted) {
+      final suffix = fallbackReason.isEmpty
+          ? ''
+          : ' (template fallback: $fallbackReason)';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Backfilled ${createdIds.length} variants')),
+        SnackBar(
+          content: Text('Backfilled ${createdIds.length} variants$suffix'),
+        ),
       );
     }
   }

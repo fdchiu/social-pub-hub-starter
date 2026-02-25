@@ -74,7 +74,7 @@ Goal: coordinated distribution around an anchor post.
 - Create bundle (`youtube` or `social` anchor).
 - Link variants/sources.
 - Canonical draft generation from bundle sources inherits post content type + audience.
-- Run checklist and backfill missing parts.
+- Run checklist and backfill missing platforms (LLM first, template fallback).
 Exit criteria:
 - bundle is complete and ready to distribute.
 
