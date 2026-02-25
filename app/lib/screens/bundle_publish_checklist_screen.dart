@@ -350,20 +350,92 @@ class _BundlePublishChecklistScreenState
       );
       return;
     }
-    final canonical =
-        _canonicalFromSources(report.bundle, report.linkedSources);
     final postId = report.bundle.postId ?? activePost?.id;
     final post = postId == null
         ? activePost
         : await ref.read(postRepoProvider).getPostById(postId);
     final contentType = post?.contentType ?? 'general_post';
-    final draftId = await ref.read(draftRepoProvider).createDraft(
-          canonicalMarkdown: canonical,
-          intent: _intentForContentType(contentType),
-          audience: post?.audience ?? activePost?.audience ?? 'engineers',
-          postId: postId,
-          contentType: contentType,
-        );
+    final styleProfile =
+        await ref.read(styleProfileRepoProvider).getOrCreateDefault();
+    final tone = styleProfile.casualFormal.clamp(0.0, 1.0).toDouble();
+    final punchiness = styleProfile.punchiness.clamp(0.0, 1.0).toDouble();
+    final localCanonical =
+        _canonicalFromSources(report.bundle, report.linkedSources);
+
+    final draftRepo = ref.read(draftRepoProvider);
+    var draftId = '';
+    var canonical = '';
+    var llmUsed = false;
+
+    try {
+      final baseUrl = ref.read(apiBaseUrlProvider);
+      final response = await ref.read(httpClientProvider).post(
+            Uri.parse('$baseUrl/drafts/from_sources'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({
+              'source_ids': report.linkedSources
+                  .map((row) => row.id)
+                  .toList(growable: false),
+              'source_materials': report.linkedSources
+                  .map(
+                    (item) => {
+                      'id': item.id,
+                      'type': item.type,
+                      'title': item.title,
+                      'url': item.url,
+                      'note': item.userNote,
+                      'tags': item.tags,
+                    },
+                  )
+                  .toList(growable: false),
+              'intent': _intentForContentType(contentType),
+              'tone': tone,
+              'punchiness': punchiness,
+              'audience': post?.audience ?? activePost?.audience ?? 'engineers',
+              'length_target': 'short',
+              'post_id': postId,
+              'post_title': post?.title ?? activePost?.title ?? report.bundle.name,
+              'post_goal': post?.goal ?? activePost?.goal,
+              'content_type': contentType,
+              'style_traits': styleProfile.personalTraits,
+              'differentiation_points': styleProfile.differentiationPoints,
+              'personal_prompt': styleProfile.customPrompt,
+              'banned_phrases': styleProfile.bannedPhrases,
+            }),
+          );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+        draftId = (parsed['draft_id'] as String?)?.trim() ?? '';
+        canonical = (parsed['canonical_markdown'] as String?)?.trim() ?? '';
+        llmUsed = parsed['llm_used'] as bool? ?? false;
+      }
+    } catch (_) {
+      // Fall back to local template generation when backend is unavailable.
+    }
+
+    if (draftId.isEmpty) {
+      draftId = await draftRepo.createDraft(
+        canonicalMarkdown: localCanonical,
+        intent: _intentForContentType(contentType),
+        tone: tone,
+        punchiness: punchiness,
+        audience: post?.audience ?? activePost?.audience ?? 'engineers',
+        postId: postId,
+        contentType: contentType,
+      );
+      llmUsed = false;
+    } else {
+      await draftRepo.createDraft(
+        id: draftId,
+        canonicalMarkdown: canonical.isEmpty ? localCanonical : canonical,
+        intent: _intentForContentType(contentType),
+        tone: tone,
+        punchiness: punchiness,
+        audience: post?.audience ?? activePost?.audience ?? 'engineers',
+        postId: postId,
+        contentType: contentType,
+      );
+    }
     await ref.read(bundleRepoProvider).setCanonicalDraftId(
           bundleId: report.bundle.id,
           draftId: draftId,
@@ -371,7 +443,11 @@ class _BundlePublishChecklistScreenState
     if (context.mounted) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Canonical draft ${draftId.substring(0, 8)} linked'),
+          content: Text(
+            llmUsed
+                ? 'Canonical draft ${draftId.substring(0, 8)} linked (LLM).'
+                : 'Canonical draft ${draftId.substring(0, 8)} linked (template).',
+          ),
         ),
       );
     }
