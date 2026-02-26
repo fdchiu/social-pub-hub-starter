@@ -11,6 +11,7 @@ import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
+import '../utils/content_type_utils.dart';
 
 class InboxScreen extends ConsumerStatefulWidget {
   const InboxScreen({super.key});
@@ -799,13 +800,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     required String contentType,
   }) {
     final sourceHint = sourceIds.take(3).join(', ');
-    final outlineHint = switch (contentType) {
-      'coding_guide' =>
-        '- Setup and prerequisites\n- Step-by-step implementation\n- Verification and pitfalls',
-      'ai_tool_guide' =>
-        '- Use-case and tool setup\n- Prompt template and parameters\n- Guardrails, cost, and failure modes',
-      _ => '- What changed\n- Why this matters now',
-    };
+    final outlineHint = draftOutlineHintForContentType(contentType);
     return '''
 # Draft
 
@@ -819,10 +814,6 @@ Takeaway: Start with one testable claim and iterate.
   }
 
   String _intentForContentType(String contentType) {
-    return switch (contentType) {
-      'coding_guide' => 'guide',
-      'ai_tool_guide' => 'tool_guide',
-      _ => 'how_to',
-    };
+    return intentForContentType(contentType);
   }
 }

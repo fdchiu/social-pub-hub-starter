@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../db/app_db.dart';
+import '../../utils/content_type_utils.dart';
 
 class SyncSummary {
   const SyncSummary({
@@ -278,13 +279,15 @@ class SyncService {
       entityDeletes.add(tombstone.entityId);
       pushedTombstoneIds.add(tombstone.id);
     }
-    final pushedDeletedSourceItems = deletesByEntityType['source_items']!.length;
+    final pushedDeletedSourceItems =
+        deletesByEntityType['source_items']!.length;
     final pushedDeletedProjects = deletesByEntityType['projects']!.length;
     final pushedDeletedPosts = deletesByEntityType['posts']!.length;
     final pushedDeletedBundles = deletesByEntityType['bundles']!.length;
     final pushedDeletedDrafts = deletesByEntityType['drafts']!.length;
     final pushedDeletedVariants = deletesByEntityType['variants']!.length;
-    final pushedDeletedPublishLogs = deletesByEntityType['publish_logs']!.length;
+    final pushedDeletedPublishLogs =
+        deletesByEntityType['publish_logs']!.length;
     final pushedDeletedStyleProfiles =
         deletesByEntityType['style_profiles']!.length;
     final pushedDeletedScheduledPosts =
@@ -572,7 +575,7 @@ class SyncService {
                   title:
                       Value((payload['title'] as String?) ?? 'Untitled post'),
                   contentType: Value(
-                      (payload['content_type'] as String?) ?? 'general_post'),
+                      normalizeContentType(payload['content_type'] as String?)),
                   goal: Value(payload['goal'] as String?),
                   audience: Value(payload['audience'] as String?),
                   status: Value((payload['status'] as String?) ?? 'active'),
@@ -615,7 +618,8 @@ class SyncService {
                   emojiLevel: Value(payload['emoji_level'] as String?),
                   audience: Value(payload['audience'] as String?),
                   postId: Value(payload['post_id'] as String?),
-                  contentType: Value(payload['content_type'] as String?),
+                  contentType: Value(
+                      normalizeContentType(payload['content_type'] as String?)),
                   createdAt: Value(_asDateTime(payload['created_at']) ?? now),
                   updatedAt: Value(now),
                   syncStatus: const Value('dirty'),
@@ -823,9 +827,8 @@ class SyncService {
               id: Value(id),
               projectId: Value(row['project_id'] as String?),
               title: Value((row['title'] as String?) ?? 'Untitled post'),
-              contentType: Value(
-                (row['content_type'] as String?) ?? 'general_post',
-              ),
+              contentType:
+                  Value(normalizeContentType(row['content_type'] as String?)),
               goal: Value(row['goal'] as String?),
               audience: Value(row['audience'] as String?),
               status: Value((row['status'] as String?) ?? 'active'),
@@ -917,7 +920,8 @@ class SyncService {
               emojiLevel: Value(row['emoji_level'] as String?),
               audience: Value(row['audience'] as String?),
               postId: Value(row['post_id'] as String?),
-              contentType: Value(row['content_type'] as String?),
+              contentType:
+                  Value(normalizeContentType(row['content_type'] as String?)),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
               updatedAt: Value(incomingUpdatedAt),
               syncStatus: const Value('clean'),

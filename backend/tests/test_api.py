@@ -239,6 +239,47 @@ def test_generation_and_publish_flow(client: TestClient) -> None:
     assert any(log["post_id"] == "post_generation_flow" for log in logs)
 
 
+
+def test_custom_guide_content_type_templates(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    create_response = client.post(
+        "/drafts/from_sources",
+        json={
+            "source_ids": ["src_custom_1"],
+            "source_materials": [
+                {
+                    "id": "src_custom_1",
+                    "type": "note",
+                    "title": "Release notes draft",
+                    "note": "Users need migration steps and rollback guidance.",
+                    "tags": ["release"],
+                }
+            ],
+            "intent": "guide",
+            "content_type": "release_notes_guide",
+            "post_title": "Release notes playbook",
+            "audience": "operators",
+        },
+    )
+    assert create_response.status_code == 200
+    payload = create_response.json()
+    draft_id = payload["draft_id"]
+    assert "Guide structure" in payload["canonical_markdown"]
+    assert payload["llm_used"] is False
+
+    variants_response = client.post(
+        f"/drafts/{draft_id}/variants",
+        json={"platforms": ["x"], "content_type": "release_notes_guide"},
+    )
+    assert variants_response.status_code == 200
+    variants = variants_response.json()["variants"]
+    assert len(variants) == 1
+    assert "Problem" in variants[0]["text"]
+    assert "Verify" in variants[0]["text"]
+
 def test_sync_scheduled_posts_and_deletes(client: TestClient) -> None:
     row_id = "sched_case_1"
     now = datetime.now(timezone.utc)

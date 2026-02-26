@@ -313,7 +313,7 @@ def _apply_post_upsert(db: Session, payload: PostSyncItem) -> None:
 
     item.project_id = payload.project_id
     item.title = payload.title
-    item.content_type = payload.content_type
+    item.content_type = _normalize_content_type(payload.content_type)
     item.goal = payload.goal
     item.audience = payload.audience
     item.status = payload.status
@@ -371,7 +371,7 @@ def _apply_draft_upsert(db: Session, payload: DraftSyncItem) -> None:
     item.emoji_level = payload.emoji_level
     item.audience = payload.audience
     item.post_id = payload.post_id
-    item.content_type = payload.content_type
+    item.content_type = _normalize_content_type(payload.content_type)
     item.updated_at = incoming_updated_at
     item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None
     item.sync_cursor = _next_cursor(db)
@@ -505,6 +505,25 @@ def _source_material_snippet(material: SourceMaterial) -> str:
     return material.id
 
 
+
+def _normalize_content_type(content_type: str | None) -> str:
+    raw = (content_type or "general_post").strip().lower()
+    sanitized = re.sub(r"[^a-z0-9]+", "_", raw)
+    collapsed = re.sub(r"_+", "_", sanitized).strip("_")
+    return collapsed or "general_post"
+
+
+def _is_ai_tool_guide(content_type: str) -> bool:
+    return content_type == "ai_tool_guide" or (
+        "ai" in content_type and "guide" in content_type
+    )
+
+
+def _is_guide_like(content_type: str) -> bool:
+    if content_type in {"coding_guide", "ai_tool_guide"}:
+        return True
+    return content_type.endswith("_guide") or "tutorial" in content_type
+
 def _canonical_template(
     intent: str,
     source_ids: list[str],
@@ -528,7 +547,7 @@ def _canonical_template(
         if evidence_lines
         else "- What changed\n- Why it matters now\n- One tradeoff I would watch"
     )
-    normalized_type = (content_type or "general_post").strip().lower()
+    normalized_type = _normalize_content_type(content_type)
     title_line = f"Title: {post_title.strip()}\n\n" if post_title and post_title.strip() else ""
     goal_line = f"Goal: {post_goal.strip()}\n\n" if post_goal and post_goal.strip() else ""
     traits_line = (
@@ -569,7 +588,7 @@ def _canonical_template(
             "- Test case\n- Expected output\n\n"
             f"{style_block}\n"
         )
-    if normalized_type == "ai_tool_guide":
+    if _is_ai_tool_guide(normalized_type):
         return (
             "# Draft\n\n"
             f"{title_line}{goal_line}"
@@ -588,6 +607,19 @@ def _canonical_template(
             "- Approximate run cost\n- Latency tradeoffs\n\n"
             f"{style_block}\n"
         )
+    if _is_guide_like(normalized_type):
+        return (
+            "# Draft\n\n"
+            f"{title_line}{goal_line}"
+            f"Hook: Practical guide for {audience}; source baseline from {source_hint}.\n\n"
+            "## Context and objective\n"
+            f"{evidence_block}\n\n"
+            "## Guide structure\n"
+            "- Setup and prerequisites\n- Practical steps\n- Verification checklist\n\n"
+            "## Pitfalls and tradeoffs\n"
+            "- What can fail\n- What to monitor\n\n"
+            f"{style_block}\n"
+        )
     return (
         "# Draft\n\n"
         f"{title_line}{goal_line}"
@@ -602,15 +634,15 @@ def _canonical_template(
 def _variant_template(platform: str, canonical: str, content_type: str) -> str:
     first_line = canonical.splitlines()[2] if len(canonical.splitlines()) > 2 else "Quick take:"
     bullet = "•"
-    normalized_type = (content_type or "general_post").strip().lower()
+    normalized_type = _normalize_content_type(content_type)
 
-    if normalized_type == "coding_guide" and platform == "x":
+    if (normalized_type == "coding_guide" or (_is_guide_like(normalized_type) and not _is_ai_tool_guide(normalized_type))) and platform == "x":
         return (
             f"{first_line}\n\n"
             f"{bullet} Problem\n{bullet} Fix\n{bullet} Verify\n\n"
             "Need a deeper walkthrough?"
         )
-    if normalized_type == "ai_tool_guide" and platform == "x":
+    if _is_ai_tool_guide(normalized_type) and platform == "x":
         return (
             f"{first_line}\n\n"
             f"{bullet} Prompt shape\n{bullet} Guardrail\n{bullet} Cost note\n\n"
@@ -975,7 +1007,7 @@ def drafts_from_sources(
         punchiness=payload.punchiness,
         audience=payload.audience,
         post_id=payload.post_id,
-        content_type=payload.content_type,
+        content_type=_normalize_content_type(payload.content_type),
         created_at=now,
         updated_at=now,
         sync_cursor=_next_cursor(db),

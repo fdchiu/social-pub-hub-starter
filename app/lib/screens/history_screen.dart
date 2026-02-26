@@ -9,6 +9,7 @@ import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
+import '../utils/content_type_utils.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({
@@ -738,11 +739,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   String _intentForContentType(String contentType) {
-    return switch (contentType) {
-      'coding_guide' => 'guide',
-      'ai_tool_guide' => 'tool_guide',
-      _ => 'how_to',
-    };
+    return intentForContentType(contentType);
   }
 }
 

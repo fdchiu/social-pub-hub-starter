@@ -14,6 +14,7 @@ import '../providers/sync_providers.dart';
 import '../utils/composer_links.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
+import '../utils/content_type_utils.dart';
 import 'compose_queue_action.dart';
 
 class ComposeScreen extends ConsumerStatefulWidget {
@@ -482,11 +483,7 @@ Takeaway:
     draft ??= await () async {
       final draftId = await repo.createDraft(
         canonicalMarkdown: _seedDraftText,
-        intent: activePost.contentType == 'coding_guide'
-            ? 'guide'
-            : activePost.contentType == 'ai_tool_guide'
-                ? 'tool_guide'
-                : 'how_to',
+        intent: intentForContentType(activePost.contentType),
         audience: activePost.audience,
         postId: activePost.id,
         contentType: activePost.contentType,
@@ -589,9 +586,8 @@ Takeaway:
               .map((e) => e.cast<String, dynamic>())
               .toList(growable: false)
           : const <Map<String, dynamic>>[];
-      final llmCount = variants
-          .where((row) => (row['llm_used'] as bool?) ?? false)
-          .length;
+      final llmCount =
+          variants.where((row) => (row['llm_used'] as bool?) ?? false).length;
       final fallbackReasons = variants
           .map((row) => (row['fallback_reason'] as String?)?.trim())
           .whereType<String>()
@@ -623,7 +619,8 @@ Takeaway:
           : llmCount == 0
               ? 'Generated ${variants.length} variants with template fallback.'
               : 'Generated ${variants.length} variants (LLM $llmCount, fallback $templateCount).';
-      final detail = fallbackReasons.isEmpty ? '' : ' ${fallbackReasons.first}.';
+      final detail =
+          fallbackReasons.isEmpty ? '' : ' ${fallbackReasons.first}.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$summary$detail')),
       );
@@ -933,7 +930,8 @@ Takeaway:
           : llmCount == 0
               ? 'Regenerated ${regenerated.length} variants with template fallback.'
               : 'Regenerated ${regenerated.length} variants (LLM $llmCount, fallback $templateCount).';
-      final detail = fallbackReasons.isEmpty ? '' : ' ${fallbackReasons.first}.';
+      final detail =
+          fallbackReasons.isEmpty ? '' : ' ${fallbackReasons.first}.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$summary$detail')),
       );

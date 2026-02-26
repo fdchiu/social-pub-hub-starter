@@ -10,6 +10,7 @@ import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
+import '../utils/content_type_utils.dart';
 
 class PublishChecklistScreen extends ConsumerStatefulWidget {
   const PublishChecklistScreen({
@@ -301,7 +302,9 @@ class _PublishChecklistScreenState
   }) {
     final text = markdown.trim();
     final lowerText = text.toLowerCase();
-    final normalizedType = contentType.trim().toLowerCase();
+    final normalizedType = normalizeContentType(contentType);
+    final guideType = isGuideLikeType(normalizedType);
+    final aiToolGuideType = isAiToolGuideType(normalizedType);
     final lines =
         text.split('\n').map((line) => line.trim()).where((l) => l.isNotEmpty);
     final firstLine = lines.isEmpty ? '' : lines.first;
@@ -396,7 +399,7 @@ class _PublishChecklistScreenState
       ),
     ];
 
-    if (normalizedType == 'coding_guide') {
+    if (isCodingGuideType(normalizedType) || (guideType && !aiToolGuideType)) {
       checks.addAll(
         [
           _ChecklistResult(
@@ -417,7 +420,7 @@ class _PublishChecklistScreenState
       );
     }
 
-    if (normalizedType == 'ai_tool_guide') {
+    if (aiToolGuideType) {
       checks.addAll(
         [
           _ChecklistResult(

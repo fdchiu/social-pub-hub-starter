@@ -11,6 +11,7 @@ import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
+import '../utils/content_type_utils.dart';
 
 class BundlePublishChecklistScreen extends ConsumerStatefulWidget {
   const BundlePublishChecklistScreen({super.key});
@@ -397,7 +398,8 @@ class _BundlePublishChecklistScreenState
               'audience': post?.audience ?? activePost?.audience ?? 'engineers',
               'length_target': 'short',
               'post_id': postId,
-              'post_title': post?.title ?? activePost?.title ?? report.bundle.name,
+              'post_title':
+                  post?.title ?? activePost?.title ?? report.bundle.name,
               'post_goal': post?.goal ?? activePost?.goal,
               'content_type': contentType,
               'style_traits': styleProfile.personalTraits,
@@ -593,9 +595,8 @@ class _BundlePublishChecklistScreenState
           variantIds: createdIds,
         );
     if (context.mounted) {
-      final suffix = fallbackReason.isEmpty
-          ? ''
-          : ' (template fallback: $fallbackReason)';
+      final suffix =
+          fallbackReason.isEmpty ? '' : ' (template fallback: $fallbackReason)';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Backfilled ${createdIds.length} variants$suffix'),
@@ -632,25 +633,25 @@ class _BundlePublishChecklistScreenState
   }
 
   String _variantTemplate(String platform, {required String contentType}) {
-    final normalizedType = contentType.trim().toLowerCase();
-    if (normalizedType == 'coding_guide') {
+    if (isCodingGuideType(contentType) ||
+        (isGuideLikeType(contentType) && !isAiToolGuideType(contentType))) {
       if (platform == 'x') {
-        return 'Coding guide quick take:\n- Problem\n- Fix\n- Verify\nWhat edge case should I add?';
+        return 'Guide quick take:\n- Problem\n- Fix\n- Verify\nWhat edge case should I add?';
       }
       if (platform == 'linkedin') {
-        return 'Coding guide:\n• Setup\n• Implementation steps\n• Verification\nWhat would you change?';
+        return 'Guide summary:\n• Setup\n• Implementation steps\n• Verification\nWhat would you change?';
       }
       if (platform == 'reddit') {
-        return 'Context + implementation tradeoff:\nI tested a practical coding path and saw mixed results.\nWhat should I benchmark next?';
+        return 'Context + implementation tradeoff:\nI tested a practical guide path and saw mixed results.\nWhat should I benchmark next?';
       }
       if (platform == 'facebook') {
-        return 'Coding walkthrough update:\n- Setup\n- Steps\n- Pitfall to avoid\nThoughts?';
+        return 'Guide update:\n- Setup\n- Steps\n- Pitfall to avoid\nThoughts?';
       }
       if (platform == 'youtube') {
-        return 'Title: Practical coding guide breakdown\nDescription:\n- Problem\n- Implementation\n- Verification\nPinned comment: Which case should I test next?';
+        return 'Title: Practical guide breakdown\nDescription:\n- Problem\n- Implementation\n- Verification\nPinned comment: Which case should I test next?';
       }
     }
-    if (normalizedType == 'ai_tool_guide') {
+    if (isAiToolGuideType(contentType)) {
       if (platform == 'x') {
         return 'AI tool guide:\n- Prompt shape\n- Guardrail\n- Cost note\nWhat tool should I compare next?';
       }
@@ -700,12 +701,12 @@ class _BundlePublishChecklistScreenState
                   : source.type));
       return '- $label';
     }).join('\n');
-    final normalizedType = contentType.trim().toLowerCase();
-    if (normalizedType == 'coding_guide') {
+    if (isCodingGuideType(contentType) ||
+        (isGuideLikeType(contentType) && !isAiToolGuideType(contentType))) {
       return '''
 # ${bundle.name}
 
-Hook: Practical coding walkthrough from this bundle.
+Hook: Practical guide walkthrough from this bundle.
 
 Sources:
 $bullets
@@ -718,7 +719,7 @@ Guide shape:
 Takeaway: Start with one testable path, then iterate.
 ''';
     }
-    if (normalizedType == 'ai_tool_guide') {
+    if (isAiToolGuideType(contentType)) {
       return '''
 # ${bundle.name}
 
@@ -849,11 +850,7 @@ Takeaway: Start with a concrete step and ask for feedback.
   }
 
   String _intentForContentType(String contentType) {
-    return switch (contentType) {
-      'coding_guide' => 'guide',
-      'ai_tool_guide' => 'tool_guide',
-      _ => 'how_to',
-    };
+    return intentForContentType(contentType);
   }
 }
 

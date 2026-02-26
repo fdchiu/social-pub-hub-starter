@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../db/app_db.dart';
 import 'repo_utils.dart';
+import '../../utils/content_type_utils.dart';
 
 class PostRepo {
   PostRepo(this._db);
@@ -46,9 +47,7 @@ class PostRepo {
               projectId?.trim().isEmpty ?? true ? null : projectId?.trim(),
             ),
             title: title.trim(),
-            contentType: Value(contentType.trim().isEmpty
-                ? 'general_post'
-                : contentType.trim()),
+            contentType: Value(normalizeContentType(contentType)),
             goal: Value(goal?.trim().isEmpty ?? true ? null : goal?.trim()),
             audience: Value(
                 audience?.trim().isEmpty ?? true ? null : audience?.trim()),
@@ -73,8 +72,7 @@ class PostRepo {
     await (_db.update(_db.posts)..where((t) => t.id.equals(postId))).write(
       PostsCompanion(
         title: Value(title.trim()),
-        contentType: Value(
-            contentType.trim().isEmpty ? 'general_post' : contentType.trim()),
+        contentType: Value(normalizeContentType(contentType)),
         goal: Value(goal?.trim().isEmpty ?? true ? null : goal?.trim()),
         audience:
             Value(audience?.trim().isEmpty ?? true ? null : audience?.trim()),

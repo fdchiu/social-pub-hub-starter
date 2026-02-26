@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/db/app_db.dart';
 import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
+import '../utils/content_type_utils.dart';
 
 class PostScopeHeader extends ConsumerWidget {
   const PostScopeHeader({
@@ -14,9 +15,8 @@ class PostScopeHeader extends ConsumerWidget {
   final bool showGlobalToggle;
 
   static const List<String> _contentTypeOptions = <String>[
-    'general_post',
-    'coding_guide',
-    'ai_tool_guide',
+    ...presetContentTypes,
+    customContentTypeOption,
   ];
   static const List<String> _statusOptions = <String>[
     'active',
@@ -120,7 +120,7 @@ class PostScopeHeader extends ConsumerWidget {
                             context,
                             ref,
                             project: activeProject!,
-                  ),
+                          ),
                   icon: const Icon(Icons.edit_outlined),
                 ),
                 IconButton(
@@ -211,7 +211,9 @@ class PostScopeHeader extends ConsumerWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  Chip(label: Text('type: ${activePost.contentType}')),
+                  Chip(
+                      label: Text(
+                          'type: ${contentTypeDisplayLabel(activePost.contentType)}')),
                   Chip(label: Text('status: ${activePost.status}')),
                   if (activePost.audience != null &&
                       activePost.audience!.isNotEmpty)
@@ -329,6 +331,7 @@ class PostScopeHeader extends ConsumerWidget {
     final titleController = TextEditingController();
     final goalController = TextEditingController();
     final audienceController = TextEditingController(text: 'builders');
+    final customTypeController = TextEditingController();
     var selectedType = _contentTypeOptions.first;
 
     final shouldCreate = await showDialog<bool>(
@@ -355,7 +358,7 @@ class PostScopeHeader extends ConsumerWidget {
                           .map(
                             (value) => DropdownMenuItem(
                               value: value,
-                              child: Text(value),
+                              child: Text(contentTypeOptionLabel(value)),
                             ),
                           )
                           .toList(growable: false),
@@ -371,6 +374,16 @@ class PostScopeHeader extends ConsumerWidget {
                         labelText: 'Content type',
                       ),
                     ),
+                    if (selectedType == customContentTypeOption) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: customTypeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Custom content type',
+                          hintText: 'release_notes_guide',
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     TextField(
                       controller: goalController,
@@ -411,6 +424,7 @@ class PostScopeHeader extends ConsumerWidget {
       titleController.dispose();
       goalController.dispose();
       audienceController.dispose();
+      customTypeController.dispose();
       return;
     }
 
@@ -424,12 +438,32 @@ class PostScopeHeader extends ConsumerWidget {
       titleController.dispose();
       goalController.dispose();
       audienceController.dispose();
+      customTypeController.dispose();
       return;
     }
 
+    if (selectedType == customContentTypeOption &&
+        customTypeController.text.trim().isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Custom content type is required')),
+        );
+      }
+      titleController.dispose();
+      goalController.dispose();
+      audienceController.dispose();
+      customTypeController.dispose();
+      return;
+    }
+
+    final resolvedContentType = resolveContentTypeInput(
+      selectedOption: selectedType,
+      customInput: customTypeController.text,
+    );
+
     final postId = await ref.read(postRepoProvider).createPost(
           title: title,
-          contentType: selectedType,
+          contentType: resolvedContentType,
           goal: goalController.text,
           audience: audienceController.text,
           projectId: activeProjectId,
@@ -444,6 +478,7 @@ class PostScopeHeader extends ConsumerWidget {
     titleController.dispose();
     goalController.dispose();
     audienceController.dispose();
+    customTypeController.dispose();
   }
 
   Future<void> _showEditProjectDialog(
@@ -560,7 +595,14 @@ class PostScopeHeader extends ConsumerWidget {
     final titleController = TextEditingController(text: post.title);
     final goalController = TextEditingController(text: post.goal ?? '');
     final audienceController = TextEditingController(text: post.audience ?? '');
-    var contentType = post.contentType;
+    final customTypeController = TextEditingController(
+      text: _contentTypeOptions.contains(post.contentType)
+          ? ''
+          : post.contentType,
+    );
+    var selectedType = _contentTypeOptions.contains(post.contentType)
+        ? post.contentType
+        : customContentTypeOption;
     var status = post.status;
 
     final shouldSave = await showDialog<bool>(
@@ -579,14 +621,12 @@ class PostScopeHeader extends ConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _contentTypeOptions.contains(contentType)
-                          ? contentType
-                          : _contentTypeOptions.first,
+                      value: selectedType,
                       items: _contentTypeOptions
                           .map(
                             (value) => DropdownMenuItem(
                               value: value,
-                              child: Text(value),
+                              child: Text(contentTypeOptionLabel(value)),
                             ),
                           )
                           .toList(growable: false),
@@ -595,12 +635,22 @@ class PostScopeHeader extends ConsumerWidget {
                           return;
                         }
                         setLocalState(() {
-                          contentType = value;
+                          selectedType = value;
                         });
                       },
                       decoration:
                           const InputDecoration(labelText: 'Content type'),
                     ),
+                    if (selectedType == customContentTypeOption) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: customTypeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Custom content type',
+                          hintText: 'release_notes_guide',
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     TextField(
                       controller: goalController,
@@ -657,6 +707,7 @@ class PostScopeHeader extends ConsumerWidget {
       titleController.dispose();
       goalController.dispose();
       audienceController.dispose();
+      customTypeController.dispose();
       return;
     }
 
@@ -670,13 +721,33 @@ class PostScopeHeader extends ConsumerWidget {
       titleController.dispose();
       goalController.dispose();
       audienceController.dispose();
+      customTypeController.dispose();
       return;
     }
+
+    if (selectedType == customContentTypeOption &&
+        customTypeController.text.trim().isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Custom content type is required')),
+        );
+      }
+      titleController.dispose();
+      goalController.dispose();
+      audienceController.dispose();
+      customTypeController.dispose();
+      return;
+    }
+
+    final resolvedContentType = resolveContentTypeInput(
+      selectedOption: selectedType,
+      customInput: customTypeController.text,
+    );
 
     await ref.read(postRepoProvider).updatePost(
           postId: post.id,
           title: title,
-          contentType: contentType,
+          contentType: resolvedContentType,
           goal: goalController.text,
           audience: audienceController.text,
           projectId: post.projectId,
@@ -691,6 +762,7 @@ class PostScopeHeader extends ConsumerWidget {
     titleController.dispose();
     goalController.dispose();
     audienceController.dispose();
+    customTypeController.dispose();
   }
 
   Future<void> _confirmDeleteProject(
