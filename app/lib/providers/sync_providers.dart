@@ -13,7 +13,10 @@ final httpClientProvider = Provider<http.Client>((ref) {
 });
 
 final apiBaseUrlProvider = Provider<String>((ref) {
-  return 'http://127.0.0.1:8000';
+  return const String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://social-pub-hub-backend.onrender.com',
+  );
 });
 
 final syncServiceProvider = Provider<SyncService>((ref) {
