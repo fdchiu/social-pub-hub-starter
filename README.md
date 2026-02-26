@@ -21,6 +21,11 @@ Next steps:
 1. `cd backend && docker compose up --build`
 2. `cd app && flutter run -d macos`
 
+Backend DB backend selection:
+1. SQL (default): `DB_BACKEND=sql` (uses `DATABASE_URL`, default `sqlite:///./social_pub_hub.db`)
+2. MongoDB: `DB_BACKEND=mongo` with `MONGODB_URI` (default `mongodb://127.0.0.1:27017/social_pub_hub`)
+3. Optional Mongo DB override: `MONGODB_DB=<db_name>`
+
 Testing:
 1. Full gate (recommended): `./scripts/gate.sh`
 2. Flutter only: `cd app && flutter analyze && flutter test`

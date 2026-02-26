@@ -4,11 +4,12 @@ from contextlib import asynccontextmanager
 import os
 import re
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -45,19 +46,18 @@ from .schemas import (
     VariantHumanizeRequest,
     VariantSyncItem,
 )
+from .storage import DataStore, create_data_store
+
+_store: DataStore = create_data_store()
 
 
 @asynccontextmanager
 async def _lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    with SessionLocal() as db:
-        _ensure_sync_counter(db)
-        db.commit()
+    _store.setup()
     yield
 
 
 app = FastAPI(title="Social Pub Hub API", lifespan=_lifespan)
-
 
 def _to_utc(value: datetime | None) -> datetime:
     if value is None:
@@ -863,9 +863,21 @@ def _polish_with_llm(
         return None, model, f"{exc}"
 
 
+
+def _style_namespace(style_row: dict[str, Any] | None) -> Any:
+    if style_row is None:
+        return None
+    return SimpleNamespace(
+        personal_traits=list(style_row.get("personal_traits") or []),
+        differentiation_points=list(style_row.get("differentiation_points") or []),
+        custom_prompt=style_row.get("custom_prompt"),
+        banned_phrases=list(style_row.get("banned_phrases") or []),
+    )
+
+
 @app.get("/health")
-def health(db: Session = Depends(get_db)) -> dict[str, str]:
-    db.execute(select(1))
+def health() -> dict[str, str]:
+    _store.healthcheck()
     return {"status": "ok"}
 
 
@@ -903,80 +915,20 @@ def integrations() -> dict[str, list[dict[str, Any]]]:
 
 
 @app.get("/sync/changes")
-def sync_changes(since: int = 0, db: Session = Depends(get_db)) -> dict[str, Any]:
-    upserts: dict[str, list[dict[str, Any]]] = {key: [] for key in SYNC_TABLES}
-    deletes: dict[str, list[str]] = {key: [] for key in SYNC_TABLES}
-    max_cursor = since
-
-    for name, model in SYNC_TABLES.items():
-        rows = db.execute(
-            select(model)
-            .where(model.sync_cursor > since)
-            .order_by(model.sync_cursor.asc())
-        ).scalars()
-
-        for row in rows:
-            max_cursor = max(max_cursor, row.sync_cursor)
-            if row.deleted_at is None:
-                upserts[name].append(_serialize(name, row))
-            else:
-                deletes[name].append(row.id)
-
-    return {"cursor": max_cursor, "upserts": upserts, "deletes": deletes}
+def sync_changes(since: int = 0) -> dict[str, Any]:
+    return _store.sync_changes(since=since)
 
 
 @app.post("/sync/push")
-def sync_push(payload: SyncPushRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
-    for item in payload.upserts.source_items:
-        _apply_source_item_upsert(db, item)
-    for item in payload.upserts.projects:
-        _apply_project_upsert(db, item)
-    for item in payload.upserts.posts:
-        _apply_post_upsert(db, item)
-    for item in payload.upserts.bundles:
-        _apply_bundle_upsert(db, item)
-    for item in payload.upserts.drafts:
-        _apply_draft_upsert(db, item)
-    for item in payload.upserts.variants:
-        _apply_variant_upsert(db, item)
-    for item in payload.upserts.publish_logs:
-        _apply_publish_log_upsert(db, item)
-    for item in payload.upserts.style_profiles:
-        _apply_style_profile_upsert(db, item)
-    for item in payload.upserts.scheduled_posts:
-        _apply_scheduled_post_upsert(db, item)
-
-    for entity_id in payload.deletes.source_items:
-        _soft_delete(db, SourceItem, entity_id)
-    for entity_id in payload.deletes.projects:
-        _soft_delete(db, Project, entity_id)
-    for entity_id in payload.deletes.posts:
-        _soft_delete(db, Post, entity_id)
-    for entity_id in payload.deletes.bundles:
-        _soft_delete(db, Bundle, entity_id)
-    for entity_id in payload.deletes.drafts:
-        _soft_delete(db, Draft, entity_id)
-    for entity_id in payload.deletes.variants:
-        _soft_delete(db, Variant, entity_id)
-    for entity_id in payload.deletes.publish_logs:
-        _soft_delete(db, PublishLog, entity_id)
-    for entity_id in payload.deletes.style_profiles:
-        _soft_delete(db, StyleProfile, entity_id)
-    for entity_id in payload.deletes.scheduled_posts:
-        _soft_delete(db, ScheduledPost, entity_id)
-
-    db.commit()
-    cursor = _ensure_sync_counter(db).value
-    return {"cursor": cursor, "status": "ok"}
+def sync_push(payload: SyncPushRequest) -> dict[str, Any]:
+    return _store.sync_push(payload)
 
 
 @app.post("/drafts/from_sources")
 def drafts_from_sources(
     payload: DraftFromSourcesRequest,
-    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     draft_id = _new_id("draft")
-    now = utc_now()
     banned = [phrase for phrase in payload.banned_phrases if phrase.strip()]
     canonical_template = _canonical_template(
         payload.intent,
@@ -999,21 +951,18 @@ def drafts_from_sources(
     canonical = polished or canonical_template
     if banned:
         canonical = _humanize_text(canonical, max(payload.punchiness, 0.7), banned)
-    draft = Draft(
-        id=draft_id,
+
+    _store.create_draft(
+        draft_id=draft_id,
         canonical_markdown=canonical,
         intent=payload.intent,
         tone=payload.tone,
         punchiness=payload.punchiness,
+        emoji_level=None,
         audience=payload.audience,
         post_id=payload.post_id,
-        content_type=_normalize_content_type(payload.content_type),
-        created_at=now,
-        updated_at=now,
-        sync_cursor=_next_cursor(db),
+        content_type=payload.content_type,
     )
-    db.add(draft)
-    db.commit()
     return {
         "draft_id": draft_id,
         "canonical_markdown": canonical,
@@ -1027,67 +976,52 @@ def drafts_from_sources(
 def draft_variants(
     draft_id: str,
     payload: DraftVariantsRequest,
-    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    draft = db.get(Draft, draft_id)
+    draft = _store.get_draft(draft_id)
     if draft is None:
         raise HTTPException(status_code=404, detail="Draft not found")
 
     platforms = payload.platforms or ["x", "linkedin"]
-    content_type = payload.content_type or draft.content_type or "general_post"
-    style: StyleProfile | None = None
+    content_type = payload.content_type or draft.get("content_type") or "general_post"
+    style = None
     if payload.style_profile_id:
-        style = db.get(StyleProfile, payload.style_profile_id)
-    variants: list[dict[str, Any]] = []
+        style = _style_namespace(_store.get_style_profile(payload.style_profile_id))
 
+    variants: list[dict[str, Any]] = []
     for platform in platforms:
         variant_id = f"{draft_id}_{platform}"
-        now = utc_now()
         llm_text, model, fallback_reason = _generate_variant_with_llm(
             platform,
-            draft.canonical_markdown,
+            draft.get("canonical_markdown", ""),
             content_type,
             style,
         )
         variant_text = llm_text or _variant_template(
             platform,
-            draft.canonical_markdown,
+            draft.get("canonical_markdown", ""),
             content_type,
         )
         banned_phrases = style.banned_phrases if style is not None else []
         if banned_phrases:
             variant_text = _humanize_text(variant_text, 0.7, banned_phrases)
-        variant = db.get(Variant, variant_id)
-        if variant is None:
-            variant = Variant(
-                id=variant_id,
-                draft_id=draft_id,
-                platform=platform,
-                text=variant_text,
-                created_at=now,
-                updated_at=now,
-            )
-            db.add(variant)
-        else:
-            variant.draft_id = draft_id
-            variant.platform = platform
-            variant.text = variant_text
-            variant.updated_at = now
-            variant.deleted_at = None
 
-        variant.sync_cursor = _next_cursor(db)
+        variant_row = _store.upsert_variant(
+            variant_id=variant_id,
+            draft_id=draft_id,
+            platform=platform,
+            text=variant_text,
+        )
         variants.append(
             {
-                "id": variant.id,
-                "platform": variant.platform,
-                "text": variant.text,
+                "id": variant_row["id"],
+                "platform": variant_row["platform"],
+                "text": variant_row["text"],
                 "llm_used": llm_text is not None,
                 "model": model,
                 "fallback_reason": fallback_reason,
             }
         )
 
-    db.commit()
     return {"variants": variants}
 
 
@@ -1095,18 +1029,17 @@ def draft_variants(
 def polish_draft(
     draft_id: str,
     payload: DraftPolishRequest,
-    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    draft = db.get(Draft, draft_id)
+    draft = _store.get_draft(draft_id)
     if draft is None:
         raise HTTPException(status_code=404, detail="Draft not found")
 
-    base_text = payload.canonical_markdown.strip() or draft.canonical_markdown
+    base_text = payload.canonical_markdown.strip() or draft.get("canonical_markdown", "")
     banned = [phrase for phrase in payload.banned_phrases if phrase.strip()]
     if payload.style_profile_id:
-        style = db.get(StyleProfile, payload.style_profile_id)
+        style = _store.get_style_profile(payload.style_profile_id)
         if style is not None:
-            banned = list({*banned, *style.banned_phrases})
+            banned = list({*banned, *(style.get("banned_phrases") or [])})
 
     polished, model, fallback_reason = _polish_with_llm(
         canonical_markdown=base_text,
@@ -1120,13 +1053,15 @@ def polish_draft(
         banned=banned,
     )
 
-    draft.canonical_markdown = canonical
-    draft.updated_at = utc_now()
-    draft.sync_cursor = _next_cursor(db)
-    db.commit()
+    updated = _store.update_draft_markdown(
+        draft_id=draft_id,
+        canonical_markdown=canonical,
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Draft not found")
 
     return {
-        "draft_id": draft.id,
+        "draft_id": updated["id"],
         "canonical_markdown": canonical,
         "llm_used": polished is not None,
         "model": model,
@@ -1138,56 +1073,50 @@ def polish_draft(
 def variant_humanize(
     variant_id: str,
     payload: VariantHumanizeRequest,
-    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    variant = db.get(Variant, variant_id)
+    variant = _store.get_variant(variant_id)
     if variant is None:
         raise HTTPException(status_code=404, detail="Variant not found")
 
     banned = ["delve", "unlock", "leverage", "game-changer", "seamlessly"]
     if payload.style_profile_id:
-        style = db.get(StyleProfile, payload.style_profile_id)
+        style = _store.get_style_profile(payload.style_profile_id)
         if style is not None:
-            banned = style.banned_phrases
+            banned = list(style.get("banned_phrases") or [])
 
-    variant.text = _humanize_text(variant.text, payload.strictness, banned)
-    variant.updated_at = utc_now()
-    variant.sync_cursor = _next_cursor(db)
-    db.commit()
+    updated = _store.update_variant_text(
+        variant_id=variant_id,
+        text=_humanize_text(variant["text"], payload.strictness, banned),
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Variant not found")
 
-    return {"id": variant.id, "platform": variant.platform, "text": variant.text}
+    return {"id": updated["id"], "platform": updated["platform"], "text": updated["text"]}
 
 
 @app.post("/publish/confirm")
 def publish_confirm(
     payload: PublishConfirmRequest,
-    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    variant = db.get(Variant, payload.variant_id)
+    variant = _store.get_variant(payload.variant_id)
     if variant is None:
         raise HTTPException(status_code=404, detail="Variant not found")
 
-    now = utc_now()
-    draft = db.get(Draft, variant.draft_id)
-    publish_log = PublishLog(
-        id=_new_id("publish"),
-        variant_id=variant.id,
-        post_id=draft.post_id if draft is not None else None,
-        platform=variant.platform,
+    draft = _store.get_draft(variant["draft_id"]) if variant.get("draft_id") else None
+    publish_log = _store.create_publish_log(
+        log_id=_new_id("publish"),
+        variant_id=variant["id"],
+        post_id=draft.get("post_id") if draft is not None else None,
+        platform=variant["platform"],
         mode="assisted",
         status="posted",
         external_url=payload.external_post_url,
-        posted_at=_to_utc(payload.posted_at) if payload.posted_at else now,
-        created_at=now,
-        updated_at=now,
-        sync_cursor=_next_cursor(db),
+        posted_at=payload.posted_at,
     )
-    db.add(publish_log)
-    db.commit()
 
     return {
-        "id": publish_log.id,
-        "status": publish_log.status,
-        "platform": publish_log.platform,
-        "external_post_url": publish_log.external_url,
+        "id": publish_log["id"],
+        "status": publish_log["status"],
+        "platform": publish_log["platform"],
+        "external_post_url": publish_log["external_url"],
     }
