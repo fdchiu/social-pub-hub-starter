@@ -75,6 +75,7 @@ Takeaway:
   bool _generatingVariants = false;
   bool _regeneratingVisibleVariants = false;
   bool _polishingDraft = false;
+  bool _generatingCoverImage = false;
   final Set<String> _humanizingVariantIds = <String>{};
   double _humanizeStrictness = 0.7;
   String _variantPlatformFilter = 'all';
@@ -129,6 +130,19 @@ Takeaway:
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.spellcheck),
+          ),
+          IconButton(
+            onPressed: (_draftId == null || _generatingCoverImage)
+                ? null
+                : _generateCoverImage,
+            tooltip: 'Generate cover image',
+            icon: _generatingCoverImage
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.image_outlined),
           ),
           IconButton(
             onPressed: (_draftId == null ||
@@ -751,6 +765,165 @@ Takeaway:
         _polishingDraft = false;
         _saveError = 'Draft polish failed: $e';
       });
+    }
+  }
+
+  Future<void> _generateCoverImage() async {
+    final draftId = _draftId;
+    if (draftId == null) {
+      return;
+    }
+
+    setState(() {
+      _generatingCoverImage = true;
+    });
+
+    try {
+      final baseUrl = ref.read(apiBaseUrlProvider);
+      final response = await ref.read(httpClientProvider).post(
+            Uri.parse('$baseUrl/drafts/$draftId/cover-image'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({
+              'canonical_markdown': _controller.text,
+              'size': '1024x1024',
+              'style_hint': ref.read(activePostProvider)?.contentType,
+            }),
+          );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Cover image failed: ${response.statusCode}');
+      }
+
+      final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+      final imageUrl = (parsed['image_url'] as String?)?.trim();
+      final dataUri = (parsed['image_data_uri'] as String?)?.trim();
+      final prompt = (parsed['prompt'] as String?)?.trim() ?? '';
+      final revisedPrompt = (parsed['revised_prompt'] as String?)?.trim();
+      final model = (parsed['model'] as String?)?.trim();
+      final llmUsed = parsed['llm_used'] as bool? ?? false;
+      final fallbackReason = (parsed['fallback_reason'] as String?)?.trim();
+
+      Uint8List? imageBytes;
+      if (dataUri != null && dataUri.isNotEmpty) {
+        final commaIndex = dataUri.indexOf(',');
+        if (commaIndex > 0 && commaIndex + 1 < dataUri.length) {
+          try {
+            imageBytes = base64Decode(dataUri.substring(commaIndex + 1));
+          } catch (_) {
+            imageBytes = null;
+          }
+        }
+      }
+
+      if ((imageUrl == null || imageUrl.isEmpty) && imageBytes == null) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Cover image fallback (${fallbackReason ?? 'no image payload'}).',
+            ),
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Cover image preview'),
+            content: SizedBox(
+              width: 680,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (imageBytes != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(imageBytes),
+                      )
+                    else if (imageUrl != null && imageUrl.isNotEmpty)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(imageUrl),
+                      ),
+                    const SizedBox(height: 12),
+                    Text(
+                      llmUsed
+                          ? 'Generated with ${model ?? 'OpenAI image model'}'
+                          : 'Fallback response (${fallbackReason ?? 'no LLM'})',
+                    ),
+                    if (prompt.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      const Text('Prompt used'),
+                      const SizedBox(height: 4),
+                      SelectableText(prompt),
+                    ],
+                    if (revisedPrompt != null && revisedPrompt.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      const Text('Revised prompt'),
+                      const SizedBox(height: 4),
+                      SelectableText(revisedPrompt),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              if (imageUrl != null && imageUrl.isNotEmpty)
+                TextButton(
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: imageUrl));
+                    if (dialogContext.mounted) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('Image URL copied')),
+                      );
+                    }
+                  },
+                  child: const Text('Copy URL'),
+                ),
+              if (imageUrl != null && imageUrl.isNotEmpty)
+                TextButton(
+                  onPressed: () async {
+                    final uri = Uri.tryParse(imageUrl);
+                    if (uri == null) {
+                      return;
+                    }
+                    await launchUrl(
+                      uri,
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                  child: const Text('Open image'),
+                ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cover image failed: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _generatingCoverImage = false;
+        });
+      }
     }
   }
 

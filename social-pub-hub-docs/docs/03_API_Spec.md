@@ -124,6 +124,32 @@ Response:
 }
 ```
 
+### POST /drafts/{id}/cover-image
+Generate a cover image concept for the draft using the OpenAI image model.
+
+Request:
+```json
+{
+  "canonical_markdown":"...",
+  "size":"1024x1024",
+  "style_hint":"coding_guide"
+}
+```
+
+Response:
+```json
+{
+  "draft_id":"...",
+  "model":"gpt-image-1",
+  "prompt":"...",
+  "image_url":"https://...",
+  "image_data_uri":"data:image/png;base64,...",
+  "revised_prompt":"...",
+  "llm_used":true,
+  "fallback_reason":null
+}
+```
+
 ### POST /drafts/{id}/variants
 Generate variants for selected platforms.
 
