@@ -930,6 +930,15 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         .read(sourceRepoProvider)
         .getSourceItemsByIds(selectedSourceIds);
 
+    final localTemplate = _buildLocalDraftTemplate(
+      selectedSourceIds,
+      contentType: activePost.contentType,
+    );
+    String draftId = '';
+    String canonicalMarkdown = '';
+    var llmUsed = false;
+    Object? backendError;
+
     try {
       final baseUrl = ref.read(apiBaseUrlProvider);
       final response = await ref.read(httpClientProvider).post(
@@ -965,36 +974,23 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             }),
           );
 
-      String draftId;
-      String canonicalMarkdown;
-      var llmUsed = false;
-
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final parsed = jsonDecode(response.body) as Map<String, dynamic>;
         draftId = (parsed['draft_id'] as String?)?.trim() ?? '';
         canonicalMarkdown =
             (parsed['canonical_markdown'] as String?)?.trim() ?? '';
         llmUsed = parsed['llm_used'] as bool? ?? false;
-        if (draftId.isEmpty) {
-          throw Exception('Missing draft_id in response');
-        }
-        if (canonicalMarkdown.isEmpty) {
-          canonicalMarkdown = _buildLocalDraftTemplate(
-            selectedSourceIds,
-            contentType: activePost.contentType,
-          );
-        }
       } else {
-        draftId = '';
-        canonicalMarkdown = '';
+        backendError = Exception('Backend HTTP ${response.statusCode}');
       }
+    } catch (error) {
+      backendError = error;
+    }
 
+    try {
       if (draftId.isEmpty) {
         draftId = await draftRepo.createDraft(
-          canonicalMarkdown: _buildLocalDraftTemplate(
-            selectedSourceIds,
-            contentType: activePost.contentType,
-          ),
+          canonicalMarkdown: localTemplate,
           intent: _intentForContentType(activePost.contentType),
           tone: tone,
           punchiness: punchiness,
@@ -1005,17 +1001,20 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         if (!mounted) {
           return;
         }
+        final suffix =
+            backendError == null ? '' : ' (${backendError.runtimeType})';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Backend unavailable. Created local draft from $count source items.',
+              'Backend unavailable$suffix. Created local draft from $count source items.',
             ),
           ),
         );
       } else {
         await draftRepo.createDraft(
           id: draftId,
-          canonicalMarkdown: canonicalMarkdown,
+          canonicalMarkdown:
+              canonicalMarkdown.isEmpty ? localTemplate : canonicalMarkdown,
           intent: _intentForContentType(activePost.contentType),
           tone: tone,
           punchiness: punchiness,

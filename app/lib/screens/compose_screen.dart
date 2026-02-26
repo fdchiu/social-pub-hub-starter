@@ -1062,21 +1062,32 @@ Takeaway:
   Future<void> _confirmPosted(String variantId, String platform) async {
     try {
       final externalUrl = await _promptExternalUrl();
-      final baseUrl = ref.read(apiBaseUrlProvider);
-      final response = await ref.read(httpClientProvider).post(
-            Uri.parse('$baseUrl/publish/confirm'),
-            headers: const {'content-type': 'application/json'},
-            body: jsonEncode({
-              'variant_id': variantId,
-              if (externalUrl != null && externalUrl.isNotEmpty)
-                'external_post_url': externalUrl,
-            }),
-          );
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Publish confirm failed: ${response.statusCode}');
+      var loggedUrl = externalUrl;
+      var backendConfirmed = false;
+      Object? backendError;
+
+      try {
+        final baseUrl = ref.read(apiBaseUrlProvider);
+        final response = await ref.read(httpClientProvider).post(
+              Uri.parse('$baseUrl/publish/confirm'),
+              headers: const {'content-type': 'application/json'},
+              body: jsonEncode({
+                'variant_id': variantId,
+                if (externalUrl != null && externalUrl.isNotEmpty)
+                  'external_post_url': externalUrl,
+              }),
+            );
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+          loggedUrl = (parsed['external_post_url'] as String?) ?? externalUrl;
+          backendConfirmed = true;
+        } else {
+          backendError =
+              Exception('Publish confirm failed: ${response.statusCode}');
+        }
+      } catch (error) {
+        backendError = error;
       }
-      final parsed = jsonDecode(response.body) as Map<String, dynamic>;
-      final loggedUrl = (parsed['external_post_url'] as String?) ?? externalUrl;
 
       await ref.read(publishLogRepoProvider).createPublishLog(
             variantId: variantId,
@@ -1090,8 +1101,19 @@ Takeaway:
       if (!mounted) {
         return;
       }
+      final fallbackSuffix = backendConfirmed
+          ? ''
+          : backendError == null
+              ? ' (local log only)'
+              : ' (fallback: ${backendError.runtimeType})';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Publish confirmed and logged')),
+        SnackBar(
+          content: Text(
+            backendConfirmed
+                ? 'Publish confirmed and logged'
+                : 'Backend confirm unavailable$fallbackSuffix. Logged locally as posted.',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) {

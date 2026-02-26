@@ -452,6 +452,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         await ref.read(styleProfileRepoProvider).getOrCreateDefault();
     final tone = styleProfile.casualFormal.clamp(0.0, 1.0).toDouble();
     final punchiness = styleProfile.punchiness.clamp(0.0, 1.0).toDouble();
+    final localTemplate = _buildLocalDraftTemplate(
+      items,
+      contentType: activePost.contentType,
+    );
+
+    String draftId = '';
+    String canonicalMarkdown = '';
+    var llmUsed = false;
+    Object? backendError;
 
     try {
       final baseUrl = ref.read(apiBaseUrlProvider);
@@ -488,30 +497,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             }),
           );
 
-      String draftId = '';
-      String canonicalMarkdown = '';
-      var llmUsed = false;
-
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final parsed = jsonDecode(response.body) as Map<String, dynamic>;
         draftId = (parsed['draft_id'] as String?)?.trim() ?? '';
         canonicalMarkdown =
             (parsed['canonical_markdown'] as String?)?.trim() ?? '';
         llmUsed = parsed['llm_used'] as bool? ?? false;
-        if (canonicalMarkdown.isEmpty) {
-          canonicalMarkdown = _buildLocalDraftTemplate(
-            items,
-            contentType: activePost.contentType,
-          );
-        }
+      } else {
+        backendError = Exception('Backend HTTP ${response.statusCode}');
       }
+    } catch (error) {
+      backendError = error;
+    }
 
+    try {
       if (draftId.isEmpty) {
         draftId = await draftRepo.createDraft(
-          canonicalMarkdown: _buildLocalDraftTemplate(
-            items,
-            contentType: activePost.contentType,
-          ),
+          canonicalMarkdown: localTemplate,
           intent: _intentForContentType(activePost.contentType),
           tone: tone,
           punchiness: punchiness,
@@ -522,7 +524,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       } else {
         await draftRepo.createDraft(
           id: draftId,
-          canonicalMarkdown: canonicalMarkdown,
+          canonicalMarkdown:
+              canonicalMarkdown.isEmpty ? localTemplate : canonicalMarkdown,
           intent: _intentForContentType(activePost.contentType),
           tone: tone,
           punchiness: punchiness,
@@ -535,12 +538,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       if (!mounted) {
         return;
       }
+      final fallbackSuffix = backendError == null
+          ? ''
+          : ' (fallback: ${backendError.runtimeType})';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             llmUsed
                 ? 'Draft generated from ${items.length} library sources.'
-                : 'Draft template created from ${items.length} library sources.',
+                : 'Draft template created from ${items.length} library sources.$fallbackSuffix',
           ),
         ),
       );
