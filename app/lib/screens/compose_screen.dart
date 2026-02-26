@@ -17,6 +17,29 @@ import '../widgets/post_scope_header.dart';
 import '../utils/content_type_utils.dart';
 import 'compose_queue_action.dart';
 
+class _VariantSnapshot {
+  const _VariantSnapshot({
+    required this.id,
+    required this.draftId,
+    required this.platform,
+    required this.body,
+  });
+
+  factory _VariantSnapshot.fromVariant(Variant variant) {
+    return _VariantSnapshot(
+      id: variant.id,
+      draftId: variant.draftId,
+      platform: variant.platform,
+      body: variant.body,
+    );
+  }
+
+  final String id;
+  final String draftId;
+  final String platform;
+  final String body;
+}
+
 class ComposeScreen extends ConsumerStatefulWidget {
   const ComposeScreen({
     super.key,
@@ -863,6 +886,9 @@ Takeaway:
       return;
     }
 
+    final previousSnapshots =
+        variants.map(_VariantSnapshot.fromVariant).toList(growable: false);
+
     setState(() {
       _regeneratingVisibleVariants = true;
       _variantError = null;
@@ -904,17 +930,43 @@ Takeaway:
           .toList(growable: false);
 
       final repo = ref.read(variantRepoProvider);
-      await repo.deleteVariantsForDraftPlatforms(
-        draftId: draftId,
-        platforms: platforms,
-      );
+      final previousById = {
+        for (final row in previousSnapshots) row.id: row,
+      };
+      final previousByPlatform = <String, _VariantSnapshot>{
+        for (final row in previousSnapshots)
+          if (!previousSnapshots
+              .take(previousSnapshots.indexOf(row))
+              .any((existing) => existing.platform == row.platform))
+            row.platform: row,
+      };
+      final createdVariantIds = <String>[];
+
       for (final variant in regenerated) {
-        await repo.createVariant(
-          id: variant['id'] as String?,
-          draftId: draftId,
-          platform: (variant['platform'] as String?) ?? 'x',
-          body: (variant['text'] as String?) ?? '',
-        );
+        final platform = (variant['platform'] as String?) ?? 'x';
+        final nextBody = (variant['text'] as String?) ?? '';
+        final responseId = (variant['id'] as String?)?.trim();
+
+        _VariantSnapshot? target;
+        if (responseId != null && responseId.isNotEmpty) {
+          target = previousById[responseId];
+        }
+        target ??= previousByPlatform[platform];
+
+        if (target != null) {
+          await repo.updateVariantBody(
+            variantId: target.id,
+            body: nextBody,
+          );
+        } else {
+          final createdId = await repo.createVariant(
+            id: (responseId == null || responseId.isEmpty) ? null : responseId,
+            draftId: draftId,
+            platform: platform,
+            body: nextBody,
+          );
+          createdVariantIds.add(createdId);
+        }
       }
 
       if (!mounted) {
@@ -933,7 +985,20 @@ Takeaway:
       final detail =
           fallbackReasons.isEmpty ? '' : ' ${fallbackReasons.first}.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$summary$detail')),
+        SnackBar(
+          content: Text('$summary$detail'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () {
+              unawaited(
+                _undoVisibleRegeneration(
+                  previousSnapshots: previousSnapshots,
+                  createdVariantIds: createdVariantIds,
+                ),
+              );
+            },
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) {
@@ -943,6 +1008,51 @@ Takeaway:
         _regeneratingVisibleVariants = false;
         _variantError = 'Variant regeneration failed: $e';
       });
+    }
+  }
+
+  Future<void> _undoVisibleRegeneration({
+    required List<_VariantSnapshot> previousSnapshots,
+    required List<String> createdVariantIds,
+  }) async {
+    final repo = ref.read(variantRepoProvider);
+    try {
+      for (final createdId in createdVariantIds) {
+        await repo.deleteVariantById(createdId);
+      }
+      for (final row in previousSnapshots) {
+        final existing = await repo.getVariantById(row.id);
+        if (existing == null) {
+          await repo.createVariant(
+            id: row.id,
+            draftId: row.draftId,
+            platform: row.platform,
+            body: row.body,
+          );
+          continue;
+        }
+        await repo.updateVariantBody(
+          variantId: row.id,
+          body: row.body,
+        );
+      }
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Reverted regenerated variants (${previousSnapshots.length}).',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Undo failed: $error')),
+      );
     }
   }
 
