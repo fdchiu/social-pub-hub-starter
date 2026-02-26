@@ -153,6 +153,9 @@ Response:
 ### POST /drafts/{id}/variants
 Generate variants for selected platforms.
 
+Notes:
+- X variants are hard-limited to 280 characters server-side (generation + humanize).
+
 Request:
 ```json
 {"platforms":["x","linkedin","reddit","facebook","youtube"], "style_profile_id":"..."}

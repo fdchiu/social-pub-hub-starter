@@ -64,6 +64,8 @@ Hook:
 Takeaway:
 ''';
 
+  static const int _xVariantCharLimit = 280;
+
   final TextEditingController _controller = TextEditingController();
   Timer? _saveDebounce;
   String? _draftId;
@@ -376,9 +378,32 @@ Takeaway:
                                           final humanizing =
                                               _humanizingVariantIds
                                                   .contains(variant.id);
+                                          final charLimit = _platformCharLimit(
+                                            variant.platform,
+                                          );
+                                          final charCount =
+                                              variant.body.trim().length;
+                                          final overLimit = charLimit != null &&
+                                              charCount > charLimit;
                                           return ListTile(
-                                            title: Text(
-                                              variant.platform.toUpperCase(),
+                                            title: Row(
+                                              children: [
+                                                Text(
+                                                  variant.platform
+                                                      .toUpperCase(),
+                                                ),
+                                                if (charLimit != null) ...[
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    '$charCount/$charLimit',
+                                                    style: TextStyle(
+                                                      color: overLimit
+                                                          ? Colors.redAccent
+                                                          : Colors.white70,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                             subtitle: Text(
                                               variant.body,
@@ -413,6 +438,7 @@ Takeaway:
                                                       _confirmPosted(
                                                     variant.id,
                                                     variant.platform,
+                                                    variant.body,
                                                   ),
                                                   icon: const Icon(
                                                     Icons.check_circle_outline,
@@ -779,6 +805,10 @@ Takeaway:
     });
 
     try {
+      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
+            draftId: draftId,
+            canonicalMarkdown: _controller.text,
+          );
       final baseUrl = ref.read(apiBaseUrlProvider);
       final response = await ref.read(httpClientProvider).post(
             Uri.parse('$baseUrl/drafts/$draftId/cover-image'),
@@ -1068,6 +1098,10 @@ Takeaway:
     });
 
     try {
+      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
+            draftId: draftId,
+            canonicalMarkdown: _controller.text,
+          );
       final styleProfile =
           await ref.read(styleProfileRepoProvider).getOrCreateDefault();
       final baseUrl = ref.read(apiBaseUrlProvider);
@@ -1229,6 +1263,32 @@ Takeaway:
     }
   }
 
+  int? _platformCharLimit(String platform) {
+    if (platform.trim().toLowerCase() == 'x') {
+      return _xVariantCharLimit;
+    }
+    return null;
+  }
+
+  String _enforceVariantPlatformLimit(String platform, String body) {
+    final normalized = body.trim();
+    final limit = _platformCharLimit(platform);
+    if (limit == null || normalized.length <= limit) {
+      return normalized;
+    }
+
+    final baseLimit = limit > 1 ? limit - 1 : 1;
+    var truncated = normalized.substring(0, baseLimit).trimRight();
+    final cutIndex = truncated.lastIndexOf(' ');
+    if (cutIndex >= baseLimit - 48 && cutIndex > 0) {
+      truncated = truncated.substring(0, cutIndex).trimRight();
+    }
+    if (truncated.isEmpty) {
+      truncated = normalized.substring(0, baseLimit);
+    }
+    return '$truncated…';
+  }
+
   Future<void> _openComposerForVariant({
     required String platform,
     required String text,
@@ -1295,16 +1355,22 @@ Takeaway:
       );
       return;
     }
+    final limitedText =
+        _enforceVariantPlatformLimit(variant.platform, nextText);
+    final limitApplied = limitedText.length < nextText.length;
     await ref.read(variantRepoProvider).updateVariantBody(
           variantId: variant.id,
-          body: nextText,
+          body: limitedText,
         );
     if (!mounted) {
       return;
     }
+    final limit = _platformCharLimit(variant.platform);
+    final message = limitApplied && limit != null
+        ? 'Updated ${variant.platform.toUpperCase()} variant (trimmed to $limit chars)'
+        : 'Updated ${variant.platform.toUpperCase()} variant';
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text('Updated ${variant.platform.toUpperCase()} variant')),
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -1342,8 +1408,28 @@ Takeaway:
     );
   }
 
-  Future<void> _confirmPosted(String variantId, String platform) async {
+  Future<void> _confirmPosted(
+    String variantId,
+    String platform,
+    String variantBody,
+  ) async {
     try {
+      final limit = _platformCharLimit(platform);
+      final charCount = variantBody.trim().length;
+      if (limit != null && charCount > limit) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'X variant is $charCount/$limit chars. Shorten before publish.',
+            ),
+          ),
+        );
+        return;
+      }
+
       final externalUrl = await _promptExternalUrl();
       var loggedUrl = externalUrl;
       var backendConfirmed = false;

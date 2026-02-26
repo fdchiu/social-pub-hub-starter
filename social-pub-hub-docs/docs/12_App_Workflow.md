@@ -63,6 +63,7 @@ Exit criteria:
 ### Variant Studio (Compose subflow)
 Goal: produce publish-ready platform versions.
 - Generate variants for selected platforms using style profile cues (LLM first, template fallback).
+- X variant counter shows live `current/280`; over-limit edits are trimmed on save.
 - Variant deletions sync across devices and safely unlink queue/history/bundle references.
 - Check hard constraints (length/format).
 - Humanize pass if needed.
