@@ -52,7 +52,7 @@ Exit criteria:
 Goal: produce canonical draft.
 - Edit markdown.
 - Optional polish pass.
-- Generate cover image from the current draft (OpenAI image model; preview + copy/open URL actions).
+- Generate cover image from the current draft (OpenAI image model); each generation is saved as a post-scoped cover version for compare/select; apply chosen version to active post cover.
 - Content type drives structure (`general_post`, `coding_guide`, `ai_tool_guide`, or custom guide types like `release_notes_guide`).
 - Style profile traits + differentiation + custom prompt feed LLM.
 - Generate variants.

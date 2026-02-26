@@ -85,6 +85,32 @@ class PostRepo {
     );
   }
 
+  Future<void> updatePostCover({
+    required String postId,
+    String? coverImageUrl,
+    String? coverImageDataUri,
+    String? coverImagePrompt,
+  }) async {
+    final normalizedUrl =
+        coverImageUrl?.trim().isEmpty ?? true ? null : coverImageUrl?.trim();
+    final normalizedDataUri = coverImageDataUri?.trim().isEmpty ?? true
+        ? null
+        : coverImageDataUri?.trim();
+    final normalizedPrompt = coverImagePrompt?.trim().isEmpty ?? true
+        ? null
+        : coverImagePrompt?.trim();
+
+    await (_db.update(_db.posts)..where((t) => t.id.equals(postId))).write(
+      PostsCompanion(
+        coverImageUrl: Value(normalizedUrl),
+        coverImageDataUri: Value(normalizedDataUri),
+        coverImagePrompt: Value(normalizedPrompt),
+        updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
+      ),
+    );
+  }
+
   Future<void> deletePost(String postId) async {
     await _db.transaction(() async {
       final now = DateTime.now().toUtc();

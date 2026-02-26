@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -195,6 +195,23 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 14) {
             await m.createTable(syncTombstones);
+          }
+          if (from < 15) {
+            await addColumnIfMissing(
+              tableName: 'posts',
+              columnName: 'cover_image_url',
+              addColumn: () => m.addColumn(posts, posts.coverImageUrl),
+            );
+            await addColumnIfMissing(
+              tableName: 'posts',
+              columnName: 'cover_image_data_uri',
+              addColumn: () => m.addColumn(posts, posts.coverImageDataUri),
+            );
+            await addColumnIfMissing(
+              tableName: 'posts',
+              columnName: 'cover_image_prompt',
+              addColumn: () => m.addColumn(posts, posts.coverImagePrompt),
+            );
           }
         },
       );

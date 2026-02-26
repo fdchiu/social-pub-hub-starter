@@ -16,6 +16,12 @@ class Posts extends Table {
 
   TextColumn get audience => text().nullable()();
 
+  TextColumn get coverImageUrl => text().nullable()();
+
+  TextColumn get coverImageDataUri => text().nullable()();
+
+  TextColumn get coverImagePrompt => text().nullable()();
+
   TextColumn get status => text().withDefault(const Constant('active'))();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

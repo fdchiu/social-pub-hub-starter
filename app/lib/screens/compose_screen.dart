@@ -40,6 +40,23 @@ class _VariantSnapshot {
   final String body;
 }
 
+final _composeCoverVersionsProvider =
+    StreamProvider.family<List<SourceItem>, String>((ref, postId) {
+  return ref
+      .watch(sourceRepoProvider)
+      .watchSourceItems(postId: postId, includeGlobal: false)
+      .map(
+        (rows) => rows
+            .where(
+              (row) =>
+                  row.type.trim().toLowerCase() == 'image' &&
+                  row.tags.any(
+                      (tag) => tag.trim().toLowerCase() == 'cover_version'),
+            )
+            .toList(growable: false),
+      );
+});
+
 class ComposeScreen extends ConsumerStatefulWidget {
   const ComposeScreen({
     super.key,
@@ -65,6 +82,8 @@ Takeaway:
 ''';
 
   static const int _xVariantCharLimit = 280;
+  static const String _coverVersionTag = 'cover_version';
+  static const String _coverGeneratedTag = 'cover_generated';
 
   final TextEditingController _controller = TextEditingController();
   Timer? _saveDebounce;
@@ -115,6 +134,9 @@ Takeaway:
     final variantsAsync = _draftId == null
         ? null
         : ref.watch(draftVariantsStreamProvider(_draftId!));
+    final coverVersionsAsync = activePostId == null
+        ? null
+        : ref.watch(_composeCoverVersionsProvider(activePostId));
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -203,6 +225,35 @@ Takeaway:
               child: Column(
                 children: [
                   const PostScopeHeader(showGlobalToggle: false),
+                  if (activePost != null && coverVersionsAsync != null) ...[
+                    const SizedBox(height: 8),
+                    coverVersionsAsync.when(
+                      data: (coverVersions) => _buildPostCoverSection(
+                        post: activePost,
+                        coverVersions: coverVersions,
+                      ),
+                      loading: () => _buildPostCoverSection(
+                        post: activePost,
+                        coverVersions: const <SourceItem>[],
+                      ),
+                      error: (error, _) => Column(
+                        children: [
+                          _buildPostCoverSection(
+                            post: activePost,
+                            coverVersions: const <SourceItem>[],
+                          ),
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Cover versions failed: $error',
+                              style: const TextStyle(color: Colors.orange),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Expanded(
                     child: TextField(
@@ -859,6 +910,16 @@ Takeaway:
         return;
       }
 
+      final activePost = ref.read(activePostProvider);
+      if (activePost != null) {
+        await _saveGeneratedCoverVersion(
+          post: activePost,
+          imageUrl: imageUrl,
+          dataUri: dataUri,
+          prompt: revisedPrompt ?? prompt,
+          model: model,
+        );
+      }
       if (!mounted) {
         return;
       }
@@ -933,6 +994,22 @@ Takeaway:
                   },
                   child: const Text('Open image'),
                 ),
+              TextButton(
+                onPressed: activePost == null
+                    ? null
+                    : () async {
+                        await _applyCoverImageToPost(
+                          post: activePost,
+                          imageUrl: imageUrl,
+                          dataUri: dataUri,
+                          prompt: revisedPrompt ?? prompt,
+                        );
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop();
+                        }
+                      },
+                child: const Text('Apply to post'),
+              ),
               FilledButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Close'),
@@ -1261,6 +1338,455 @@ Takeaway:
         SnackBar(content: Text('Undo failed: $error')),
       );
     }
+  }
+
+  Widget _buildPostCoverSection({
+    required Post post,
+    required List<SourceItem> coverVersions,
+  }) {
+    final widgets = <Widget>[];
+    final activeCard = _buildActivePostCoverCard(post);
+    if (activeCard is! SizedBox) {
+      widgets.add(activeCard);
+    }
+    if (coverVersions.isNotEmpty) {
+      if (widgets.isNotEmpty) {
+        widgets.add(const SizedBox(height: 8));
+      }
+      widgets.add(_buildCoverVersionsCard(post, coverVersions));
+    }
+    if (widgets.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Column(children: widgets);
+  }
+
+  Widget _buildCoverVersionsCard(Post post, List<SourceItem> coverVersions) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.white24),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Saved cover versions (${coverVersions.length})',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 126,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: coverVersions.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final source = coverVersions[index];
+                  final raw = source.url?.trim();
+                  final isDataUri = raw != null && raw.startsWith('data:image');
+                  final dataUri = isDataUri ? raw : null;
+                  final imageUrl = isDataUri ? null : raw;
+                  final selected = _isSelectedCoverVersion(post, source);
+
+                  return SizedBox(
+                    width: 180,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: selected
+                                      ? Colors.lightGreenAccent
+                                      : Colors.white24,
+                                ),
+                              ),
+                              child: _buildCoverImagePreview(
+                                dataUri: dataUri,
+                                imageUrl: imageUrl,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                selected ? 'ACTIVE' : 'version ${index + 1}',
+                                style: Theme.of(context).textTheme.labelSmall,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Compare',
+                              onPressed: () => _showCoverCompareDialog(
+                                post: post,
+                                source: source,
+                              ),
+                              icon: const Icon(Icons.compare_arrows, size: 18),
+                            ),
+                            IconButton(
+                              tooltip: 'Use',
+                              onPressed: () => _applyCoverVersionToPost(
+                                post: post,
+                                source: source,
+                              ),
+                              icon: const Icon(Icons.check_circle_outline,
+                                  size: 18),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete',
+                              onPressed: () async {
+                                await ref
+                                    .read(sourceRepoProvider)
+                                    .deleteSourceItemById(source.id);
+                                if (!mounted) {
+                                  return;
+                                }
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Cover version deleted'),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.delete_outline, size: 18),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _isSelectedCoverVersion(Post post, SourceItem source) {
+    final raw = source.url?.trim();
+    if (raw == null || raw.isEmpty) {
+      return false;
+    }
+    final currentDataUri = post.coverImageDataUri?.trim();
+    final currentUrl = post.coverImageUrl?.trim();
+    if (raw.startsWith('data:image')) {
+      return currentDataUri == raw;
+    }
+    return currentUrl == raw;
+  }
+
+  Widget _buildCoverImagePreview({String? dataUri, String? imageUrl}) {
+    final bytes = dataUri == null || dataUri.isEmpty
+        ? null
+        : _decodeDataUriBytes(dataUri);
+    if (bytes != null) {
+      return Image.memory(bytes, fit: BoxFit.cover);
+    }
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return Image.network(imageUrl, fit: BoxFit.cover);
+    }
+    return const Center(child: Text('No image'));
+  }
+
+  Future<void> _showCoverCompareDialog({
+    required Post post,
+    required SourceItem source,
+  }) async {
+    final currentDataUri = post.coverImageDataUri?.trim();
+    final currentUrl = post.coverImageUrl?.trim();
+    final candidateRaw = source.url?.trim();
+    final candidateDataUri =
+        candidateRaw != null && candidateRaw.startsWith('data:image')
+            ? candidateRaw
+            : null;
+    final candidateUrl = candidateDataUri == null ? candidateRaw : null;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Compare cover versions'),
+        content: SizedBox(
+          width: 760,
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Current'),
+                    const SizedBox(height: 6),
+                    AspectRatio(
+                      aspectRatio: 16 / 10,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: _buildCoverImagePreview(
+                          dataUri: currentDataUri,
+                          imageUrl: currentUrl,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Candidate'),
+                    const SizedBox(height: 6),
+                    AspectRatio(
+                      aspectRatio: 16 / 10,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: _buildCoverImagePreview(
+                          dataUri: candidateDataUri,
+                          imageUrl: candidateUrl,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              await _applyCoverVersionToPost(post: post, source: source);
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop();
+              }
+            },
+            child: const Text('Use candidate'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveGeneratedCoverVersion({
+    required Post post,
+    required String? imageUrl,
+    required String? dataUri,
+    required String? prompt,
+    required String? model,
+  }) async {
+    var persistedDataUri = dataUri?.trim();
+    final normalizedUrl = imageUrl?.trim();
+    if ((persistedDataUri == null || persistedDataUri.isEmpty) &&
+        normalizedUrl != null &&
+        normalizedUrl.isNotEmpty) {
+      persistedDataUri = await _downloadImageAsDataUri(normalizedUrl);
+    }
+
+    final storage = persistedDataUri?.isNotEmpty == true
+        ? persistedDataUri
+        : (normalizedUrl?.isNotEmpty == true ? normalizedUrl : null);
+    if (storage == null || storage.isEmpty) {
+      return;
+    }
+
+    final promptText = (prompt?.trim().isNotEmpty ?? false)
+        ? prompt!.trim()
+        : (model?.trim().isNotEmpty ?? false)
+            ? 'model: ${model!.trim()}'
+            : null;
+
+    await ref.read(sourceRepoProvider).createSourceItem(
+          type: 'image',
+          url: storage,
+          title: 'Cover version ${DateTime.now().toUtc().toIso8601String()}',
+          userNote: promptText,
+          tags: const <String>[_coverVersionTag, _coverGeneratedTag],
+          postId: post.id,
+        );
+  }
+
+  Future<void> _applyCoverVersionToPost({
+    required Post post,
+    required SourceItem source,
+  }) async {
+    final raw = source.url?.trim();
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+    final dataUri = raw.startsWith('data:image') ? raw : null;
+    final imageUrl = dataUri == null ? raw : null;
+    await _applyCoverImageToPost(
+      post: post,
+      imageUrl: imageUrl,
+      dataUri: dataUri,
+      prompt: source.userNote?.trim().isEmpty ?? true
+          ? source.title
+          : source.userNote,
+    );
+  }
+
+  Widget _buildActivePostCoverCard(Post post) {
+    final dataUri = post.coverImageDataUri?.trim();
+    final imageUrl = post.coverImageUrl?.trim();
+    final prompt = post.coverImagePrompt?.trim();
+
+    if ((dataUri == null || dataUri.isEmpty) &&
+        (imageUrl == null || imageUrl.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+
+    final bytes = dataUri == null || dataUri.isEmpty
+        ? null
+        : _decodeDataUriBytes(dataUri);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.white24),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: 140,
+                height: 90,
+                child: bytes != null
+                    ? Image.memory(bytes, fit: BoxFit.cover)
+                    : Image.network(imageUrl!, fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Current post cover image',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  if (prompt != null && prompt.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      prompt,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Clear post cover',
+              onPressed: () async {
+                await ref.read(postRepoProvider).updatePostCover(
+                      postId: post.id,
+                      coverImageUrl: null,
+                      coverImageDataUri: null,
+                      coverImagePrompt: null,
+                    );
+                if (!mounted) {
+                  return;
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Post cover cleared')),
+                );
+              },
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Uint8List? _decodeDataUriBytes(String dataUri) {
+    final commaIndex = dataUri.indexOf(',');
+    if (commaIndex <= 0 || commaIndex + 1 >= dataUri.length) {
+      return null;
+    }
+    try {
+      return base64Decode(dataUri.substring(commaIndex + 1));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> _downloadImageAsDataUri(String imageUrl) async {
+    final uri = Uri.tryParse(imageUrl);
+    if (uri == null) {
+      return null;
+    }
+    try {
+      final response = await ref.read(httpClientProvider).get(uri);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
+      }
+      final contentTypeHeader = response.headers['content-type'];
+      final mime = contentTypeHeader == null
+          ? 'image/png'
+          : contentTypeHeader.split(';').first.trim();
+      final safeMime = mime.startsWith('image/') ? mime : 'image/png';
+      return 'data:$safeMime;base64,${base64Encode(response.bodyBytes)}';
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _applyCoverImageToPost({
+    required Post post,
+    required String? imageUrl,
+    required String? dataUri,
+    required String? prompt,
+  }) async {
+    var persistedDataUri = dataUri?.trim();
+    final normalizedUrl = imageUrl?.trim();
+    if ((persistedDataUri == null || persistedDataUri.isEmpty) &&
+        normalizedUrl != null &&
+        normalizedUrl.isNotEmpty) {
+      persistedDataUri = await _downloadImageAsDataUri(normalizedUrl);
+    }
+
+    await ref.read(postRepoProvider).updatePostCover(
+          postId: post.id,
+          coverImageUrl: normalizedUrl?.isEmpty ?? true ? null : normalizedUrl,
+          coverImageDataUri:
+              persistedDataUri?.isEmpty ?? true ? null : persistedDataUri,
+          coverImagePrompt: prompt,
+        );
+
+    if (!mounted) {
+      return;
+    }
+    final persisted = persistedDataUri != null && persistedDataUri.isNotEmpty;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          persisted
+              ? 'Cover image applied to current post'
+              : 'Cover applied with URL only (image host may expire)',
+        ),
+      ),
+    );
   }
 
   int? _platformCharLimit(String platform) {

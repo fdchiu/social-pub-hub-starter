@@ -430,6 +430,24 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
   late final GeneratedColumn<String> audience = GeneratedColumn<String>(
       'audience', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverImageUrlMeta =
+      const VerificationMeta('coverImageUrl');
+  @override
+  late final GeneratedColumn<String> coverImageUrl = GeneratedColumn<String>(
+      'cover_image_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverImageDataUriMeta =
+      const VerificationMeta('coverImageDataUri');
+  @override
+  late final GeneratedColumn<String> coverImageDataUri =
+      GeneratedColumn<String>('cover_image_data_uri', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverImagePromptMeta =
+      const VerificationMeta('coverImagePrompt');
+  @override
+  late final GeneratedColumn<String> coverImagePrompt = GeneratedColumn<String>(
+      'cover_image_prompt', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -469,6 +487,9 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
         contentType,
         goal,
         audience,
+        coverImageUrl,
+        coverImageDataUri,
+        coverImagePrompt,
         status,
         createdAt,
         updatedAt,
@@ -513,6 +534,24 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
       context.handle(_audienceMeta,
           audience.isAcceptableOrUnknown(data['audience']!, _audienceMeta));
     }
+    if (data.containsKey('cover_image_url')) {
+      context.handle(
+          _coverImageUrlMeta,
+          coverImageUrl.isAcceptableOrUnknown(
+              data['cover_image_url']!, _coverImageUrlMeta));
+    }
+    if (data.containsKey('cover_image_data_uri')) {
+      context.handle(
+          _coverImageDataUriMeta,
+          coverImageDataUri.isAcceptableOrUnknown(
+              data['cover_image_data_uri']!, _coverImageDataUriMeta));
+    }
+    if (data.containsKey('cover_image_prompt')) {
+      context.handle(
+          _coverImagePromptMeta,
+          coverImagePrompt.isAcceptableOrUnknown(
+              data['cover_image_prompt']!, _coverImagePromptMeta));
+    }
     if (data.containsKey('status')) {
       context.handle(_statusMeta,
           status.isAcceptableOrUnknown(data['status']!, _statusMeta));
@@ -552,6 +591,12 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
           .read(DriftSqlType.string, data['${effectivePrefix}goal']),
       audience: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}audience']),
+      coverImageUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_image_url']),
+      coverImageDataUri: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}cover_image_data_uri']),
+      coverImagePrompt: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}cover_image_prompt']),
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       createdAt: attachedDatabase.typeMapping
@@ -576,6 +621,9 @@ class Post extends DataClass implements Insertable<Post> {
   final String contentType;
   final String? goal;
   final String? audience;
+  final String? coverImageUrl;
+  final String? coverImageDataUri;
+  final String? coverImagePrompt;
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -587,6 +635,9 @@ class Post extends DataClass implements Insertable<Post> {
       required this.contentType,
       this.goal,
       this.audience,
+      this.coverImageUrl,
+      this.coverImageDataUri,
+      this.coverImagePrompt,
       required this.status,
       required this.createdAt,
       required this.updatedAt,
@@ -605,6 +656,15 @@ class Post extends DataClass implements Insertable<Post> {
     }
     if (!nullToAbsent || audience != null) {
       map['audience'] = Variable<String>(audience);
+    }
+    if (!nullToAbsent || coverImageUrl != null) {
+      map['cover_image_url'] = Variable<String>(coverImageUrl);
+    }
+    if (!nullToAbsent || coverImageDataUri != null) {
+      map['cover_image_data_uri'] = Variable<String>(coverImageDataUri);
+    }
+    if (!nullToAbsent || coverImagePrompt != null) {
+      map['cover_image_prompt'] = Variable<String>(coverImagePrompt);
     }
     map['status'] = Variable<String>(status);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -625,6 +685,15 @@ class Post extends DataClass implements Insertable<Post> {
       audience: audience == null && nullToAbsent
           ? const Value.absent()
           : Value(audience),
+      coverImageUrl: coverImageUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverImageUrl),
+      coverImageDataUri: coverImageDataUri == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverImageDataUri),
+      coverImagePrompt: coverImagePrompt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverImagePrompt),
       status: Value(status),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -642,6 +711,10 @@ class Post extends DataClass implements Insertable<Post> {
       contentType: serializer.fromJson<String>(json['contentType']),
       goal: serializer.fromJson<String?>(json['goal']),
       audience: serializer.fromJson<String?>(json['audience']),
+      coverImageUrl: serializer.fromJson<String?>(json['coverImageUrl']),
+      coverImageDataUri:
+          serializer.fromJson<String?>(json['coverImageDataUri']),
+      coverImagePrompt: serializer.fromJson<String?>(json['coverImagePrompt']),
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -658,6 +731,9 @@ class Post extends DataClass implements Insertable<Post> {
       'contentType': serializer.toJson<String>(contentType),
       'goal': serializer.toJson<String?>(goal),
       'audience': serializer.toJson<String?>(audience),
+      'coverImageUrl': serializer.toJson<String?>(coverImageUrl),
+      'coverImageDataUri': serializer.toJson<String?>(coverImageDataUri),
+      'coverImagePrompt': serializer.toJson<String?>(coverImagePrompt),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -672,6 +748,9 @@ class Post extends DataClass implements Insertable<Post> {
           String? contentType,
           Value<String?> goal = const Value.absent(),
           Value<String?> audience = const Value.absent(),
+          Value<String?> coverImageUrl = const Value.absent(),
+          Value<String?> coverImageDataUri = const Value.absent(),
+          Value<String?> coverImagePrompt = const Value.absent(),
           String? status,
           DateTime? createdAt,
           DateTime? updatedAt,
@@ -683,6 +762,14 @@ class Post extends DataClass implements Insertable<Post> {
         contentType: contentType ?? this.contentType,
         goal: goal.present ? goal.value : this.goal,
         audience: audience.present ? audience.value : this.audience,
+        coverImageUrl:
+            coverImageUrl.present ? coverImageUrl.value : this.coverImageUrl,
+        coverImageDataUri: coverImageDataUri.present
+            ? coverImageDataUri.value
+            : this.coverImageDataUri,
+        coverImagePrompt: coverImagePrompt.present
+            ? coverImagePrompt.value
+            : this.coverImagePrompt,
         status: status ?? this.status,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -697,6 +784,15 @@ class Post extends DataClass implements Insertable<Post> {
           data.contentType.present ? data.contentType.value : this.contentType,
       goal: data.goal.present ? data.goal.value : this.goal,
       audience: data.audience.present ? data.audience.value : this.audience,
+      coverImageUrl: data.coverImageUrl.present
+          ? data.coverImageUrl.value
+          : this.coverImageUrl,
+      coverImageDataUri: data.coverImageDataUri.present
+          ? data.coverImageDataUri.value
+          : this.coverImageDataUri,
+      coverImagePrompt: data.coverImagePrompt.present
+          ? data.coverImagePrompt.value
+          : this.coverImagePrompt,
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -714,6 +810,9 @@ class Post extends DataClass implements Insertable<Post> {
           ..write('contentType: $contentType, ')
           ..write('goal: $goal, ')
           ..write('audience: $audience, ')
+          ..write('coverImageUrl: $coverImageUrl, ')
+          ..write('coverImageDataUri: $coverImageDataUri, ')
+          ..write('coverImagePrompt: $coverImagePrompt, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -723,8 +822,20 @@ class Post extends DataClass implements Insertable<Post> {
   }
 
   @override
-  int get hashCode => Object.hash(id, projectId, title, contentType, goal,
-      audience, status, createdAt, updatedAt, syncStatus);
+  int get hashCode => Object.hash(
+      id,
+      projectId,
+      title,
+      contentType,
+      goal,
+      audience,
+      coverImageUrl,
+      coverImageDataUri,
+      coverImagePrompt,
+      status,
+      createdAt,
+      updatedAt,
+      syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -735,6 +846,9 @@ class Post extends DataClass implements Insertable<Post> {
           other.contentType == this.contentType &&
           other.goal == this.goal &&
           other.audience == this.audience &&
+          other.coverImageUrl == this.coverImageUrl &&
+          other.coverImageDataUri == this.coverImageDataUri &&
+          other.coverImagePrompt == this.coverImagePrompt &&
           other.status == this.status &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -748,6 +862,9 @@ class PostsCompanion extends UpdateCompanion<Post> {
   final Value<String> contentType;
   final Value<String?> goal;
   final Value<String?> audience;
+  final Value<String?> coverImageUrl;
+  final Value<String?> coverImageDataUri;
+  final Value<String?> coverImagePrompt;
   final Value<String> status;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -760,6 +877,9 @@ class PostsCompanion extends UpdateCompanion<Post> {
     this.contentType = const Value.absent(),
     this.goal = const Value.absent(),
     this.audience = const Value.absent(),
+    this.coverImageUrl = const Value.absent(),
+    this.coverImageDataUri = const Value.absent(),
+    this.coverImagePrompt = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -773,6 +893,9 @@ class PostsCompanion extends UpdateCompanion<Post> {
     this.contentType = const Value.absent(),
     this.goal = const Value.absent(),
     this.audience = const Value.absent(),
+    this.coverImageUrl = const Value.absent(),
+    this.coverImageDataUri = const Value.absent(),
+    this.coverImagePrompt = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -787,6 +910,9 @@ class PostsCompanion extends UpdateCompanion<Post> {
     Expression<String>? contentType,
     Expression<String>? goal,
     Expression<String>? audience,
+    Expression<String>? coverImageUrl,
+    Expression<String>? coverImageDataUri,
+    Expression<String>? coverImagePrompt,
     Expression<String>? status,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -800,6 +926,9 @@ class PostsCompanion extends UpdateCompanion<Post> {
       if (contentType != null) 'content_type': contentType,
       if (goal != null) 'goal': goal,
       if (audience != null) 'audience': audience,
+      if (coverImageUrl != null) 'cover_image_url': coverImageUrl,
+      if (coverImageDataUri != null) 'cover_image_data_uri': coverImageDataUri,
+      if (coverImagePrompt != null) 'cover_image_prompt': coverImagePrompt,
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -815,6 +944,9 @@ class PostsCompanion extends UpdateCompanion<Post> {
       Value<String>? contentType,
       Value<String?>? goal,
       Value<String?>? audience,
+      Value<String?>? coverImageUrl,
+      Value<String?>? coverImageDataUri,
+      Value<String?>? coverImagePrompt,
       Value<String>? status,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
@@ -827,6 +959,9 @@ class PostsCompanion extends UpdateCompanion<Post> {
       contentType: contentType ?? this.contentType,
       goal: goal ?? this.goal,
       audience: audience ?? this.audience,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+      coverImageDataUri: coverImageDataUri ?? this.coverImageDataUri,
+      coverImagePrompt: coverImagePrompt ?? this.coverImagePrompt,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -856,6 +991,15 @@ class PostsCompanion extends UpdateCompanion<Post> {
     if (audience.present) {
       map['audience'] = Variable<String>(audience.value);
     }
+    if (coverImageUrl.present) {
+      map['cover_image_url'] = Variable<String>(coverImageUrl.value);
+    }
+    if (coverImageDataUri.present) {
+      map['cover_image_data_uri'] = Variable<String>(coverImageDataUri.value);
+    }
+    if (coverImagePrompt.present) {
+      map['cover_image_prompt'] = Variable<String>(coverImagePrompt.value);
+    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
@@ -883,6 +1027,9 @@ class PostsCompanion extends UpdateCompanion<Post> {
           ..write('contentType: $contentType, ')
           ..write('goal: $goal, ')
           ..write('audience: $audience, ')
+          ..write('coverImageUrl: $coverImageUrl, ')
+          ..write('coverImageDataUri: $coverImageDataUri, ')
+          ..write('coverImagePrompt: $coverImagePrompt, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -5778,6 +5925,9 @@ typedef $$PostsTableCreateCompanionBuilder = PostsCompanion Function({
   Value<String> contentType,
   Value<String?> goal,
   Value<String?> audience,
+  Value<String?> coverImageUrl,
+  Value<String?> coverImageDataUri,
+  Value<String?> coverImagePrompt,
   Value<String> status,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -5791,6 +5941,9 @@ typedef $$PostsTableUpdateCompanionBuilder = PostsCompanion Function({
   Value<String> contentType,
   Value<String?> goal,
   Value<String?> audience,
+  Value<String?> coverImageUrl,
+  Value<String?> coverImageDataUri,
+  Value<String?> coverImagePrompt,
   Value<String> status,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -5896,6 +6049,17 @@ class $$PostsTableFilterComposer extends Composer<_$AppDatabase, $PostsTable> {
 
   ColumnFilters<String> get audience => $composableBuilder(
       column: $table.audience, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverImageUrl => $composableBuilder(
+      column: $table.coverImageUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverImageDataUri => $composableBuilder(
+      column: $table.coverImageDataUri,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverImagePrompt => $composableBuilder(
+      column: $table.coverImagePrompt,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnFilters(column));
@@ -6038,6 +6202,18 @@ class $$PostsTableOrderingComposer
   ColumnOrderings<String> get audience => $composableBuilder(
       column: $table.audience, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get coverImageUrl => $composableBuilder(
+      column: $table.coverImageUrl,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverImageDataUri => $composableBuilder(
+      column: $table.coverImageDataUri,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverImagePrompt => $composableBuilder(
+      column: $table.coverImagePrompt,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnOrderings(column));
 
@@ -6094,6 +6270,15 @@ class $$PostsTableAnnotationComposer
 
   GeneratedColumn<String> get audience =>
       $composableBuilder(column: $table.audience, builder: (column) => column);
+
+  GeneratedColumn<String> get coverImageUrl => $composableBuilder(
+      column: $table.coverImageUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get coverImageDataUri => $composableBuilder(
+      column: $table.coverImageDataUri, builder: (column) => column);
+
+  GeneratedColumn<String> get coverImagePrompt => $composableBuilder(
+      column: $table.coverImagePrompt, builder: (column) => column);
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
@@ -6246,6 +6431,9 @@ class $$PostsTableTableManager extends RootTableManager<
             Value<String> contentType = const Value.absent(),
             Value<String?> goal = const Value.absent(),
             Value<String?> audience = const Value.absent(),
+            Value<String?> coverImageUrl = const Value.absent(),
+            Value<String?> coverImageDataUri = const Value.absent(),
+            Value<String?> coverImagePrompt = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -6259,6 +6447,9 @@ class $$PostsTableTableManager extends RootTableManager<
             contentType: contentType,
             goal: goal,
             audience: audience,
+            coverImageUrl: coverImageUrl,
+            coverImageDataUri: coverImageDataUri,
+            coverImagePrompt: coverImagePrompt,
             status: status,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -6272,6 +6463,9 @@ class $$PostsTableTableManager extends RootTableManager<
             Value<String> contentType = const Value.absent(),
             Value<String?> goal = const Value.absent(),
             Value<String?> audience = const Value.absent(),
+            Value<String?> coverImageUrl = const Value.absent(),
+            Value<String?> coverImageDataUri = const Value.absent(),
+            Value<String?> coverImagePrompt = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -6285,6 +6479,9 @@ class $$PostsTableTableManager extends RootTableManager<
             contentType: contentType,
             goal: goal,
             audience: audience,
+            coverImageUrl: coverImageUrl,
+            coverImageDataUri: coverImageDataUri,
+            coverImagePrompt: coverImagePrompt,
             status: status,
             createdAt: createdAt,
             updatedAt: updatedAt,
