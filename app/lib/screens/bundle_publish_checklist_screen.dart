@@ -31,6 +31,8 @@ class _BundlePublishChecklistScreenState
     'reddit',
     'facebook',
     'youtube',
+    'substack',
+    'medium',
   ];
 
   @override
@@ -650,6 +652,12 @@ class _BundlePublishChecklistScreenState
       if (platform == 'youtube') {
         return 'Title: Practical guide breakdown\nDescription:\n- Problem\n- Implementation\n- Verification\nPinned comment: Which case should I test next?';
       }
+      if (platform == 'substack') {
+        return 'Title: Practical guide walkthrough\n\nSection outline:\n- Setup and prerequisites\n- Step-by-step implementation\n- Verification and pitfalls\n\nCTA: Which section should I expand?';
+      }
+      if (platform == 'medium') {
+        return 'Title: Practical implementation guide\n\nDraft outline:\n- Problem framing\n- Implementation steps\n- Verification + pitfalls\n- Repro checklist\n\nClose: What edge case should I add?';
+      }
     }
     if (isAiToolGuideType(contentType)) {
       if (platform == 'x') {
@@ -667,6 +675,12 @@ class _BundlePublishChecklistScreenState
       if (platform == 'youtube') {
         return 'Title: Practical AI tool workflow\nDescription:\n- Use-case\n- Prompt + parameters\n- Guardrails/cost\nPinned comment: What tool should I test next?';
       }
+      if (platform == 'substack') {
+        return 'Title: Practical AI tool guide\n\nSection outline:\n- Use-case and context\n- Prompt template + parameters\n- Guardrails, cost, and failure modes\n- Operating checklist\n\nCTA: Which tool should I benchmark next?';
+      }
+      if (platform == 'medium') {
+        return 'Title: AI workflow field guide\n\nDraft outline:\n- Problem framing\n- Prompt strategy\n- Guardrails + cost controls\n- Lessons learned\n\nClose: What would you tune first?';
+      }
     }
     if (platform == 'x') {
       return 'Quick build update:\n- What changed\n- Tradeoff\nWhat would you test next?';
@@ -682,6 +696,12 @@ class _BundlePublishChecklistScreenState
     }
     if (platform == 'youtube') {
       return 'Title: Practical breakdown\nDescription:\n- Context\n- Tradeoff\n- Next step\nPinned comment: What should I test next?';
+    }
+    if (platform == 'substack') {
+      return 'Title: Build decision breakdown\n\nSection outline:\n- Context\n- Decision + tradeoff\n- Evidence\n- Next action\n\nCTA: Which part deserves a deeper dive?';
+    }
+    if (platform == 'medium') {
+      return 'Title: Build decision deep dive\n\nDraft outline:\n- Problem framing\n- Options considered\n- Chosen path + tradeoff\n- What to test next\n\nClose: How would you approach this?';
     }
     return 'Platform variant draft';
   }

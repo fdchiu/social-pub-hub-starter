@@ -29,5 +29,11 @@ Uri? composerUriForPlatform({
   if (normalized == 'youtube') {
     return Uri.https('studio.youtube.com', '/');
   }
+  if (normalized == 'substack') {
+    return Uri.https('substack.com', '/home');
+  }
+  if (normalized == 'medium') {
+    return Uri.https('medium.com', '/new-story');
+  }
   return null;
 }

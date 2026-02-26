@@ -189,7 +189,9 @@ class DraftPolishRequest(BaseModel):
 
 
 class DraftVariantsRequest(BaseModel):
-    platforms: list[str] = Field(default_factory=lambda: ["x", "linkedin"])
+    platforms: list[str] = Field(
+        default_factory=lambda: ["x", "linkedin", "substack", "medium"]
+    )
     style_profile_id: str | None = None
     content_type: str | None = None
 

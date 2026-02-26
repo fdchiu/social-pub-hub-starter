@@ -61,6 +61,56 @@ def test_health_ok(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_integrations_include_article_platforms(client: TestClient) -> None:
+    response = client.get("/integrations")
+    assert response.status_code == 200
+    integrations = response.json()["integrations"]
+    by_platform = {row["platform"]: row for row in integrations}
+
+    assert "substack" in by_platform
+    assert "medium" in by_platform
+    assert by_platform["substack"]["capabilities"]["article"] is True
+    assert by_platform["medium"]["capabilities"]["article"] is True
+
+
+def test_article_platform_templates(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    create_response = client.post(
+        "/drafts/from_sources",
+        json={
+            "source_ids": ["src_article_1"],
+            "source_materials": [
+                {
+                    "id": "src_article_1",
+                    "type": "note",
+                    "title": "Long-form angle",
+                    "note": "Turn thread notes into article sections with clear tradeoffs.",
+                    "tags": ["longform"],
+                }
+            ],
+            "intent": "how_to",
+            "post_title": "Long-form publishing workflow",
+        },
+    )
+    assert create_response.status_code == 200
+    draft_id = create_response.json()["draft_id"]
+
+    variants_response = client.post(
+        f"/drafts/{draft_id}/variants",
+        json={"platforms": ["substack", "medium"]},
+    )
+    assert variants_response.status_code == 200
+    variants = {
+        row["platform"]: row["text"]
+        for row in variants_response.json()["variants"]
+    }
+    assert "Section outline" in variants["substack"]
+    assert "Draft outline" in variants["medium"]
+
+
 def test_sync_push_last_write_wins(client: TestClient) -> None:
     draft_id = "draft_sync_case"
     now = datetime.now(timezone.utc)

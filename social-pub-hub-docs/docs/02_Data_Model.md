@@ -69,7 +69,7 @@ Platform-specific rendering of a Draft.
 Fields:
 - `id`
 - `draft_id`
-- `platform` enum: `x | linkedin | reddit | facebook | youtube`
+- `platform` enum: `x | linkedin | reddit | facebook | youtube | substack | medium`
 - `text`
 - `hook` (nullable)
 - `cta` (nullable)

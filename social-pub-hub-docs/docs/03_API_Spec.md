@@ -13,7 +13,9 @@ Response:
     {"platform":"linkedin","connected":false,"capabilities":{"direct_publish":false}},
     {"platform":"reddit","connected":false,"capabilities":{"direct_publish":false}},
     {"platform":"facebook","connected":false,"capabilities":{"direct_publish":true}},
-    {"platform":"youtube","connected":false,"capabilities":{"upload":true,"metadata":true}}
+    {"platform":"youtube","connected":false,"capabilities":{"upload":true,"metadata":true}},
+    {"platform":"substack","connected":false,"capabilities":{"direct_publish":false,"article":true}},
+    {"platform":"medium","connected":false,"capabilities":{"direct_publish":false,"article":true}}
   ]
 }
 ```
@@ -158,7 +160,7 @@ Notes:
 
 Request:
 ```json
-{"platforms":["x","linkedin","reddit","facebook","youtube"], "style_profile_id":"..."}
+{"platforms":["x","linkedin","reddit","facebook","youtube","substack","medium"], "style_profile_id":"..."}
 ```
 
 Response:

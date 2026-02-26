@@ -672,6 +672,20 @@ def _variant_template(platform: str, canonical: str, content_type: str) -> str:
             "- Context\n- What changed\n- Tradeoff\n\n"
             "Pinned comment: What should I test next?"
         )
+    if platform == "substack":
+        return (
+            f"Title: {first_line}\n\n"
+            "Section outline:\n"
+            "- Context\n- What changed\n- Tradeoffs and evidence\n- Practical next step\n\n"
+            "CTA: Reply with the part you want expanded."
+        )
+    if platform == "medium":
+        return (
+            f"Title: {first_line}\n\n"
+            "Draft outline:\n"
+            "- Problem framing\n- Implementation choices\n- What worked / what failed\n- Repro steps\n\n"
+            "Close: What would you test differently?"
+        )
     return f"{first_line}\n\nShared summary for {platform}."
 
 
@@ -910,6 +924,16 @@ def integrations() -> dict[str, list[dict[str, Any]]]:
                 "connected": False,
                 "capabilities": {"upload": True, "metadata": True},
             },
+            {
+                "platform": "substack",
+                "connected": False,
+                "capabilities": {"direct_publish": False, "article": True},
+            },
+            {
+                "platform": "medium",
+                "connected": False,
+                "capabilities": {"direct_publish": False, "article": True},
+            },
         ]
     }
 
@@ -981,7 +1005,7 @@ def draft_variants(
     if draft is None:
         raise HTTPException(status_code=404, detail="Draft not found")
 
-    platforms = payload.platforms or ["x", "linkedin"]
+    platforms = payload.platforms or ["x", "linkedin", "substack", "medium"]
     content_type = payload.content_type or draft.get("content_type") or "general_post"
     style = None
     if payload.style_profile_id:

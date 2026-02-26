@@ -245,6 +245,10 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
                             value: 'facebook', child: Text('Facebook')),
                         DropdownMenuItem(
                             value: 'youtube', child: Text('YouTube')),
+                        DropdownMenuItem(
+                            value: 'substack', child: Text('Substack')),
+                        DropdownMenuItem(
+                            value: 'medium', child: Text('Medium')),
                       ],
                       onChanged: (value) {
                         if (value == null) {

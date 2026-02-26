@@ -682,6 +682,8 @@ Takeaway:
                 'reddit',
                 'facebook',
                 'youtube',
+                'substack',
+                'medium',
               ],
               'style_profile_id': styleProfile.id,
               'content_type': activePost?.contentType,
