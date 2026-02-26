@@ -73,152 +73,259 @@ class PostScopeHeader extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.folder_open_outlined, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: selectedProjectId ?? '__all__',
-                    items: [
-                      const DropdownMenuItem(
-                        value: '__all__',
-                        child: Text('All projects'),
-                      ),
-                      ...projects.map(
-                        (project) => DropdownMenuItem(
-                          value: project.id,
-                          child: Text(project.name),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 860;
+                final selector = Row(
+                  children: [
+                    const Icon(Icons.folder_open_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedProjectId ?? '__all__',
+                        items: [
+                          const DropdownMenuItem(
+                            value: '__all__',
+                            child: Text('All projects'),
+                          ),
+                          ...projects.map(
+                            (project) => DropdownMenuItem(
+                              value: project.id,
+                              child: Text(project.name),
+                            ),
+                          ),
+                        ],
+                        onChanged: (next) {
+                          final normalized = next == '__all__' ? null : next;
+                          ref.read(activeProjectIdProvider.notifier).state =
+                              normalized;
+                          ref.read(activePostIdProvider.notifier).state = null;
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Project scope',
+                          isDense: true,
                         ),
                       ),
-                    ],
-                    onChanged: (next) {
-                      final normalized = next == '__all__' ? null : next;
-                      ref.read(activeProjectIdProvider.notifier).state =
-                          normalized;
-                      ref.read(activePostIdProvider.notifier).state = null;
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Project scope',
-                      isDense: true,
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                FilledButton.tonal(
-                  onPressed: () => _showCreateProjectDialog(context, ref),
-                  child: const Text('New project'),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  tooltip: activeProject == null
-                      ? 'Select project to edit'
-                      : 'Edit project',
-                  onPressed: activeProject == null
-                      ? null
-                      : () => _showEditProjectDialog(
-                            context,
-                            ref,
-                            project: activeProject!,
-                          ),
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-                IconButton(
-                  tooltip: activeProject == null
-                      ? 'Select project to delete'
-                      : 'Delete project',
-                  onPressed: activeProject == null
-                      ? null
-                      : () => _confirmDeleteProject(
-                            context,
-                            ref,
-                            project: activeProject!,
-                          ),
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
+                  ],
+                );
+                final actions = Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    FilledButton.tonal(
+                      onPressed: () => _showCreateProjectDialog(context, ref),
+                      child: const Text('New project'),
+                    ),
+                    IconButton(
+                      tooltip: activeProject == null
+                          ? 'Select project to edit'
+                          : 'Edit project',
+                      onPressed: activeProject == null
+                          ? null
+                          : () => _showEditProjectDialog(
+                                context,
+                                ref,
+                                project: activeProject!,
+                              ),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                    IconButton(
+                      tooltip: activeProject == null
+                          ? 'Select project to delete'
+                          : 'Delete project',
+                      onPressed: activeProject == null
+                          ? null
+                          : () => _confirmDeleteProject(
+                                context,
+                                ref,
+                                project: activeProject!,
+                              ),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
+                );
+
+                if (!compact) {
+                  return Row(
+                    children: [
+                      Expanded(child: selector),
+                      const SizedBox(width: 12),
+                      actions,
+                    ],
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    selector,
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: actions,
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 12),
             if (posts.isEmpty)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.article_outlined),
-                title: const Text('No posts in this scope'),
-                subtitle: const Text(
-                  'Create a post workspace to scope inbox and drafting.',
-                ),
-                trailing: FilledButton.tonal(
-                  onPressed: () => _showCreatePostDialog(context, ref),
-                  child: const Text('New post'),
-                ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 700;
+                  if (!compact) {
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.article_outlined),
+                      title: const Text('No posts in this scope'),
+                      subtitle: const Text(
+                        'Create a post workspace to scope inbox and drafting.',
+                      ),
+                      trailing: FilledButton.tonal(
+                        onPressed: () => _showCreatePostDialog(context, ref),
+                        child: const Text('New post'),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.article_outlined),
+                        title: Text('No posts in this scope'),
+                        subtitle: Text(
+                          'Create a post workspace to scope inbox and drafting.',
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.tonal(
+                          onPressed: () => _showCreatePostDialog(context, ref),
+                          child: const Text('New post'),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               )
             else ...[
-              Row(
-                children: [
-                  const Icon(Icons.account_tree_outlined, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: activePost!.id,
-                      items: posts
-                          .map(
-                            (post) => DropdownMenuItem(
-                              value: post.id,
-                              child: Text(post.title),
-                            ),
-                          )
-                          .toList(growable: false),
-                      onChanged: (next) {
-                        if (next == null) {
-                          return;
-                        }
-                        ref.read(activePostIdProvider.notifier).state = next;
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Active post',
-                        isDense: true,
+              Builder(
+                builder: (context) {
+                  final currentPost = activePost!;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 860;
+                          final selector = Row(
+                            children: [
+                              const Icon(Icons.account_tree_outlined, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: currentPost.id,
+                                  items: posts
+                                      .map(
+                                        (post) => DropdownMenuItem(
+                                          value: post.id,
+                                          child: Text(post.title),
+                                        ),
+                                      )
+                                      .toList(growable: false),
+                                  onChanged: (next) {
+                                    if (next == null) {
+                                      return;
+                                    }
+                                    ref
+                                        .read(activePostIdProvider.notifier)
+                                        .state = next;
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Active post',
+                                    isDense: true,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                          final actions = Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              FilledButton.tonal(
+                                onPressed: () =>
+                                    _showCreatePostDialog(context, ref),
+                                child: const Text('New post'),
+                              ),
+                              IconButton(
+                                tooltip: 'Edit post',
+                                onPressed: () => _showEditPostDialog(
+                                  context,
+                                  ref,
+                                  post: currentPost,
+                                ),
+                                icon: const Icon(Icons.edit_outlined),
+                              ),
+                              IconButton(
+                                tooltip: 'Delete post',
+                                onPressed: () => _confirmDeletePost(
+                                  context,
+                                  ref,
+                                  post: currentPost,
+                                ),
+                                icon: const Icon(Icons.delete_outline),
+                              ),
+                            ],
+                          );
+
+                          if (!compact) {
+                            return Row(
+                              children: [
+                                Expanded(child: selector),
+                                const SizedBox(width: 12),
+                                actions,
+                              ],
+                            );
+                          }
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              selector,
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: actions,
+                              ),
+                            ],
+                          );
+                        },
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton.tonal(
-                    onPressed: () => _showCreatePostDialog(context, ref),
-                    child: const Text('New post'),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Edit post',
-                    onPressed: () => _showEditPostDialog(
-                      context,
-                      ref,
-                      post: activePost!,
-                    ),
-                    icon: const Icon(Icons.edit_outlined),
-                  ),
-                  IconButton(
-                    tooltip: 'Delete post',
-                    onPressed: () => _confirmDeletePost(
-                      context,
-                      ref,
-                      post: activePost!,
-                    ),
-                    icon: const Icon(Icons.delete_outline),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  Chip(
-                      label: Text(
-                          'type: ${contentTypeDisplayLabel(activePost.contentType)}')),
-                  Chip(label: Text('status: ${activePost.status}')),
-                  if (activePost.audience != null &&
-                      activePost.audience!.isNotEmpty)
-                    Chip(label: Text('audience: ${activePost.audience}')),
-                ],
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          Chip(
+                              label: Text(
+                                  'type: ${contentTypeDisplayLabel(currentPost.contentType)}')),
+                          Chip(label: Text('status: ${currentPost.status}')),
+                          if (currentPost.audience != null &&
+                              currentPost.audience!.isNotEmpty)
+                            Chip(
+                                label:
+                                    Text('audience: ${currentPost.audience}')),
+                        ],
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
             if (showGlobalToggle) ...[

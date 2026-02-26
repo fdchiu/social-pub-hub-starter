@@ -32,6 +32,17 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   String _query = '';
   String _typeFilter = 'all';
   bool _creatingDraft = false;
+  static const String _customType = '__custom__';
+  static const List<String> _sourceTypeOptions = <String>[
+    'url',
+    'note',
+    'snippet',
+    'image',
+    'video',
+    'audio',
+    'file',
+    _customType,
+  ];
 
   @override
   void initState() {
@@ -143,7 +154,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: ChoiceChip(
-                          label: Text(type == 'all' ? 'All types' : type),
+                          label: Text(
+                            type == 'all'
+                                ? 'All types'
+                                : _sourceTypeLabel(type),
+                          ),
                           selected: _typeFilter == type,
                           onSelected: (selected) {
                             if (!selected) {
@@ -317,111 +332,191 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   Future<void> _editSource(SourceItem item) async {
     final activePost = ref.read(activePostProvider);
-    final typeController = TextEditingController(text: item.type);
     final titleController = TextEditingController(text: item.title ?? '');
-    final urlController = TextEditingController(text: item.url ?? '');
-    final noteController = TextEditingController(text: item.userNote ?? '');
+    final linkController = TextEditingController(text: item.url ?? '');
+    final contentController = TextEditingController(text: item.userNote ?? '');
     final tagsController = TextEditingController(text: item.tags.join(', '));
+    final customTypeController = TextEditingController(
+      text: _sourceTypeOptions.contains(item.type) ? '' : item.type,
+    );
+    var selectedType =
+        _sourceTypeOptions.contains(item.type) ? item.type : _customType;
     var saveAsGlobal = (item.postId == null || item.postId!.isEmpty);
 
     final shouldSave = await showDialog<bool>(
           context: context,
           builder: (context) => StatefulBuilder(
-            builder: (context, setLocalState) => AlertDialog(
-              title: Text('Edit source ${item.id.substring(0, 8)}'),
-              content: SizedBox(
-                width: 460,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: typeController,
-                        decoration: const InputDecoration(labelText: 'Type'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: titleController,
-                        decoration: const InputDecoration(labelText: 'Title'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: urlController,
-                        decoration: const InputDecoration(labelText: 'URL'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: noteController,
-                        minLines: 2,
-                        maxLines: 5,
-                        decoration: const InputDecoration(labelText: 'Note'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: tagsController,
-                        decoration: const InputDecoration(
-                          labelText: 'Tags',
-                          hintText: 'ai, product, launch',
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (activePost != null)
-                        CheckboxListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          value: saveAsGlobal,
-                          onChanged: (next) {
+            builder: (context, setLocalState) {
+              final resolvedTypeForUi =
+                  _resolveSourceType(selectedType, customTypeController.text);
+              return AlertDialog(
+                title: Text('Edit source ${item.id.substring(0, 8)}'),
+                content: SizedBox(
+                  width: 500,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          value: selectedType,
+                          decoration:
+                              const InputDecoration(labelText: 'Source type'),
+                          items: _sourceTypeOptions
+                              .map(
+                                (type) => DropdownMenuItem(
+                                  value: type,
+                                  child: Text(_sourceTypeOptionLabel(type)),
+                                ),
+                              )
+                              .toList(growable: false),
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
                             setLocalState(() {
-                              saveAsGlobal = next ?? false;
+                              selectedType = value;
                             });
                           },
-                          title: const Text('Save as global source'),
-                          subtitle: Text(
-                            saveAsGlobal
-                                ? 'Source reusable across posts'
-                                : 'Source belongs to: ${activePost.title}',
+                        ),
+                        if (selectedType == _customType) ...[
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: customTypeController,
+                            decoration: const InputDecoration(
+                              labelText: 'Custom source type',
+                              hintText: 'pdf_excerpt',
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: titleController,
+                          decoration: const InputDecoration(
+                            labelText: 'Title (optional)',
                           ),
                         ),
-                    ],
+                        if (_typeUsesLink(resolvedTypeForUi)) ...[
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: linkController,
+                            decoration: InputDecoration(
+                              labelText: _linkLabelForType(resolvedTypeForUi),
+                              hintText: _linkHintForType(resolvedTypeForUi),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: contentController,
+                          minLines:
+                              _typeRequiresText(resolvedTypeForUi) ? 4 : 2,
+                          maxLines:
+                              _typeRequiresText(resolvedTypeForUi) ? 8 : 5,
+                          decoration: InputDecoration(
+                            labelText: _textLabelForType(resolvedTypeForUi),
+                            hintText: _textHintForType(resolvedTypeForUi),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: tagsController,
+                          decoration: const InputDecoration(
+                            labelText: 'Tags',
+                            hintText: 'ai, product, launch',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (activePost != null)
+                          CheckboxListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            value: saveAsGlobal,
+                            onChanged: (next) {
+                              setLocalState(() {
+                                saveAsGlobal = next ?? false;
+                              });
+                            },
+                            title: const Text('Save as global source'),
+                            subtitle: Text(
+                              saveAsGlobal
+                                  ? 'Source reusable across posts'
+                                  : 'Source belongs to: ${activePost.title}',
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Save'),
-                ),
-              ],
-            ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Save'),
+                  ),
+                ],
+              );
+            },
           ),
         ) ??
         false;
 
     if (!shouldSave) {
-      typeController.dispose();
       titleController.dispose();
-      urlController.dispose();
-      noteController.dispose();
+      linkController.dispose();
+      contentController.dispose();
       tagsController.dispose();
+      customTypeController.dispose();
       return;
     }
 
-    final type = typeController.text.trim();
-    if (type.isEmpty) {
+    final resolvedType =
+        _resolveSourceType(selectedType, customTypeController.text);
+    if (resolvedType.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Type is required')),
+          const SnackBar(content: Text('Source type is required')),
         );
       }
-      typeController.dispose();
       titleController.dispose();
-      urlController.dispose();
-      noteController.dispose();
+      linkController.dispose();
+      contentController.dispose();
       tagsController.dispose();
+      customTypeController.dispose();
+      return;
+    }
+
+    final linkValue = linkController.text.trim();
+    if (_typeRequiresLink(resolvedType) && linkValue.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('${_linkLabelForType(resolvedType)} is required')),
+        );
+      }
+      titleController.dispose();
+      linkController.dispose();
+      contentController.dispose();
+      tagsController.dispose();
+      customTypeController.dispose();
+      return;
+    }
+
+    final contentValue = contentController.text.trim();
+    if (_typeRequiresText(resolvedType) && contentValue.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('${_textLabelForType(resolvedType)} is required')),
+        );
+      }
+      titleController.dispose();
+      linkController.dispose();
+      contentController.dispose();
+      tagsController.dispose();
+      customTypeController.dispose();
       return;
     }
 
@@ -432,10 +527,10 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         .toList(growable: false);
     await ref.read(sourceRepoProvider).updateSourceItem(
           sourceId: item.id,
-          type: type,
+          type: resolvedType,
           title: titleController.text,
-          url: urlController.text,
-          userNote: noteController.text,
+          url: linkController.text,
+          userNote: contentController.text,
           tags: tags,
           postId: saveAsGlobal ? null : (activePost?.id ?? item.postId),
         );
@@ -446,11 +541,11 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       );
     }
 
-    typeController.dispose();
     titleController.dispose();
-    urlController.dispose();
-    noteController.dispose();
+    linkController.dispose();
+    contentController.dispose();
     tagsController.dispose();
+    customTypeController.dispose();
   }
 
   Future<void> _deleteSource(SourceItem item) async {
@@ -499,10 +594,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       }
       return;
     }
-    final urlController = TextEditingController();
-    final noteController = TextEditingController();
+
+    final titleController = TextEditingController();
+    final linkController = TextEditingController();
+    final contentController = TextEditingController();
     final tagsController = TextEditingController();
-    String selectedType = 'url';
+    final customTypeController = TextEditingController();
+    String selectedType = 'note';
     var saveAsGlobal = false;
 
     final shouldSave = await showDialog<bool>(
@@ -510,81 +608,108 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           builder: (context) {
             return StatefulBuilder(
               builder: (context, setLocalState) {
+                final resolvedTypeForUi =
+                    _resolveSourceType(selectedType, customTypeController.text);
                 return AlertDialog(
                   title: const Text('Add Source Item'),
                   content: SizedBox(
-                    width: 420,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        DropdownButtonFormField<String>(
-                          value: selectedType,
-                          decoration: const InputDecoration(labelText: 'Type'),
-                          items: const [
-                            DropdownMenuItem(value: 'url', child: Text('URL')),
-                            DropdownMenuItem(
-                                value: 'note', child: Text('Note')),
-                            DropdownMenuItem(
-                              value: 'snippet',
-                              child: Text('Snippet'),
+                    width: 460,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          DropdownButtonFormField<String>(
+                            value: selectedType,
+                            decoration:
+                                const InputDecoration(labelText: 'Source type'),
+                            items: _sourceTypeOptions
+                                .map(
+                                  (type) => DropdownMenuItem(
+                                    value: type,
+                                    child: Text(_sourceTypeOptionLabel(type)),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: (value) {
+                              if (value == null) {
+                                return;
+                              }
+                              setLocalState(() {
+                                selectedType = value;
+                              });
+                            },
+                          ),
+                          if (selectedType == _customType) ...[
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: customTypeController,
+                              decoration: const InputDecoration(
+                                labelText: 'Custom source type',
+                                hintText: 'pdf_excerpt',
+                              ),
                             ),
                           ],
-                          onChanged: (value) {
-                            if (value == null) {
-                              return;
-                            }
-                            setLocalState(() {
-                              selectedType = value;
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Post: ${activePost.title}',
-                            style: Theme.of(context).textTheme.bodySmall,
+                          const SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Post: ${activePost.title}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
                           ),
-                        ),
-                        CheckboxListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          value: saveAsGlobal,
-                          onChanged: (next) {
-                            setLocalState(() {
-                              saveAsGlobal = next ?? false;
-                            });
-                          },
-                          title: const Text('Save as global source'),
-                          subtitle: const Text(
-                              'Global sources can be reused across posts'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: urlController,
-                          decoration: const InputDecoration(
-                            labelText: 'URL (optional)',
-                            hintText: 'https://...',
+                          CheckboxListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            value: saveAsGlobal,
+                            onChanged: (next) {
+                              setLocalState(() {
+                                saveAsGlobal = next ?? false;
+                              });
+                            },
+                            title: const Text('Save as global source'),
+                            subtitle: const Text(
+                              'Global sources can be reused across posts',
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: noteController,
-                          minLines: 2,
-                          maxLines: 4,
-                          decoration: const InputDecoration(
-                            labelText: 'Why this matters',
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: titleController,
+                            decoration: const InputDecoration(
+                              labelText: 'Title (optional)',
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: tagsController,
-                          decoration: const InputDecoration(
-                            labelText: 'Tags',
-                            hintText: 'ai, product, leadership',
+                          if (_typeUsesLink(resolvedTypeForUi)) ...[
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: linkController,
+                              decoration: InputDecoration(
+                                labelText: _linkLabelForType(resolvedTypeForUi),
+                                hintText: _linkHintForType(resolvedTypeForUi),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: contentController,
+                            minLines:
+                                _typeRequiresText(resolvedTypeForUi) ? 4 : 2,
+                            maxLines:
+                                _typeRequiresText(resolvedTypeForUi) ? 8 : 5,
+                            decoration: InputDecoration(
+                              labelText: _textLabelForType(resolvedTypeForUi),
+                              hintText: _textHintForType(resolvedTypeForUi),
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: tagsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Tags',
+                              hintText: 'ai, product, leadership',
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   actions: [
@@ -605,30 +730,174 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         false;
 
     if (shouldSave) {
-      final tags = tagsController.text
-          .split(',')
-          .map((tag) => tag.trim())
-          .where((tag) => tag.isNotEmpty)
-          .toList();
+      final resolvedType =
+          _resolveSourceType(selectedType, customTypeController.text);
+      if (resolvedType.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Source type is required')),
+          );
+        }
+      } else {
+        final linkValue = linkController.text.trim();
+        if (_typeRequiresLink(resolvedType) && linkValue.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${_linkLabelForType(resolvedType)} is required'),
+              ),
+            );
+          }
+        } else {
+          final contentValue = contentController.text.trim();
+          if (_typeRequiresText(resolvedType) && contentValue.isEmpty) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content:
+                      Text('${_textLabelForType(resolvedType)} is required'),
+                ),
+              );
+            }
+          } else {
+            final tags = tagsController.text
+                .split(',')
+                .map((tag) => tag.trim())
+                .where((tag) => tag.isNotEmpty)
+                .toList();
 
-      await repo.createSourceItem(
-        type: selectedType,
-        url: urlController.text,
-        userNote: noteController.text,
-        tags: tags,
-        postId: saveAsGlobal ? null : activePost.id,
-      );
+            await repo.createSourceItem(
+              type: resolvedType,
+              title: titleController.text,
+              url: linkController.text,
+              userNote: contentController.text,
+              tags: tags,
+              postId: saveAsGlobal ? null : activePost.id,
+            );
 
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Source item saved')));
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Source item saved')),
+              );
+            }
+          }
+        }
       }
     }
 
-    urlController.dispose();
-    noteController.dispose();
+    titleController.dispose();
+    linkController.dispose();
+    contentController.dispose();
     tagsController.dispose();
+    customTypeController.dispose();
+  }
+
+  String _normalizeSourceType(String value) {
+    final trimmed = value.trim().toLowerCase();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+    final normalized = trimmed
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+    return normalized;
+  }
+
+  String _resolveSourceType(String selectedType, String customInput) {
+    if (selectedType == _customType) {
+      return _normalizeSourceType(customInput);
+    }
+    return _normalizeSourceType(selectedType);
+  }
+
+  bool _typeRequiresText(String type) {
+    final normalized = _normalizeSourceType(type);
+    return normalized == 'note' || normalized == 'snippet';
+  }
+
+  bool _typeUsesLink(String type) {
+    final normalized = _normalizeSourceType(type);
+    return normalized == 'url' ||
+        normalized == 'image' ||
+        normalized == 'video' ||
+        normalized == 'audio' ||
+        normalized == 'file';
+  }
+
+  bool _typeRequiresLink(String type) {
+    return _typeUsesLink(type);
+  }
+
+  String _sourceTypeLabel(String type) {
+    final normalized = _normalizeSourceType(type);
+    return switch (normalized) {
+      'url' => 'URL',
+      'note' => 'Note',
+      'snippet' => 'Snippet',
+      'image' => 'Image',
+      'video' => 'Video',
+      'audio' => 'Audio',
+      'file' => 'File',
+      _ => normalized.replaceAll('_', ' '),
+    };
+  }
+
+  String _sourceTypeOptionLabel(String type) {
+    if (type == _customType) {
+      return 'Custom type';
+    }
+    return _sourceTypeLabel(type);
+  }
+
+  String _linkLabelForType(String type) {
+    final normalized = _normalizeSourceType(type);
+    return switch (normalized) {
+      'url' => 'Source URL',
+      'image' => 'Image URL or file path',
+      'video' => 'Video URL or file path',
+      'audio' => 'Audio URL or file path',
+      'file' => 'File URL or path',
+      _ => 'Reference link',
+    };
+  }
+
+  String _linkHintForType(String type) {
+    final normalized = _normalizeSourceType(type);
+    return switch (normalized) {
+      'url' => 'https://...',
+      'image' => 'https://... or /path/to/image.png',
+      'video' => 'https://... or /path/to/video.mp4',
+      'audio' => 'https://... or /path/to/audio.m4a',
+      'file' => 'https://... or /path/to/file.pdf',
+      _ => 'https://... or local path',
+    };
+  }
+
+  String _textLabelForType(String type) {
+    final normalized = _normalizeSourceType(type);
+    return switch (normalized) {
+      'note' => 'Note',
+      'snippet' => 'Snippet text',
+      'image' => 'Image context/caption',
+      'video' => 'Video context/transcript',
+      'audio' => 'Audio context/transcript',
+      'file' => 'File summary',
+      _ => 'Context',
+    };
+  }
+
+  String _textHintForType(String type) {
+    final normalized = _normalizeSourceType(type);
+    return switch (normalized) {
+      'note' => 'Paste your note here',
+      'snippet' => 'Paste snippet/code/text excerpt here',
+      'image' => 'What matters in this image?',
+      'video' => 'Key timestamp, quote, or summary',
+      'audio' => 'Key quote, transcript excerpt, or summary',
+      'file' => 'What should drafting use from this file?',
+      _ => 'Optional context for draft generation',
+    };
   }
 
   Future<void> _createDraftFromSelected() async {

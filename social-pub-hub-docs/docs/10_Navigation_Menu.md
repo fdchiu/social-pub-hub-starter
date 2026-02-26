@@ -7,7 +7,7 @@ This document explains the function of each home navigation item (sometimes call
 ### 1) Inbox (`/inbox`)
 - Purpose: collect source material and start draft creation from selected items.
 - Primary actions:
-  - Add source item (`url`, `note`, `snippet`)
+  - Add source item (`url`, `note`, `snippet`, `image`, `video`, `audio`, `file`)
   - Select multiple sources
   - Create draft from selected sources (sends source evidence to backend)
 - Typical output: canonical draft opened in Compose.
