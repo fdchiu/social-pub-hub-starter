@@ -7,3 +7,6 @@ backend/*.db
 !app/lib/data/**
 app/lib/data/._*
 app/lib/data/**/._*
+
+!app/test/
+!app/test/**

@@ -520,6 +520,17 @@ class PostScopeHeader extends ConsumerWidget {
       BuildContext context, WidgetRef ref) async {
     final activeProjectId = ref.read(activeProjectIdProvider) ??
         ref.read(activeProjectProvider)?.id;
+    final normalizedProjectId = activeProjectId?.trim();
+    if (normalizedProjectId == null || normalizedProjectId.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Select a project before creating a post')),
+        );
+      }
+      return;
+    }
+
     final titleController = TextEditingController();
     final goalController = TextEditingController();
     final audienceController = TextEditingController(text: 'builders');
@@ -658,17 +669,13 @@ class PostScopeHeader extends ConsumerWidget {
           contentType: resolvedContentType,
           goal: goalController.text,
           audience: audienceController.text,
-          projectId: activeProjectId,
+          projectId: normalizedProjectId,
         );
-    if (activeProjectId == null || activeProjectId.isEmpty) {
-      ref.read(activePostIdProvider.notifier).state = postId;
-    } else {
-      setActivePostSelection(
-        ref,
-        projectId: activeProjectId,
-        postId: postId,
-      );
-    }
+    setActivePostSelection(
+      ref,
+      projectId: normalizedProjectId,
+      postId: postId,
+    );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Post workspace created')),

@@ -24,6 +24,7 @@ Goal: make project context global and predictable.
 - Project/post rename/edit/delete happens in `/projects` (not scattered across subscreens).
 - `/projects` now uses subwindows (Overview/Posts/Settings) for focused project operations.
 - Post selection remains global under selected project.
+- Post workspaces are project-owned: creating a post requires a selected project.
 - On non-Projects screens, project/post scope in the header is read-only context; selection happens from the sidebar explorer.
 Exit criteria:
 - selected project + active post are set before drafting/publishing.
