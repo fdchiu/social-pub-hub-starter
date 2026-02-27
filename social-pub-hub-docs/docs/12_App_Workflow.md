@@ -25,6 +25,7 @@ Goal: make project context global and predictable.
 - `/projects` now uses subwindows (Overview/Posts/Settings) for focused project operations.
 - Post selection remains global under selected project.
 - Post workspaces are project-owned: creating a post requires a selected project.
+- Editing a post can reassign it to a different project; active context follows the reassigned post.
 - On non-Projects screens, project/post scope in the header is read-only context; selection happens from the sidebar explorer.
 Exit criteria:
 - selected project + active post are set before drafting/publishing.

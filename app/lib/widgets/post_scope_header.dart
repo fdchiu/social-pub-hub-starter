@@ -811,6 +811,13 @@ class PostScopeHeader extends ConsumerWidget {
         ? post.contentType
         : customContentTypeOption;
     var status = post.status;
+    final availableProjects =
+        ref.read(projectsStreamProvider).valueOrNull ?? const <Project>[];
+    final existingProjectId = post.projectId?.trim();
+    String? selectedProjectId = availableProjects
+            .any((project) => project.id == existingProjectId)
+        ? existingProjectId
+        : (availableProjects.isNotEmpty ? availableProjects.first.id : null);
 
     final shouldSave = await showDialog<bool>(
           context: context,
@@ -870,6 +877,37 @@ class PostScopeHeader extends ConsumerWidget {
                       controller: audienceController,
                       decoration: const InputDecoration(labelText: 'Audience'),
                     ),
+                    const SizedBox(height: 12),
+                    if (availableProjects.isEmpty)
+                      const ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.warning_amber_outlined),
+                        title: Text('No project available'),
+                        subtitle: Text(
+                          'Create a project before saving this post.',
+                        ),
+                      )
+                    else
+                      DropdownButtonFormField<String>(
+                        value: selectedProjectId,
+                        items: availableProjects
+                            .map(
+                              (project) => DropdownMenuItem(
+                                value: project.id,
+                                child: Text(project.name),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          setLocalState(() {
+                            selectedProjectId = value;
+                          });
+                        },
+                        decoration: const InputDecoration(labelText: 'Project'),
+                      ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value:
@@ -946,6 +984,20 @@ class PostScopeHeader extends ConsumerWidget {
       return;
     }
 
+    final normalizedProjectId = selectedProjectId?.trim();
+    if (normalizedProjectId == null || normalizedProjectId.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Project is required for a post')),
+        );
+      }
+      titleController.dispose();
+      goalController.dispose();
+      audienceController.dispose();
+      customTypeController.dispose();
+      return;
+    }
+
     final resolvedContentType = resolveContentTypeInput(
       selectedOption: selectedType,
       customInput: customTypeController.text,
@@ -957,9 +1009,26 @@ class PostScopeHeader extends ConsumerWidget {
           contentType: resolvedContentType,
           goal: goalController.text,
           audience: audienceController.text,
-          projectId: post.projectId,
+          projectId: normalizedProjectId,
           status: status,
         );
+
+    final previousProjectId = post.projectId?.trim();
+    if (previousProjectId != null &&
+        previousProjectId.isNotEmpty &&
+        previousProjectId != normalizedProjectId) {
+      removeRememberedPostForProject(
+        ref,
+        projectId: previousProjectId,
+        postId: post.id,
+      );
+    }
+    setActivePostSelection(
+      ref,
+      projectId: normalizedProjectId,
+      postId: post.id,
+    );
+
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Post updated')),

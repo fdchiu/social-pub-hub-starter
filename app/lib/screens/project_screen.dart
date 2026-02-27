@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/post_scope_providers.dart';
+import '../providers/repo_providers.dart';
 import '../utils/content_type_utils.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
@@ -207,6 +208,8 @@ class _PostsPane extends ConsumerWidget {
       );
     }
 
+    final allPostsAsync = ref.watch(postsStreamProvider);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -256,9 +259,97 @@ class _PostsPane extends ConsumerWidget {
               loading: () => const LinearProgressIndicator(),
               error: (error, _) => Text('Failed loading posts: $error'),
             ),
+            const SizedBox(height: 12),
+            _buildUnassignedLegacySection(
+              context,
+              ref,
+              allPostsAsync,
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildUnassignedLegacySection(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<List<Post>> allPostsAsync,
+  ) {
+    return allPostsAsync.when(
+      data: (allPosts) {
+        final unassigned = allPosts
+            .where((post) => (post.projectId ?? '').trim().isEmpty)
+            .toList(growable: false);
+        if (unassigned.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: const Color.fromRGBO(255, 255, 255, 0.10),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Unassigned legacy posts',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Attach these posts to this project to bring them into the project-first flow.',
+              ),
+              const SizedBox(height: 8),
+              for (final post in unassigned)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    post.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(contentTypeDisplayLabel(post.contentType)),
+                  trailing: FilledButton.tonal(
+                    onPressed: () async {
+                      final targetProjectId = activeProject!.id;
+                      await ref.read(postRepoProvider).updatePost(
+                            postId: post.id,
+                            title: post.title,
+                            contentType: post.contentType,
+                            goal: post.goal,
+                            audience: post.audience,
+                            projectId: targetProjectId,
+                            status: post.status,
+                          );
+                      setActivePostSelection(
+                        ref,
+                        projectId: targetProjectId,
+                        postId: post.id,
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content:
+                                Text('Post moved to ${activeProject!.name}'),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text('Attach'),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (error, _) => Text('Failed loading legacy posts: $error'),
     );
   }
 }
