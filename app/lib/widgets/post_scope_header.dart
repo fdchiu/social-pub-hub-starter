@@ -51,7 +51,7 @@ class PostScopeHeader extends ConsumerWidget {
 
     if (activeProject != null && selectedProjectId != activeProject.id) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(activeProjectIdProvider.notifier).state = activeProject.id;
+        setActiveProjectSelection(ref, projectId: activeProject.id);
       });
     }
 
@@ -65,7 +65,16 @@ class PostScopeHeader extends ConsumerWidget {
     activePost ??= posts.isEmpty ? null : posts.first;
     if (activePost != null && selectedPostId != activePost.id) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(activePostIdProvider.notifier).state = activePost?.id;
+        final projectId = activeProject?.id ?? activePost?.projectId;
+        if (projectId == null || projectId.isEmpty) {
+          ref.read(activePostIdProvider.notifier).state = activePost?.id;
+          return;
+        }
+        setActivePostSelection(
+          ref,
+          projectId: projectId,
+          postId: activePost!.id,
+        );
       });
     }
 
@@ -99,11 +108,10 @@ class PostScopeHeader extends ConsumerWidget {
                                 if (next == null) {
                                   return;
                                 }
-                                ref
-                                    .read(activeProjectIdProvider.notifier)
-                                    .state = next;
-                                ref.read(activePostIdProvider.notifier).state =
-                                    null;
+                                setActiveProjectSelection(
+                                  ref,
+                                  projectId: next,
+                                );
                               },
                         decoration: const InputDecoration(
                           labelText: 'Project scope',
@@ -256,9 +264,20 @@ class PostScopeHeader extends ConsumerWidget {
                                     if (next == null) {
                                       return;
                                     }
-                                    ref
-                                        .read(activePostIdProvider.notifier)
-                                        .state = next;
+                                    final projectId = activeProject?.id ??
+                                        currentPost.projectId;
+                                    if (projectId == null ||
+                                        projectId.isEmpty) {
+                                      ref
+                                          .read(activePostIdProvider.notifier)
+                                          .state = next;
+                                      return;
+                                    }
+                                    setActivePostSelection(
+                                      ref,
+                                      projectId: projectId,
+                                      postId: next,
+                                    );
                                   },
                                   decoration: const InputDecoration(
                                     labelText: 'Active post',
@@ -452,8 +471,12 @@ class PostScopeHeader extends ConsumerWidget {
           name: name,
           description: descriptionController.text,
         );
-    ref.read(activeProjectIdProvider.notifier).state = projectId;
-    ref.read(activePostIdProvider.notifier).state = null;
+    setActiveProjectSelection(
+      ref,
+      projectId: projectId,
+      useRememberedPostIfPostIdMissing: false,
+      expandProject: true,
+    );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Project created')),
@@ -608,7 +631,15 @@ class PostScopeHeader extends ConsumerWidget {
           audience: audienceController.text,
           projectId: activeProjectId,
         );
-    ref.read(activePostIdProvider.notifier).state = postId;
+    if (activeProjectId == null || activeProjectId.isEmpty) {
+      ref.read(activePostIdProvider.notifier).state = postId;
+    } else {
+      setActivePostSelection(
+        ref,
+        projectId: activeProjectId,
+        postId: postId,
+      );
+    }
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Post workspace created')),
@@ -935,8 +966,7 @@ class PostScopeHeader extends ConsumerWidget {
     }
 
     await ref.read(projectRepoProvider).deleteProject(project.id);
-    ref.read(activeProjectIdProvider.notifier).state = null;
-    ref.read(activePostIdProvider.notifier).state = null;
+    clearProjectSelectionState(ref, project.id);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Project deleted')),
@@ -974,7 +1004,17 @@ class PostScopeHeader extends ConsumerWidget {
     }
 
     await ref.read(postRepoProvider).deletePost(post.id);
-    ref.read(activePostIdProvider.notifier).state = null;
+    final postProjectId = post.projectId;
+    if (postProjectId != null && postProjectId.isNotEmpty) {
+      removeRememberedPostForProject(
+        ref,
+        projectId: postProjectId,
+        postId: post.id,
+      );
+    }
+    if (ref.read(activePostIdProvider) == post.id) {
+      ref.read(activePostIdProvider.notifier).state = null;
+    }
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Post workspace deleted')),

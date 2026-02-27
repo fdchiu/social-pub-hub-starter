@@ -114,17 +114,33 @@ class _Sidebar extends ConsumerWidget {
     }
     final projects =
         ref.watch(projectsStreamProvider).valueOrNull ?? const <Project>[];
-    final scopedPosts =
-        ref.watch(scopedPostsStreamProvider).valueOrNull ?? const <Post>[];
+    final allPosts =
+        ref.watch(postsStreamProvider).valueOrNull ?? const <Post>[];
     final selectedProjectId = ref.watch(activeProjectIdProvider);
     final activeProject = ref.watch(activeProjectProvider);
+    final activePost = ref.watch(activePostProvider);
+    final rememberedPostsByProject =
+        ref.watch(rememberedPostIdsByProjectProvider);
     if (activeProject != null && selectedProjectId != activeProject.id) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(activeProjectIdProvider.notifier).state = activeProject.id;
+        setActiveProjectSelection(
+          ref,
+          projectId: activeProject.id,
+          postId: activePost?.id,
+        );
+      });
+    } else if (activeProject != null &&
+        activePost != null &&
+        rememberedPostsByProject[activeProject.id] != activePost.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        rememberPostForProject(
+          ref,
+          projectId: activeProject.id,
+          postId: activePost.id,
+        );
       });
     }
 
-    final activePost = ref.watch(activePostProvider);
     final sourceItems = ref.watch(scopedSourceItemsStreamProvider).valueOrNull;
     final bundles = _scopeBundles(
       ref.watch(bundlesStreamProvider).valueOrNull,
@@ -214,7 +230,7 @@ class _Sidebar extends ConsumerWidget {
               children: [
                 _ProjectExplorer(
                   projects: projects,
-                  scopedPosts: scopedPosts,
+                  allPosts: allPosts,
                   activeProjectId: activeProject?.id,
                   activePostId: activePost?.id,
                 ),
@@ -328,18 +344,28 @@ class _Sidebar extends ConsumerWidget {
 class _ProjectExplorer extends ConsumerWidget {
   const _ProjectExplorer({
     required this.projects,
-    required this.scopedPosts,
+    required this.allPosts,
     required this.activeProjectId,
     required this.activePostId,
   });
 
   final List<Project> projects;
-  final List<Post> scopedPosts;
+  final List<Post> allPosts;
   final String? activeProjectId;
   final String? activePostId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final expandedProjectIds = ref.watch(expandedProjectIdsProvider);
+    final postsByProject = <String, List<Post>>{};
+    for (final post in allPosts) {
+      final projectId = post.projectId;
+      if (projectId == null || projectId.isEmpty) {
+        continue;
+      }
+      postsByProject.putIfAbsent(projectId, () => <Post>[]).add(post);
+    }
+
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
@@ -389,9 +415,9 @@ class _ProjectExplorer extends ConsumerWidget {
               _ProjectRow(
                 project: project,
                 active: activeProjectId == project.id,
-                posts: activeProjectId == project.id
-                    ? scopedPosts
-                    : const <Post>[],
+                expanded: expandedProjectIds.contains(project.id) ||
+                    activeProjectId == project.id,
+                posts: postsByProject[project.id] ?? const <Post>[],
                 activePostId: activePostId,
               ),
           ],
@@ -467,8 +493,12 @@ class _ProjectExplorer extends ConsumerWidget {
           name: name,
           description: descriptionController.text,
         );
-    ref.read(activeProjectIdProvider.notifier).state = projectId;
-    ref.read(activePostIdProvider.notifier).state = null;
+    setActiveProjectSelection(
+      ref,
+      projectId: projectId,
+      useRememberedPostIfPostIdMissing: false,
+      expandProject: true,
+    );
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -486,12 +516,14 @@ class _ProjectRow extends ConsumerWidget {
   const _ProjectRow({
     required this.project,
     required this.active,
+    required this.expanded,
     required this.posts,
     required this.activePostId,
   });
 
   final Project project;
   final bool active;
+  final bool expanded;
   final List<Post> posts;
   final String? activePostId;
 
@@ -502,8 +534,7 @@ class _ProjectRow extends ConsumerWidget {
       children: [
         InkWell(
           onTap: () {
-            ref.read(activeProjectIdProvider.notifier).state = project.id;
-            ref.read(activePostIdProvider.notifier).state = null;
+            setActiveProjectSelection(ref, projectId: project.id);
           },
           borderRadius: BorderRadius.circular(8),
           child: Container(
@@ -536,11 +567,49 @@ class _ProjectRow extends ConsumerWidget {
                     ),
                   ),
                 ),
+                if (posts.isNotEmpty) ...[
+                  Text(
+                    '${posts.length}',
+                    style: const TextStyle(
+                      color: _muted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  IconButton(
+                    tooltip: expanded ? 'Collapse posts' : 'Expand posts',
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minHeight: 22,
+                      minWidth: 22,
+                    ),
+                    padding: EdgeInsets.zero,
+                    onPressed: () {
+                      final current = ref.read(expandedProjectIdsProvider);
+                      final next = <String>{...current};
+                      if (expanded) {
+                        next.remove(project.id);
+                      } else {
+                        next.add(project.id);
+                      }
+                      ref.read(expandedProjectIdsProvider.notifier).state =
+                          next;
+                    },
+                    icon: Icon(
+                      expanded
+                          ? Icons.keyboard_arrow_down
+                          : Icons.keyboard_arrow_right,
+                      size: 15,
+                      color: active ? _text : _soft,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ),
-        if (active && posts.isNotEmpty)
+        if (expanded && posts.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(left: 14, top: 2),
             child: Column(
@@ -549,9 +618,11 @@ class _ProjectRow extends ConsumerWidget {
                   .map(
                     (post) => InkWell(
                       onTap: () {
-                        ref.read(activeProjectIdProvider.notifier).state =
-                            project.id;
-                        ref.read(activePostIdProvider.notifier).state = post.id;
+                        setActivePostSelection(
+                          ref,
+                          projectId: project.id,
+                          postId: post.id,
+                        );
                       },
                       borderRadius: BorderRadius.circular(6),
                       child: Container(
