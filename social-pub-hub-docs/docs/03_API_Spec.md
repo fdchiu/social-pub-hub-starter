@@ -191,6 +191,11 @@ Request:
 
 ## 6. Publishing
 
+Notes:
+- Current app behavior is assisted-first: queue rows are reminders/tracking, not auto-executed publishing jobs.
+- TBD: direct auto-publish adapters per platform where official write APIs, auth scope, and review allow it.
+- Substack/Medium stay assisted until stable official write APIs are available.
+
 ### POST /publish/{platform}
 Publishes a variant.
 

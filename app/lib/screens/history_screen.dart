@@ -50,7 +50,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     _queryController.addListener(_onQueryChanged);
     final initialPostId = widget.initialPostId?.trim();
     if (initialPostId != null && initialPostId.isNotEmpty) {
-      ref.read(activePostIdProvider.notifier).state = initialPostId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        ref.read(activePostIdProvider.notifier).state = initialPostId;
+      });
     }
     final initialVariantId = widget.initialVariantId?.trim();
     if (initialVariantId != null && initialVariantId.isNotEmpty) {

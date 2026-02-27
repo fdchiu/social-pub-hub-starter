@@ -96,6 +96,10 @@ Goal: execute publishing safely.
 - Review integration capability/connection state.
 - For each variant: assisted publish (copy/open/confirm) or direct publish if available.
 - Confirm final status in publish logs.
+- Current behavior: queue is manual-assisted (no background auto-post worker).
+- TBD (future): platform direct adapters by official API scope/review.
+  - Likely candidates: x, linkedin, reddit, youtube, facebook pages.
+  - Substack/Medium: keep assisted until stable write APIs exist.
 - Delete stale publish logs when needed (syncs deletion).
 Exit criteria:
 - post status recorded (`posted`/`queued`/`failed` with reason).
