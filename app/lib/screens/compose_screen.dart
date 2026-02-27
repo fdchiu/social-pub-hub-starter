@@ -1766,29 +1766,40 @@ Takeaway:
     required String? imageUrl,
     String? suggestedName,
   }) async {
-    final filePath = await _exportCoverImageForManualPublish(
-      dataUri: dataUri,
-      imageUrl: imageUrl,
-      suggestedName: suggestedName,
-    );
-    if (!mounted) {
-      return;
-    }
-    if (filePath == null || filePath.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to save cover image')),
+    try {
+      final filePath = await _exportCoverImageForManualPublish(
+        dataUri: dataUri,
+        imageUrl: imageUrl,
+        suggestedName: suggestedName,
       );
-      return;
-    }
+      if (!mounted) {
+        return;
+      }
+      if (filePath == null || filePath.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to save cover image')),
+        );
+        return;
+      }
 
-    await Clipboard.setData(ClipboardData(text: filePath));
-    await _revealExportedFile(filePath);
-    if (!mounted) {
-      return;
+      await Clipboard.setData(ClipboardData(text: filePath));
+      await _revealExportedFile(filePath);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Saved cover image: $filePath (path copied)')),
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+          'compose.cover.save_reveal_failed error=$error stack=$stackTrace');
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Save + reveal failed: $error')),
+      );
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Saved cover image: $filePath (path copied)')),
-    );
   }
 
   Future<String?> _exportCoverImageForManualPublish({
@@ -1804,19 +1815,33 @@ Takeaway:
       return null;
     }
 
-    final baseDirectory = await getDownloadsDirectory() ??
-        await getApplicationDocumentsDirectory();
+    final downloads = await getDownloadsDirectory();
+    final docs = await getApplicationDocumentsDirectory();
+    final temp = await getTemporaryDirectory();
+    final directories = <Directory?>[downloads, docs, temp];
+
     final timestamp = DateTime.now()
         .toUtc()
         .toIso8601String()
         .replaceAll(':', '-')
         .replaceAll('.', '-');
     final safeName = _sanitizeFilename(suggestedName ?? 'cover_image');
-    final filePath =
-        '${baseDirectory.path}/social_pub_hub_${safeName}_$timestamp.${payload.extension}';
-    final file = File(filePath);
-    await file.writeAsBytes(payload.bytes, flush: true);
-    return file.path;
+
+    for (final directory in directories.whereType<Directory>()) {
+      try {
+        await directory.create(recursive: true);
+        final filePath =
+            '${directory.path}/social_pub_hub_${safeName}_$timestamp.${payload.extension}';
+        final file = File(filePath);
+        await file.writeAsBytes(payload.bytes, flush: true);
+        return file.path;
+      } catch (error) {
+        debugPrint(
+          'compose.cover.write_failed directory=${directory.path} error=$error',
+        );
+      }
+    }
+    return null;
   }
 
   Future<_ResolvedImagePayload?> _resolveCoverImagePayload({
@@ -1839,7 +1864,8 @@ Takeaway:
             bytes: bytes,
             extension: _imageExtensionFromMime(mimeType),
           );
-        } catch (_) {
+        } catch (error) {
+          debugPrint('compose.cover.data_uri_decode_failed error=$error');
           return null;
         }
       }
@@ -1856,6 +1882,9 @@ Takeaway:
     try {
       final response = await ref.read(httpClientProvider).get(uri);
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        debugPrint(
+          'compose.cover.image_download_failed status=${response.statusCode} url=$normalizedUrl',
+        );
         return null;
       }
       final contentType =
@@ -1880,8 +1909,11 @@ Takeaway:
         extension = 'png';
       }
       return _ResolvedImagePayload(
-          bytes: response.bodyBytes, extension: extension);
-    } catch (_) {
+        bytes: response.bodyBytes,
+        extension: extension,
+      );
+    } catch (error) {
+      debugPrint('compose.cover.image_download_exception error=$error');
       return null;
     }
   }
@@ -1913,11 +1945,47 @@ Takeaway:
   }
 
   Future<void> _revealExportedFile(String filePath) async {
-    if (Platform.isMacOS) {
-      await Process.run('open', <String>['-R', filePath]);
+    final file = File(filePath);
+    if (!await file.exists()) {
+      debugPrint('compose.cover.reveal_missing_file path=$filePath');
       return;
     }
-    await launchUrl(Uri.file(filePath), mode: LaunchMode.externalApplication);
+
+    if (Platform.isMacOS) {
+      try {
+        final result =
+            await Process.run('/usr/bin/open', <String>['-R', filePath]);
+        if (result.exitCode == 0) {
+          return;
+        }
+        debugPrint(
+          'compose.cover.reveal_open_failed code=${result.exitCode} stderr=${result.stderr}',
+        );
+      } catch (error) {
+        debugPrint('compose.cover.reveal_open_exception error=$error');
+      }
+
+      try {
+        final launchedFolder = await launchUrl(
+          Uri.directory(file.parent.path),
+          mode: LaunchMode.externalApplication,
+        );
+        if (launchedFolder) {
+          return;
+        }
+      } catch (error) {
+        debugPrint('compose.cover.reveal_folder_launch_exception error=$error');
+      }
+    }
+
+    try {
+      await launchUrl(
+        Uri.file(filePath),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (error) {
+      debugPrint('compose.cover.reveal_file_launch_exception error=$error');
+    }
   }
 
   Uint8List? _decodeDataUriBytes(String dataUri) {

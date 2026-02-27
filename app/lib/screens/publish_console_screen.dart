@@ -27,6 +27,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
   String? _selectedBundleId;
   String _statusFilter = 'all';
   String _modeFilter = 'all';
+  String _platformFilter = 'all';
   String _query = '';
   bool _includeAllPosts = false;
 
@@ -83,6 +84,8 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
             ],
           ),
           const SizedBox(height: 8),
+          const Text('Tip: tap a platform card to filter logs below'),
+          const SizedBox(height: 8),
           integrationsAsync.when(
             data: (items) {
               if (items.isEmpty) {
@@ -92,6 +95,9 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                 children: [
                   for (final item in items)
                     Card(
+                      color: _platformFilter == item.platform.toLowerCase()
+                          ? Colors.white10
+                          : null,
                       child: ListTile(
                         title: Text(item.platform.toUpperCase()),
                         subtitle: Text(_capabilityText(item.capabilities)),
@@ -101,6 +107,13 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                               : Icons.radio_button_unchecked,
                           color: item.connected ? Colors.green : Colors.orange,
                         ),
+                        onTap: () {
+                          final next = item.platform.toLowerCase();
+                          setState(() {
+                            _platformFilter =
+                                _platformFilter == next ? 'all' : next;
+                          });
+                        },
                       ),
                     ),
                 ],
@@ -204,6 +217,12 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                       );
                       final bundleFilteredLogs =
                           _filterLogsForBundle(scopedLogs, selectedBundle);
+                      final platformOptions = <String>{
+                        'all',
+                        ...bundleFilteredLogs
+                            .map((row) => row.platform.toLowerCase()),
+                      }.toList(growable: false)
+                        ..sort();
                       final statusOptions = <String>{
                         'all',
                         ...bundleFilteredLogs
@@ -216,6 +235,10 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                             .map((row) => row.mode.toLowerCase()),
                       }.toList(growable: false)
                         ..sort();
+                      final selectedPlatform =
+                          platformOptions.contains(_platformFilter)
+                              ? _platformFilter
+                              : 'all';
                       final selectedStatus =
                           statusOptions.contains(_statusFilter)
                               ? _statusFilter
@@ -225,6 +248,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                           : 'all';
                       final filteredLogs = _applyLogFilters(
                         bundleFilteredLogs,
+                        selectedPlatform: selectedPlatform,
                         selectedStatus: selectedStatus,
                         selectedMode: selectedMode,
                       );
@@ -260,6 +284,35 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
                                       icon: const Icon(Icons.clear),
                                     ),
                               border: const OutlineInputBorder(),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 42,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: platformOptions.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final platform = platformOptions[index];
+                                return ChoiceChip(
+                                  label: Text(
+                                    platform == 'all'
+                                        ? 'PLATFORM: ALL'
+                                        : platform.toUpperCase(),
+                                  ),
+                                  selected: selectedPlatform == platform,
+                                  onSelected: (selected) {
+                                    if (!selected) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _platformFilter = platform;
+                                    });
+                                  },
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -425,11 +478,14 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
 
   List<PublishLog> _applyLogFilters(
     List<PublishLog> logs, {
+    required String selectedPlatform,
     required String selectedStatus,
     required String selectedMode,
   }) {
     final needle = _query.toLowerCase();
     return logs.where((row) {
+      final platformMatches = selectedPlatform == 'all' ||
+          row.platform.toLowerCase() == selectedPlatform;
       final statusMatches =
           selectedStatus == 'all' || row.status.toLowerCase() == selectedStatus;
       final modeMatches =
@@ -443,7 +499,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
             row.externalUrl ?? '',
             row.postedAt?.toIso8601String() ?? '',
           ].join(' ').toLowerCase().contains(needle);
-      return statusMatches && modeMatches && queryMatches;
+      return platformMatches && statusMatches && modeMatches && queryMatches;
     }).toList(growable: false);
   }
 
@@ -499,6 +555,12 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
     final bundle =
         _findBundleById(bundles ?? const <Bundle>[], _selectedBundleId);
     final bundleFiltered = _filterLogsForBundle(scopedLogs, bundle);
+    final platformOptions = <String>{
+      'all',
+      ...bundleFiltered.map((row) => row.platform.toLowerCase()),
+    };
+    final selectedPlatform =
+        platformOptions.contains(_platformFilter) ? _platformFilter : 'all';
     final statusOptions = <String>{
       'all',
       ...bundleFiltered.map((row) => row.status.toLowerCase()),
@@ -513,6 +575,7 @@ class _PublishConsoleScreenState extends ConsumerState<PublishConsoleScreen> {
         modeOptions.contains(_modeFilter) ? _modeFilter : 'all';
     final filtered = _applyLogFilters(
       bundleFiltered,
+      selectedPlatform: selectedPlatform,
       selectedStatus: selectedStatus,
       selectedMode: selectedMode,
     );
