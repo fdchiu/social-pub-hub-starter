@@ -177,6 +177,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           final item = filtered[index];
                           final subtitle = _itemSubtitle(item);
                           return ListTile(
+                            leading: _itemLeading(item),
                             title: Text(_itemTitle(item)),
                             subtitle: Text(subtitle),
                             trailing: PopupMenuButton<_LibraryAction>(
@@ -413,8 +414,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     if (item.userNote != null && item.userNote!.trim().isNotEmpty) {
       return item.userNote!.trim().split('\n').first;
     }
-    if (item.url != null && item.url!.trim().isNotEmpty) {
-      return item.url!.trim();
+
+    final url = item.url?.trim();
+    if (url != null && url.isNotEmpty) {
+      if (_isEmbeddedImageDataUri(url)) {
+        return 'Embedded image source';
+      }
+      return url;
     }
     return item.type.toUpperCase();
   }
@@ -426,12 +432,80 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         'post:${item.postId!.substring(0, 8)}',
       if (item.bundleId != null && item.bundleId!.isNotEmpty)
         'bundle:${item.bundleId!.substring(0, 8)}',
-      if (item.url != null && item.url!.trim().isNotEmpty) item.url!.trim(),
+      if (item.url != null && item.url!.trim().isNotEmpty)
+        _isEmbeddedImageDataUri(item.url!.trim())
+            ? '[embedded image data]'
+            : item.url!.trim(),
       if (item.userNote != null && item.userNote!.trim().isNotEmpty)
         item.userNote!.trim(),
       if (item.tags.isNotEmpty) item.tags.map((tag) => '#$tag').join(' '),
     ];
     return parts.join('  •  ');
+  }
+
+  Widget _itemLeading(SourceItem item) {
+    final url = item.url?.trim();
+    if (url == null || url.isEmpty) {
+      return const Icon(Icons.insert_drive_file_outlined);
+    }
+
+    Uint8List? bytes;
+    String? imageUrl;
+    if (_isEmbeddedImageDataUri(url)) {
+      bytes = _decodeDataUriBytes(url);
+      if (bytes == null) {
+        return const Icon(Icons.broken_image_outlined);
+      }
+    } else if (_isImageType(item.type) || _looksLikeImageUrl(url)) {
+      imageUrl = url;
+    } else {
+      return const Icon(Icons.insert_drive_file_outlined);
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: bytes != null
+            ? Image.memory(bytes, fit: BoxFit.cover)
+            : Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.broken_image_outlined),
+              ),
+      ),
+    );
+  }
+
+  bool _isEmbeddedImageDataUri(String value) {
+    return value.trim().toLowerCase().startsWith('data:image');
+  }
+
+  bool _isImageType(String type) {
+    return type.trim().toLowerCase() == 'image';
+  }
+
+  bool _looksLikeImageUrl(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized.endsWith('.png') ||
+        normalized.endsWith('.jpg') ||
+        normalized.endsWith('.jpeg') ||
+        normalized.endsWith('.webp') ||
+        normalized.endsWith('.gif');
+  }
+
+  Uint8List? _decodeDataUriBytes(String dataUri) {
+    final commaIndex = dataUri.indexOf(',');
+    if (commaIndex <= 0 || commaIndex + 1 >= dataUri.length) {
+      return null;
+    }
+    try {
+      return base64Decode(dataUri.substring(commaIndex + 1));
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _createDraftFromSources(
