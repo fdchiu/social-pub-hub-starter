@@ -7,7 +7,7 @@ Uri? composerUriForPlatform({
     return Uri.https('twitter.com', '/intent/tweet', {'text': text});
   }
   if (normalized == 'linkedin') {
-    return Uri.https('www.linkedin.com', '/feed/');
+    return Uri.https('www.linkedin.com', '/article/new/');
   }
   if (normalized == 'reddit') {
     var title = text

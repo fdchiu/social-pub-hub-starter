@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
@@ -38,6 +40,16 @@ class _VariantSnapshot {
   final String draftId;
   final String platform;
   final String body;
+}
+
+class _ResolvedImagePayload {
+  const _ResolvedImagePayload({
+    required this.bytes,
+    required this.extension,
+  });
+
+  final Uint8List bytes;
+  final String extension;
 }
 
 final _composeCoverVersionsProvider =
@@ -997,6 +1009,15 @@ Takeaway:
                   child: const Text('Open image'),
                 ),
               TextButton(
+                onPressed: () => _saveAndRevealCoverImage(
+                  dataUri: dataUri,
+                  imageUrl: imageUrl,
+                  suggestedName:
+                      activePost == null ? 'cover_image' : activePost.title,
+                ),
+                child: const Text('Save + reveal'),
+              ),
+              TextButton(
                 onPressed: activePost == null
                     ? null
                     : () async {
@@ -1444,6 +1465,16 @@ Takeaway:
                                   size: 18),
                             ),
                             IconButton(
+                              tooltip: 'Save + reveal',
+                              onPressed: () => _saveAndRevealCoverImage(
+                                dataUri: dataUri,
+                                imageUrl: imageUrl,
+                                suggestedName: post.title,
+                              ),
+                              icon:
+                                  const Icon(Icons.save_alt_outlined, size: 18),
+                            ),
+                            IconButton(
                               tooltip: 'Delete',
                               onPressed: () async {
                                 await ref
@@ -1698,6 +1729,15 @@ Takeaway:
               ),
             ),
             IconButton(
+              tooltip: 'Save + reveal',
+              onPressed: () => _saveAndRevealCoverImage(
+                dataUri: dataUri,
+                imageUrl: imageUrl,
+                suggestedName: post.title,
+              ),
+              icon: const Icon(Icons.save_alt_outlined),
+            ),
+            IconButton(
               tooltip: 'Clear post cover',
               onPressed: () async {
                 await ref.read(postRepoProvider).updatePostCover(
@@ -1719,6 +1759,165 @@ Takeaway:
         ),
       ),
     );
+  }
+
+  Future<void> _saveAndRevealCoverImage({
+    required String? dataUri,
+    required String? imageUrl,
+    String? suggestedName,
+  }) async {
+    final filePath = await _exportCoverImageForManualPublish(
+      dataUri: dataUri,
+      imageUrl: imageUrl,
+      suggestedName: suggestedName,
+    );
+    if (!mounted) {
+      return;
+    }
+    if (filePath == null || filePath.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to save cover image')),
+      );
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: filePath));
+    await _revealExportedFile(filePath);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Saved cover image: $filePath (path copied)')),
+    );
+  }
+
+  Future<String?> _exportCoverImageForManualPublish({
+    required String? dataUri,
+    required String? imageUrl,
+    String? suggestedName,
+  }) async {
+    final payload = await _resolveCoverImagePayload(
+      dataUri: dataUri,
+      imageUrl: imageUrl,
+    );
+    if (payload == null) {
+      return null;
+    }
+
+    final baseDirectory = await getDownloadsDirectory() ??
+        await getApplicationDocumentsDirectory();
+    final timestamp = DateTime.now()
+        .toUtc()
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .replaceAll('.', '-');
+    final safeName = _sanitizeFilename(suggestedName ?? 'cover_image');
+    final filePath =
+        '${baseDirectory.path}/social_pub_hub_${safeName}_$timestamp.${payload.extension}';
+    final file = File(filePath);
+    await file.writeAsBytes(payload.bytes, flush: true);
+    return file.path;
+  }
+
+  Future<_ResolvedImagePayload?> _resolveCoverImagePayload({
+    required String? dataUri,
+    required String? imageUrl,
+  }) async {
+    final normalizedDataUri = dataUri?.trim();
+    if (normalizedDataUri != null && normalizedDataUri.isNotEmpty) {
+      final commaIndex = normalizedDataUri.indexOf(',');
+      if (commaIndex > 0 && commaIndex + 1 < normalizedDataUri.length) {
+        try {
+          final bytes =
+              base64Decode(normalizedDataUri.substring(commaIndex + 1));
+          final header =
+              normalizedDataUri.substring(0, commaIndex).toLowerCase();
+          final mimeMatch = RegExp(r'^data:([^;]+);base64$').firstMatch(header);
+          final mimeType =
+              mimeMatch == null ? 'image/png' : mimeMatch.group(1)!;
+          return _ResolvedImagePayload(
+            bytes: bytes,
+            extension: _imageExtensionFromMime(mimeType),
+          );
+        } catch (_) {
+          return null;
+        }
+      }
+    }
+
+    final normalizedUrl = imageUrl?.trim();
+    if (normalizedUrl == null || normalizedUrl.isEmpty) {
+      return null;
+    }
+    final uri = Uri.tryParse(normalizedUrl);
+    if (uri == null) {
+      return null;
+    }
+    try {
+      final response = await ref.read(httpClientProvider).get(uri);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
+      }
+      final contentType =
+          (response.headers['content-type'] ?? '').split(';').first.trim();
+      var extension = contentType.isEmpty
+          ? ''
+          : _imageExtensionFromMime(contentType.toLowerCase());
+      if (extension.isEmpty && uri.pathSegments.isNotEmpty) {
+        final segment = uri.pathSegments.last;
+        final dotIndex = segment.lastIndexOf('.');
+        if (dotIndex >= 0 && dotIndex + 1 < segment.length) {
+          final raw = segment.substring(dotIndex + 1).toLowerCase();
+          if (raw == 'jpeg') {
+            extension = 'jpg';
+          } else if (const <String>{'png', 'jpg', 'webp', 'gif'}
+              .contains(raw)) {
+            extension = raw;
+          }
+        }
+      }
+      if (extension.isEmpty) {
+        extension = 'png';
+      }
+      return _ResolvedImagePayload(
+          bytes: response.bodyBytes, extension: extension);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _imageExtensionFromMime(String mimeType) {
+    final normalized = mimeType.trim().toLowerCase();
+    if (normalized.contains('png')) {
+      return 'png';
+    }
+    if (normalized.contains('jpeg') || normalized.contains('jpg')) {
+      return 'jpg';
+    }
+    if (normalized.contains('webp')) {
+      return 'webp';
+    }
+    if (normalized.contains('gif')) {
+      return 'gif';
+    }
+    return 'png';
+  }
+
+  String _sanitizeFilename(String value) {
+    final normalized = value.trim().toLowerCase();
+    final cleaned = normalized
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+    return cleaned.isEmpty ? 'cover_image' : cleaned;
+  }
+
+  Future<void> _revealExportedFile(String filePath) async {
+    if (Platform.isMacOS) {
+      await Process.run('open', <String>['-R', filePath]);
+      return;
+    }
+    await launchUrl(Uri.file(filePath), mode: LaunchMode.externalApplication);
   }
 
   Uint8List? _decodeDataUriBytes(String dataUri) {
