@@ -465,12 +465,15 @@ class _BundlePublishChecklistScreenState
     required WidgetRef ref,
     required _BundleReport report,
   }) async {
+    final activeProject = ref.read(activeProjectProvider);
     final activePost = ref.read(activePostProvider);
     final scopedPostId = report.bundle.postId ?? activePost?.id;
     final sourceRepo = ref.read(sourceRepoProvider);
     final existing = await sourceRepo.getLatestUnbundledSource(
       postId: scopedPostId,
+      projectId: activeProject?.id,
       includeGlobal: true,
+      includeProject: true,
     );
     if (existing != null) {
       await sourceRepo.assignBundle(
@@ -492,6 +495,7 @@ class _BundlePublishChecklistScreenState
       tags: const <String>['bundle', 'seed'],
       bundleId: report.bundle.id,
       postId: scopedPostId,
+      projectId: activeProject?.id,
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

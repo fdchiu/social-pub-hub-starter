@@ -10,39 +10,43 @@ class SourceRepo {
 
   Stream<List<SourceItem>> watchSourceItems({
     String? postId,
+    String? projectId,
     bool includeGlobal = true,
+    bool includeProject = true,
   }) {
     final query = _db.select(_db.sourceItems);
-    if (postId != null && postId.trim().isNotEmpty) {
-      final normalizedPostId = postId.trim();
-      if (includeGlobal) {
-        query.where(
-          (t) => t.postId.equals(normalizedPostId) | t.postId.isNull(),
-        );
-      } else {
-        query.where((t) => t.postId.equals(normalizedPostId));
-      }
-    }
+    query.where(
+      (t) => _scopePredicate(
+        t,
+        postId: postId,
+        projectId: projectId,
+        includeGlobal: includeGlobal,
+        includeProject: includeProject,
+      ),
+    );
     query.orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
     return query.watch();
   }
 
   Future<SourceItem?> getLatestUnbundledSource({
     String? postId,
+    String? projectId,
     bool includeGlobal = true,
+    bool includeProject = true,
   }) {
     final query = _db.select(_db.sourceItems)
       ..where((t) => t.bundleId.isNull())
+      ..where(
+        (t) => _scopePredicate(
+          t,
+          postId: postId,
+          projectId: projectId,
+          includeGlobal: includeGlobal,
+          includeProject: includeProject,
+        ),
+      )
       ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
       ..limit(1);
-    final normalizedPostId = postId?.trim();
-    if (normalizedPostId != null && normalizedPostId.isNotEmpty) {
-      query.where(
-        includeGlobal
-            ? (t) => t.postId.equals(normalizedPostId) | t.postId.isNull()
-            : (t) => t.postId.equals(normalizedPostId),
-      );
-    }
     return query.getSingleOrNull();
   }
 
@@ -67,20 +71,20 @@ class SourceRepo {
   Future<List<SourceItem>> getRecentSourceItemsForPost({
     required int limit,
     String? postId,
+    String? projectId,
     bool includeGlobal = true,
+    bool includeProject = true,
   }) {
-    final query = _db.select(_db.sourceItems);
-    if (postId != null && postId.trim().isNotEmpty) {
-      final normalizedPostId = postId.trim();
-      if (includeGlobal) {
-        query.where(
-          (t) => t.postId.equals(normalizedPostId) | t.postId.isNull(),
-        );
-      } else {
-        query.where((t) => t.postId.equals(normalizedPostId));
-      }
-    }
-    query
+    final query = _db.select(_db.sourceItems)
+      ..where(
+        (t) => _scopePredicate(
+          t,
+          postId: postId,
+          projectId: projectId,
+          includeGlobal: includeGlobal,
+          includeProject: includeProject,
+        ),
+      )
       ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
       ..limit(limit);
     return query.get();
@@ -94,11 +98,17 @@ class SourceRepo {
     List<String> tags = const <String>[],
     String? bundleId,
     String? postId,
+    String? projectId,
   }) async {
     final now = DateTime.now().toUtc();
     final id = generateEntityId();
     final normalizedTags =
         tags.map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+    final normalizedPostId = _normalizeNullable(postId);
+    final resolvedProjectId = await _resolveProjectId(
+      postId: normalizedPostId,
+      projectId: projectId,
+    );
 
     await _db.into(_db.sourceItems).insert(
           SourceItemsCompanion.insert(
@@ -111,8 +121,8 @@ class SourceRepo {
             tags: Value(normalizedTags),
             bundleId: Value(
                 bundleId?.trim().isEmpty ?? true ? null : bundleId?.trim()),
-            postId:
-                Value(postId?.trim().isEmpty ?? true ? null : postId?.trim()),
+            projectId: Value(resolvedProjectId),
+            postId: Value(normalizedPostId),
             createdAt: Value(now),
             updatedAt: Value(now),
             syncStatus: const Value('dirty'),
@@ -144,11 +154,19 @@ class SourceRepo {
     String? userNote,
     List<String>? tags,
     String? postId,
+    String? projectId,
+    bool updateScope = false,
   }) async {
     final normalizedTags = tags
         ?.map((tag) => tag.trim())
         .where((tag) => tag.isNotEmpty)
         .toList(growable: false);
+    final normalizedPostId = _normalizeNullable(postId);
+    final resolvedProjectId = await _resolveProjectId(
+      postId: normalizedPostId,
+      projectId: projectId,
+    );
+
     await (_db.update(_db.sourceItems)..where((t) => t.id.equals(sourceId)))
         .write(
       SourceItemsCompanion(
@@ -160,7 +178,31 @@ class SourceRepo {
         tags: normalizedTags == null
             ? const Value.absent()
             : Value(normalizedTags),
-        postId: postId == null ? const Value.absent() : Value(postId),
+        postId: updateScope ? Value(normalizedPostId) : const Value.absent(),
+        projectId:
+            updateScope ? Value(resolvedProjectId) : const Value.absent(),
+        updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
+      ),
+    );
+  }
+
+  Future<void> assignScope({
+    required String sourceId,
+    String? postId,
+    String? projectId,
+  }) async {
+    final normalizedPostId = _normalizeNullable(postId);
+    final resolvedProjectId = await _resolveProjectId(
+      postId: normalizedPostId,
+      projectId: projectId,
+    );
+
+    await (_db.update(_db.sourceItems)..where((t) => t.id.equals(sourceId)))
+        .write(
+      SourceItemsCompanion(
+        postId: Value(normalizedPostId),
+        projectId: Value(resolvedProjectId),
         updatedAt: Value(DateTime.now().toUtc()),
         syncStatus: const Value('dirty'),
       ),
@@ -170,14 +212,12 @@ class SourceRepo {
   Future<void> assignPost({
     required String sourceId,
     String? postId,
+    String? projectId,
   }) async {
-    await (_db.update(_db.sourceItems)..where((t) => t.id.equals(sourceId)))
-        .write(
-      SourceItemsCompanion(
-        postId: Value(postId),
-        updatedAt: Value(DateTime.now().toUtc()),
-        syncStatus: const Value('dirty'),
-      ),
+    await assignScope(
+      sourceId: sourceId,
+      postId: postId,
+      projectId: projectId,
     );
   }
 
@@ -194,5 +234,68 @@ class SourceRepo {
       await (_db.delete(_db.sourceItems)..where((t) => t.id.equals(sourceId)))
           .go();
     });
+  }
+
+  Expression<bool> _scopePredicate(
+    $SourceItemsTable t, {
+    required String? postId,
+    required String? projectId,
+    required bool includeGlobal,
+    required bool includeProject,
+  }) {
+    final normalizedPostId = _normalizeNullable(postId);
+    final normalizedProjectId = _normalizeNullable(projectId);
+
+    Expression<bool>? condition;
+
+    void add(Expression<bool> next) {
+      condition = condition == null ? next : condition! | next;
+    }
+
+    if (normalizedPostId != null) {
+      add(t.postId.equals(normalizedPostId));
+    }
+
+    if (includeProject && normalizedProjectId != null) {
+      add(t.postId.isNull() & t.projectId.equals(normalizedProjectId));
+    }
+
+    if (includeGlobal) {
+      add(t.postId.isNull() & t.projectId.isNull());
+    }
+
+    if (normalizedPostId == null &&
+        normalizedProjectId == null &&
+        includeGlobal &&
+        includeProject) {
+      return const Constant(true);
+    }
+
+    return condition ?? const Constant(false);
+  }
+
+  String? _normalizeNullable(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  Future<String?> _resolveProjectId({
+    required String? postId,
+    required String? projectId,
+  }) async {
+    final normalizedProjectId = _normalizeNullable(projectId);
+    if (normalizedProjectId != null) {
+      return normalizedProjectId;
+    }
+    if (postId == null) {
+      return null;
+    }
+    final post = await (_db.select(_db.posts)
+          ..where((t) => t.id.equals(postId)))
+        .getSingleOrNull();
+    return _normalizeNullable(post?.projectId);
   }
 }

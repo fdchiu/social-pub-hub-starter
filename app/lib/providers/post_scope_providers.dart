@@ -9,6 +9,8 @@ final activePostIdProvider = StateProvider<String?>((ref) => null);
 
 final includeGlobalSourcesProvider = StateProvider<bool>((ref) => true);
 
+final includeProjectSourcesProvider = StateProvider<bool>((ref) => true);
+
 final activeProjectProvider = Provider<Project?>((ref) {
   final projects = ref.watch(projectsStreamProvider).valueOrNull;
   if (projects == null || projects.isEmpty) {
@@ -16,19 +18,22 @@ final activeProjectProvider = Provider<Project?>((ref) {
   }
   final selectedId = ref.watch(activeProjectIdProvider);
   if (selectedId == null || selectedId.isEmpty) {
-    return null;
+    return projects.first;
   }
   for (final project in projects) {
     if (project.id == selectedId) {
       return project;
     }
   }
-  return null;
+  return projects.first;
 });
 
 final scopedPostsStreamProvider = StreamProvider<List<Post>>((ref) {
   final project = ref.watch(activeProjectProvider);
-  return ref.watch(postRepoProvider).watchPosts(projectId: project?.id);
+  if (project == null) {
+    return Stream<List<Post>>.value(const <Post>[]);
+  }
+  return ref.watch(postRepoProvider).watchPosts(projectId: project.id);
 });
 
 final activePostProvider = Provider<Post?>((ref) {
@@ -49,11 +54,15 @@ final activePostProvider = Provider<Post?>((ref) {
 });
 
 final scopedSourceItemsStreamProvider = StreamProvider<List<SourceItem>>((ref) {
+  final activeProject = ref.watch(activeProjectProvider);
   final activePost = ref.watch(activePostProvider);
   final includeGlobal = ref.watch(includeGlobalSourcesProvider);
+  final includeProject = ref.watch(includeProjectSourcesProvider);
   return ref.watch(sourceRepoProvider).watchSourceItems(
         postId: activePost?.id,
+        projectId: activeProject?.id,
         includeGlobal: includeGlobal,
+        includeProject: includeProject,
       );
 });
 

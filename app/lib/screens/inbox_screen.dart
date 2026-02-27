@@ -12,6 +12,7 @@ import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
 import '../utils/content_type_utils.dart';
+import '../utils/source_scope_utils.dart';
 
 class InboxScreen extends ConsumerStatefulWidget {
   const InboxScreen({super.key});
@@ -253,6 +254,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   String _sourceSummary(SourceItem item) {
     final parts = <String>[];
+    final scope = sourceScopeForItem(item);
+    parts.add('scope:${sourceScopeLabel(scope).toLowerCase()}');
+
     if (item.userNote != null && item.userNote!.trim().isNotEmpty) {
       parts.add(item.userNote!.trim());
     } else if (item.url != null && item.url!.trim().isNotEmpty) {
@@ -331,6 +335,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   }
 
   Future<void> _editSource(SourceItem item) async {
+    final activeProject = ref.read(activeProjectProvider);
     final activePost = ref.read(activePostProvider);
     final titleController = TextEditingController(text: item.title ?? '');
     final linkController = TextEditingController(text: item.url ?? '');
@@ -341,7 +346,14 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     );
     var selectedType =
         _sourceTypeOptions.contains(item.type) ? item.type : _customType;
-    var saveAsGlobal = (item.postId == null || item.postId!.isEmpty);
+    final availableScopes = _availableScopes(
+      activeProject: activeProject,
+      activePost: activePost,
+    );
+    var selectedScope = _initialScope(
+      item: item,
+      availableScopes: availableScopes,
+    );
 
     final shouldSave = await showDialog<bool>(
           context: context,
@@ -389,6 +401,41 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           ),
                         ],
                         const SizedBox(height: 12),
+                        DropdownButtonFormField<SourceScopeLevel>(
+                          value: selectedScope,
+                          decoration: const InputDecoration(
+                            labelText: 'Scope',
+                          ),
+                          items: availableScopes
+                              .map(
+                                (scope) => DropdownMenuItem(
+                                  value: scope,
+                                  child: Text(sourceScopeLabel(scope)),
+                                ),
+                              )
+                              .toList(growable: false),
+                          onChanged: (next) {
+                            if (next == null) {
+                              return;
+                            }
+                            setLocalState(() {
+                              selectedScope = next;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _scopeDescription(
+                              selectedScope,
+                              activeProject: activeProject,
+                              activePost: activePost,
+                            ),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         TextField(
                           controller: titleController,
                           decoration: const InputDecoration(
@@ -425,24 +472,6 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                             hintText: 'ai, product, launch',
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        if (activePost != null)
-                          CheckboxListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            value: saveAsGlobal,
-                            onChanged: (next) {
-                              setLocalState(() {
-                                saveAsGlobal = next ?? false;
-                              });
-                            },
-                            title: const Text('Save as global source'),
-                            subtitle: Text(
-                              saveAsGlobal
-                                  ? 'Source reusable across posts'
-                                  : 'Source belongs to: ${activePost.title}',
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -520,6 +549,14 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       return;
     }
 
+    final assignment = _assignmentForScope(
+      selectedScope,
+      activeProject: activeProject,
+      activePost: activePost,
+      fallbackProjectId: item.projectId,
+      fallbackPostId: item.postId,
+    );
+
     final tags = tagsController.text
         .split(',')
         .map((tag) => tag.trim())
@@ -532,7 +569,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
           url: linkController.text,
           userNote: contentController.text,
           tags: tags,
-          postId: saveAsGlobal ? null : (activePost?.id ?? item.postId),
+          postId: assignment.postId,
+          projectId: assignment.projectId,
+          updateScope: true,
         );
 
     if (mounted) {
@@ -585,15 +624,24 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
 
   Future<void> _showAddSourceDialog() async {
     final repo = ref.read(sourceRepoProvider);
+    final activeProject = ref.read(activeProjectProvider);
     final activePost = ref.read(activePostProvider);
-    if (activePost == null) {
+
+    if (activeProject == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Create a post workspace first.')),
+          const SnackBar(content: Text('Create or select a project first.')),
         );
       }
       return;
     }
+
+    final availableScopes = _availableScopes(
+      activeProject: activeProject,
+      activePost: activePost,
+    );
+    var selectedScope =
+        activePost == null ? SourceScopeLevel.project : SourceScopeLevel.post;
 
     final titleController = TextEditingController();
     final linkController = TextEditingController();
@@ -601,7 +649,6 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final tagsController = TextEditingController();
     final customTypeController = TextEditingController();
     String selectedType = 'note';
-    var saveAsGlobal = false;
 
     final shouldSave = await showDialog<bool>(
           context: context,
@@ -650,25 +697,37 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                             ),
                           ],
                           const SizedBox(height: 12),
+                          DropdownButtonFormField<SourceScopeLevel>(
+                            value: selectedScope,
+                            decoration:
+                                const InputDecoration(labelText: 'Scope'),
+                            items: availableScopes
+                                .map(
+                                  (scope) => DropdownMenuItem(
+                                    value: scope,
+                                    child: Text(sourceScopeLabel(scope)),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: (next) {
+                              if (next == null) {
+                                return;
+                              }
+                              setLocalState(() {
+                                selectedScope = next;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 8),
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'Post: ${activePost.title}',
+                              _scopeDescription(
+                                selectedScope,
+                                activeProject: activeProject,
+                                activePost: activePost,
+                              ),
                               style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ),
-                          CheckboxListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            value: saveAsGlobal,
-                            onChanged: (next) {
-                              setLocalState(() {
-                                saveAsGlobal = next ?? false;
-                              });
-                            },
-                            title: const Text('Save as global source'),
-                            subtitle: const Text(
-                              'Global sources can be reused across posts',
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -760,6 +819,13 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               );
             }
           } else {
+            final assignment = _assignmentForScope(
+              selectedScope,
+              activeProject: activeProject,
+              activePost: activePost,
+              fallbackProjectId: activeProject.id,
+              fallbackPostId: activePost?.id,
+            );
             final tags = tagsController.text
                 .split(',')
                 .map((tag) => tag.trim())
@@ -772,7 +838,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               url: linkController.text,
               userNote: contentController.text,
               tags: tags,
-              postId: saveAsGlobal ? null : activePost.id,
+              postId: assignment.postId,
+              projectId: assignment.projectId,
             );
 
             if (mounted) {
@@ -790,6 +857,73 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     contentController.dispose();
     tagsController.dispose();
     customTypeController.dispose();
+  }
+
+  List<SourceScopeLevel> _availableScopes({
+    required Project? activeProject,
+    required Post? activePost,
+  }) {
+    final scopes = <SourceScopeLevel>[SourceScopeLevel.global];
+    if (activeProject != null) {
+      scopes.add(SourceScopeLevel.project);
+    }
+    if (activePost != null) {
+      scopes.add(SourceScopeLevel.post);
+    }
+    return scopes;
+  }
+
+  SourceScopeLevel _initialScope({
+    required SourceItem item,
+    required List<SourceScopeLevel> availableScopes,
+  }) {
+    final inferred = sourceScopeForItem(item);
+    if (availableScopes.contains(inferred)) {
+      return inferred;
+    }
+    return availableScopes.first;
+  }
+
+  SourceScopeAssignment _assignmentForScope(
+    SourceScopeLevel scope, {
+    required Project? activeProject,
+    required Post? activePost,
+    required String? fallbackProjectId,
+    required String? fallbackPostId,
+  }) {
+    return switch (scope) {
+      SourceScopeLevel.global => const SourceScopeAssignment(
+          scope: SourceScopeLevel.global,
+          projectId: null,
+          postId: null,
+        ),
+      SourceScopeLevel.project => SourceScopeAssignment(
+          scope: SourceScopeLevel.project,
+          projectId: activeProject?.id ?? fallbackProjectId,
+          postId: null,
+        ),
+      SourceScopeLevel.post => SourceScopeAssignment(
+          scope: SourceScopeLevel.post,
+          projectId: activeProject?.id ?? fallbackProjectId,
+          postId: activePost?.id ?? fallbackPostId,
+        ),
+    };
+  }
+
+  String _scopeDescription(
+    SourceScopeLevel scope, {
+    required Project? activeProject,
+    required Post? activePost,
+  }) {
+    return switch (scope) {
+      SourceScopeLevel.global => 'Reusable across every project and post',
+      SourceScopeLevel.project => activeProject == null
+          ? 'Project scope unavailable without a selected project'
+          : 'Shared across posts in project: ${activeProject.name}',
+      SourceScopeLevel.post => activePost == null
+          ? 'Post scope unavailable without an active post'
+          : 'Attached to active post: ${activePost.title}',
+    };
   }
 
   String _normalizeSourceType(String value) {

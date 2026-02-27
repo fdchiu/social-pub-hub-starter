@@ -111,7 +111,7 @@ class ScheduledPostRepo {
         status: const Value('queued'),
         updatedAt: Value(DateTime.now().toUtc()),
         syncStatus: const Value('dirty'),
-        ),
+      ),
     );
   }
 

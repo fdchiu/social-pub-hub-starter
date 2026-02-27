@@ -56,7 +56,8 @@ final _composeCoverVersionsProvider =
     StreamProvider.family<List<SourceItem>, String>((ref, postId) {
   return ref
       .watch(sourceRepoProvider)
-      .watchSourceItems(postId: postId, includeGlobal: false)
+      .watchSourceItems(
+          postId: postId, includeGlobal: false, includeProject: false)
       .map(
         (rows) => rows
             .where(
@@ -779,11 +780,14 @@ Takeaway:
             draftId: draftId,
             canonicalMarkdown: _controller.text,
           );
+      final activeProject = ref.read(activeProjectProvider);
       final sourceItems =
           await ref.read(sourceRepoProvider).getRecentSourceItemsForPost(
                 limit: 12,
                 postId: ref.read(activePostProvider)?.id,
+                projectId: activeProject?.id,
                 includeGlobal: ref.read(includeGlobalSourcesProvider),
+                includeProject: ref.read(includeProjectSourcesProvider),
               );
       final styleProfile =
           await ref.read(styleProfileRepoProvider).getOrCreateDefault();
@@ -1650,6 +1654,7 @@ Takeaway:
           userNote: promptText,
           tags: const <String>[_coverVersionTag, _coverGeneratedTag],
           postId: post.id,
+          projectId: post.projectId,
         );
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../data/db/app_db.dart';
 import '../providers/post_scope_providers.dart';
@@ -10,9 +11,11 @@ class PostScopeHeader extends ConsumerWidget {
   const PostScopeHeader({
     super.key,
     this.showGlobalToggle = false,
+    this.showManagementActions = false,
   });
 
   final bool showGlobalToggle;
+  final bool showManagementActions;
 
   static const List<String> _contentTypeOptions = <String>[
     ...presetContentTypes,
@@ -30,6 +33,8 @@ class PostScopeHeader extends ConsumerWidget {
     final selectedProjectId = ref.watch(activeProjectIdProvider);
     final selectedPostId = ref.watch(activePostIdProvider);
     final includeGlobal = ref.watch(includeGlobalSourcesProvider);
+    final includeProject = ref.watch(includeProjectSourcesProvider);
+    final activeProject = ref.watch(activeProjectProvider);
 
     if (projectsAsync.isLoading || postsAsync.isLoading) {
       return const LinearProgressIndicator();
@@ -43,14 +48,11 @@ class PostScopeHeader extends ConsumerWidget {
 
     final projects = projectsAsync.valueOrNull ?? const <Project>[];
     final posts = postsAsync.valueOrNull ?? const <Post>[];
-    Project? activeProject;
-    if (selectedProjectId != null && selectedProjectId.isNotEmpty) {
-      for (final project in projects) {
-        if (project.id == selectedProjectId) {
-          activeProject = project;
-          break;
-        }
-      }
+
+    if (activeProject != null && selectedProjectId != activeProject.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(activeProjectIdProvider.notifier).state = activeProject.id;
+      });
     }
 
     Post? activePost;
@@ -82,25 +84,27 @@ class PostScopeHeader extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedProjectId ?? '__all__',
-                        items: [
-                          const DropdownMenuItem(
-                            value: '__all__',
-                            child: Text('All projects'),
-                          ),
-                          ...projects.map(
-                            (project) => DropdownMenuItem(
-                              value: project.id,
-                              child: Text(project.name),
-                            ),
-                          ),
-                        ],
-                        onChanged: (next) {
-                          final normalized = next == '__all__' ? null : next;
-                          ref.read(activeProjectIdProvider.notifier).state =
-                              normalized;
-                          ref.read(activePostIdProvider.notifier).state = null;
-                        },
+                        value: activeProject?.id,
+                        items: projects
+                            .map(
+                              (project) => DropdownMenuItem(
+                                value: project.id,
+                                child: Text(project.name),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: projects.isEmpty
+                            ? null
+                            : (next) {
+                                if (next == null) {
+                                  return;
+                                }
+                                ref
+                                    .read(activeProjectIdProvider.notifier)
+                                    .state = next;
+                                ref.read(activePostIdProvider.notifier).state =
+                                    null;
+                              },
                         decoration: const InputDecoration(
                           labelText: 'Project scope',
                           isDense: true,
@@ -109,43 +113,50 @@ class PostScopeHeader extends ConsumerWidget {
                     ),
                   ],
                 );
-                final actions = Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    FilledButton.tonal(
-                      onPressed: () => _showCreateProjectDialog(context, ref),
-                      child: const Text('New project'),
-                    ),
-                    IconButton(
-                      tooltip: activeProject == null
-                          ? 'Select project to edit'
-                          : 'Edit project',
-                      onPressed: activeProject == null
-                          ? null
-                          : () => _showEditProjectDialog(
-                                context,
-                                ref,
-                                project: activeProject!,
-                              ),
-                      icon: const Icon(Icons.edit_outlined),
-                    ),
-                    IconButton(
-                      tooltip: activeProject == null
-                          ? 'Select project to delete'
-                          : 'Delete project',
-                      onPressed: activeProject == null
-                          ? null
-                          : () => _confirmDeleteProject(
-                                context,
-                                ref,
-                                project: activeProject!,
-                              ),
-                      icon: const Icon(Icons.delete_outline),
-                    ),
-                  ],
-                );
+                final actions = showManagementActions
+                    ? Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          FilledButton.tonal(
+                            onPressed: () =>
+                                _showCreateProjectDialog(context, ref),
+                            child: const Text('New project'),
+                          ),
+                          IconButton(
+                            tooltip: activeProject == null
+                                ? 'Select project to edit'
+                                : 'Edit project',
+                            onPressed: activeProject == null
+                                ? null
+                                : () => _showEditProjectDialog(
+                                      context,
+                                      ref,
+                                      project: activeProject,
+                                    ),
+                            icon: const Icon(Icons.edit_outlined),
+                          ),
+                          IconButton(
+                            tooltip: activeProject == null
+                                ? 'Select project to delete'
+                                : 'Delete project',
+                            onPressed: activeProject == null
+                                ? null
+                                : () => _confirmDeleteProject(
+                                      context,
+                                      ref,
+                                      project: activeProject,
+                                    ),
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                        ],
+                      )
+                    : FilledButton.tonalIcon(
+                        onPressed: () => context.go('/projects'),
+                        icon: const Icon(Icons.settings_outlined),
+                        label: const Text('Project screen'),
+                      );
 
                 if (!compact) {
                   return Row(
@@ -175,18 +186,25 @@ class PostScopeHeader extends ConsumerWidget {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final compact = constraints.maxWidth < 700;
+                  final trailingAction = showManagementActions
+                      ? FilledButton.tonal(
+                          onPressed: () => _showCreatePostDialog(context, ref),
+                          child: const Text('New post'),
+                        )
+                      : FilledButton.tonal(
+                          onPressed: () => context.go('/projects'),
+                          child: const Text('Manage posts'),
+                        );
+
                   if (!compact) {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.article_outlined),
-                      title: const Text('No posts in this scope'),
+                      title: const Text('No posts in this project yet'),
                       subtitle: const Text(
                         'Create a post workspace to scope inbox and drafting.',
                       ),
-                      trailing: FilledButton.tonal(
-                        onPressed: () => _showCreatePostDialog(context, ref),
-                        child: const Text('New post'),
-                      ),
+                      trailing: trailingAction,
                     );
                   }
 
@@ -196,17 +214,14 @@ class PostScopeHeader extends ConsumerWidget {
                       const ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Icon(Icons.article_outlined),
-                        title: Text('No posts in this scope'),
+                        title: Text('No posts in this project yet'),
                         subtitle: Text(
                           'Create a post workspace to scope inbox and drafting.',
                         ),
                       ),
                       Align(
                         alignment: Alignment.centerRight,
-                        child: FilledButton.tonal(
-                          onPressed: () => _showCreatePostDialog(context, ref),
-                          child: const Text('New post'),
-                        ),
+                        child: trailingAction,
                       ),
                     ],
                   );
@@ -253,36 +268,41 @@ class PostScopeHeader extends ConsumerWidget {
                               ),
                             ],
                           );
-                          final actions = Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              FilledButton.tonal(
-                                onPressed: () =>
-                                    _showCreatePostDialog(context, ref),
-                                child: const Text('New post'),
-                              ),
-                              IconButton(
-                                tooltip: 'Edit post',
-                                onPressed: () => _showEditPostDialog(
-                                  context,
-                                  ref,
-                                  post: currentPost,
-                                ),
-                                icon: const Icon(Icons.edit_outlined),
-                              ),
-                              IconButton(
-                                tooltip: 'Delete post',
-                                onPressed: () => _confirmDeletePost(
-                                  context,
-                                  ref,
-                                  post: currentPost,
-                                ),
-                                icon: const Icon(Icons.delete_outline),
-                              ),
-                            ],
-                          );
+                          final actions = showManagementActions
+                              ? Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    FilledButton.tonal(
+                                      onPressed: () =>
+                                          _showCreatePostDialog(context, ref),
+                                      child: const Text('New post'),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Edit post',
+                                      onPressed: () => _showEditPostDialog(
+                                        context,
+                                        ref,
+                                        post: currentPost,
+                                      ),
+                                      icon: const Icon(Icons.edit_outlined),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Delete post',
+                                      onPressed: () => _confirmDeletePost(
+                                        context,
+                                        ref,
+                                        post: currentPost,
+                                      ),
+                                      icon: const Icon(Icons.delete_outline),
+                                    ),
+                                  ],
+                                )
+                              : FilledButton.tonal(
+                                  onPressed: () => context.go('/projects'),
+                                  child: const Text('Manage in project screen'),
+                                );
 
                           if (!compact) {
                             return Row(
@@ -333,9 +353,21 @@ class PostScopeHeader extends ConsumerWidget {
               SwitchListTile.adaptive(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
+                title: const Text('Include project sources'),
+                subtitle: const Text(
+                  'Show project-level sources (shared across posts in this project)',
+                ),
+                value: includeProject,
+                onChanged: (next) {
+                  ref.read(includeProjectSourcesProvider.notifier).state = next;
+                },
+              ),
+              SwitchListTile.adaptive(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
                 title: const Text('Include global sources'),
                 subtitle: const Text(
-                  'Show reusable sources (not tied to any post) together with current post sources',
+                  'Show reusable sources (not tied to any project/post) together with current context',
                 ),
                 value: includeGlobal,
                 onChanged: (next) {
@@ -434,7 +466,8 @@ class PostScopeHeader extends ConsumerWidget {
 
   Future<void> _showCreatePostDialog(
       BuildContext context, WidgetRef ref) async {
-    final activeProjectId = ref.read(activeProjectIdProvider);
+    final activeProjectId = ref.read(activeProjectIdProvider) ??
+        ref.read(activeProjectProvider)?.id;
     final titleController = TextEditingController();
     final goalController = TextEditingController();
     final audienceController = TextEditingController(text: 'builders');

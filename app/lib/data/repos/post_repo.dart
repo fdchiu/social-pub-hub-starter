@@ -69,20 +69,31 @@ class PostRepo {
     String? projectId,
     String? status,
   }) async {
-    await (_db.update(_db.posts)..where((t) => t.id.equals(postId))).write(
-      PostsCompanion(
-        title: Value(title.trim()),
-        contentType: Value(normalizeContentType(contentType)),
-        goal: Value(goal?.trim().isEmpty ?? true ? null : goal?.trim()),
-        audience:
-            Value(audience?.trim().isEmpty ?? true ? null : audience?.trim()),
-        projectId:
-            Value(projectId?.trim().isEmpty ?? true ? null : projectId?.trim()),
-        status: status == null ? const Value.absent() : Value(status),
-        updatedAt: Value(DateTime.now().toUtc()),
-        syncStatus: const Value('dirty'),
-      ),
-    );
+    final normalizedProjectId =
+        projectId?.trim().isEmpty ?? true ? null : projectId?.trim();
+    await _db.transaction(() async {
+      await (_db.update(_db.posts)..where((t) => t.id.equals(postId))).write(
+        PostsCompanion(
+          title: Value(title.trim()),
+          contentType: Value(normalizeContentType(contentType)),
+          goal: Value(goal?.trim().isEmpty ?? true ? null : goal?.trim()),
+          audience:
+              Value(audience?.trim().isEmpty ?? true ? null : audience?.trim()),
+          projectId: Value(normalizedProjectId),
+          status: status == null ? const Value.absent() : Value(status),
+          updatedAt: Value(DateTime.now().toUtc()),
+          syncStatus: const Value('dirty'),
+        ),
+      );
+      await (_db.update(_db.sourceItems)..where((t) => t.postId.equals(postId)))
+          .write(
+        SourceItemsCompanion(
+          projectId: Value(normalizedProjectId),
+          updatedAt: Value(DateTime.now().toUtc()),
+          syncStatus: const Value('dirty'),
+        ),
+      );
+    });
   }
 
   Future<void> updatePostCover({

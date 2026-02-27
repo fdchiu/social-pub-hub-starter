@@ -45,6 +45,13 @@ Request:
 }
 ```
 
+Notes:
+- `source_items` sync rows now carry hierarchical scope fields: `project_id` (nullable) and `post_id` (nullable).
+- Scope semantics:
+  - global source: `project_id = null`, `post_id = null`
+  - project source: `project_id != null`, `post_id = null`
+  - post source: `project_id != null`, `post_id != null`
+
 ## 3. Sources & Library
 
 ### POST /sources

@@ -13,6 +13,7 @@ import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
 import '../utils/content_type_utils.dart';
+import '../utils/source_scope_utils.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -25,6 +26,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final TextEditingController _queryController = TextEditingController();
   String _query = '';
   String _tagFilter = 'all';
+  String _scopeFilter = 'all';
   bool _creatingDraft = false;
 
   @override
@@ -45,6 +47,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final sourceItemsAsync = ref.watch(scopedSourceItemsStreamProvider);
     final bundlesAsync = ref.watch(bundlesStreamProvider);
     final activePost = ref.watch(activePostProvider);
+    final activeProject = ref.watch(activeProjectProvider);
     final scopedBundles = _scopeBundles(
       bundlesAsync.valueOrNull ?? const <Bundle>[],
       activePostId: activePost?.id,
@@ -131,6 +134,35 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   ),
                 ),
               ),
+              SizedBox(
+                height: 48,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  children: [
+                    for (final scope in const <String>[
+                      'all',
+                      'global',
+                      'project',
+                      'post'
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ChoiceChip(
+                          label: Text(scope == 'all'
+                              ? 'All scopes'
+                              : '${scope[0].toUpperCase()}${scope.substring(1)}'),
+                          selected: _scopeFilter == scope,
+                          onSelected: (_) {
+                            setState(() {
+                              _scopeFilter = scope;
+                            });
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
               if (tags.isNotEmpty)
                 SizedBox(
                   height: 48,
@@ -141,7 +173,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: ChoiceChip(
-                          label: const Text('All'),
+                          label: const Text('All tags'),
                           selected: _tagFilter == 'all',
                           onSelected: (_) {
                             setState(() {
@@ -275,15 +307,48 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                     }
                                     return;
                                   }
-                                  await ref.read(sourceRepoProvider).assignPost(
+                                  await ref
+                                      .read(sourceRepoProvider)
+                                      .assignScope(
                                         sourceId: item.id,
+                                        projectId: activeProject?.id,
                                         postId: activePost.id,
                                       );
                                   if (mounted) {
                                     messenger.showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          'Moved source to ${activePost.title}',
+                                          'Moved source to post: ${activePost.title}',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+                                if (action == _LibraryAction.moveToProject) {
+                                  if (activeProject == null) {
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'No active project selected'),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+                                  await ref
+                                      .read(sourceRepoProvider)
+                                      .assignScope(
+                                        sourceId: item.id,
+                                        projectId: activeProject.id,
+                                        postId: null,
+                                      );
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Moved source to project: ${activeProject.name}',
                                         ),
                                       ),
                                     );
@@ -291,8 +356,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   return;
                                 }
                                 if (action == _LibraryAction.makeGlobal) {
-                                  await ref.read(sourceRepoProvider).assignPost(
+                                  await ref
+                                      .read(sourceRepoProvider)
+                                      .assignScope(
                                         sourceId: item.id,
+                                        projectId: null,
                                         postId: null,
                                       );
                                   if (mounted) {
@@ -346,8 +414,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                       value: _LibraryAction.moveToActivePost,
                                       child: Text('Move to active post'),
                                     ),
+                                  if (activeProject != null &&
+                                      (item.postId?.isNotEmpty ??
+                                          false ||
+                                              item.projectId !=
+                                                  activeProject.id))
+                                    const PopupMenuItem(
+                                      value: _LibraryAction.moveToProject,
+                                      child: Text('Move to project scope'),
+                                    ),
                                   if (item.postId != null &&
-                                      item.postId!.isNotEmpty)
+                                          item.postId!.isNotEmpty ||
+                                      item.projectId != null &&
+                                          item.projectId!.isNotEmpty)
                                     const PopupMenuItem(
                                       value: _LibraryAction.makeGlobal,
                                       child: Text('Mark as global source'),
@@ -393,6 +472,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     if (_tagFilter != 'all' && !item.tags.contains(_tagFilter)) {
       return false;
     }
+
+    final scope = sourceScopeForItem(item);
+    if (_scopeFilter != 'all' && _scopeFilter != sourceScopeKey(scope)) {
+      return false;
+    }
+
     if (_query.isEmpty) {
       return true;
     }
@@ -402,6 +487,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       item.title ?? '',
       item.url ?? '',
       item.userNote ?? '',
+      sourceScopeLabel(scope),
       ...item.tags,
     ].join('\n').toLowerCase();
     return haystack.contains(needle);
@@ -426,8 +512,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   String _itemSubtitle(SourceItem item) {
+    final scope = sourceScopeForItem(item);
     final parts = <String>[
       item.type,
+      'scope:${sourceScopeLabel(scope).toLowerCase()}',
+      if (item.projectId != null && item.projectId!.isNotEmpty)
+        'project:${item.projectId!.substring(0, 8)}',
       if (item.postId != null && item.postId!.isNotEmpty)
         'post:${item.postId!.substring(0, 8)}',
       if (item.bundleId != null && item.bundleId!.isNotEmpty)
@@ -760,15 +850,17 @@ Takeaway: Start with one clear claim, then expand.
     }
 
     final lines = <String>[
-      'id,type,title,url,user_note,tags,post_id,bundle_id,created_at,updated_at',
+      'id,type,scope,title,url,user_note,tags,project_id,post_id,bundle_id,created_at,updated_at',
       ...filtered.map((item) {
         return [
           _csv(item.id),
           _csv(item.type),
+          _csv(sourceScopeKey(sourceScopeForItem(item))),
           _csv(item.title ?? ''),
           _csv(item.url ?? ''),
           _csv(item.userNote ?? ''),
           _csv(item.tags.join('|')),
+          _csv(item.projectId ?? ''),
           _csv(item.postId ?? ''),
           _csv(item.bundleId ?? ''),
           _csv(item.createdAt.toUtc().toIso8601String()),
@@ -810,6 +902,7 @@ enum _LibraryAction {
   openUrl,
   copyUrl,
   moveToActivePost,
+  moveToProject,
   makeGlobal,
   addToBundle,
   clearBundle,

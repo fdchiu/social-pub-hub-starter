@@ -22,6 +22,9 @@ Fields:
 - `tags` (string[])
 - `collection_id` (nullable)
 - `attachments` (json: object store keys)
+- `project_id` (nullable)
+- `post_id` (nullable)
+- scope semantics: global (`project_id/post_id null`), project (`project_id set, post_id null`), post (`project_id + post_id set`)
 - `created_at`, `updated_at`
 
 Indexes:

@@ -25,6 +25,7 @@ TABLE_FIELDS: dict[str, tuple[str, ...]] = {
         "user_note",
         "tags",
         "bundle_id",
+        "project_id",
         "post_id",
         "created_at",
         "updated_at",

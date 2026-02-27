@@ -6,7 +6,11 @@ final router = GoRouter(
   routes: [
     GoRoute(
       path: '/',
-      builder: (c, s) => const HubShellScreen(currentPage: HubPage.inbox),
+      builder: (c, s) => const HubShellScreen(currentPage: HubPage.projects),
+    ),
+    GoRoute(
+      path: '/projects',
+      builder: (c, s) => const HubShellScreen(currentPage: HubPage.projects),
     ),
     GoRoute(
       path: '/inbox',

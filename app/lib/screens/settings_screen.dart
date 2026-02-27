@@ -5,13 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/db/app_db.dart';
 import '../data/sync/sync_service.dart';
-import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
-import '../widgets/post_scope_header.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -41,7 +38,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   double _casualFormal = 0.6;
   double _punchiness = 0.7;
   String _emojiLevel = 'light';
-  bool _includeAllPosts = false;
 
   @override
   void initState() {
@@ -61,43 +57,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final activePost = ref.watch(activePostProvider);
     final integrationsAsync = ref.watch(integrationsProvider);
     final conflictsAsync = ref.watch(openSyncConflictsStreamProvider);
-    final allDrafts = ref.watch(allDraftsStreamProvider).valueOrNull;
-    final sourceCount = (_includeAllPosts
-            ? ref.watch(sourceItemsStreamProvider)
-            : ref.watch(scopedSourceItemsStreamProvider))
-        .valueOrNull
-        ?.length;
-    final draftCount = (_includeAllPosts
-            ? ref.watch(allDraftsStreamProvider)
-            : ref.watch(scopedDraftsStreamProvider))
-        .valueOrNull
-        ?.length;
-    final variantCount = _scopeVariants(
-      ref.watch(allVariantsStreamProvider).valueOrNull,
-      drafts: allDrafts,
-      activePostId: activePost?.id,
-      includeAllPosts: _includeAllPosts,
-    )?.length;
+    final sourceCount =
+        ref.watch(sourceItemsStreamProvider).valueOrNull?.length;
+    final draftCount = ref.watch(allDraftsStreamProvider).valueOrNull?.length;
+    final variantCount =
+        ref.watch(allVariantsStreamProvider).valueOrNull?.length;
     final postCount = ref.watch(postsStreamProvider).valueOrNull?.length;
     final projectCount = ref.watch(projectsStreamProvider).valueOrNull?.length;
-    final bundleCount = _scopeBundles(
-      ref.watch(bundlesStreamProvider).valueOrNull,
-      activePostId: activePost?.id,
-      includeAllPosts: _includeAllPosts,
-    )?.length;
-    final publishLogCount = _scopePublishLogs(
-      ref.watch(publishLogsStreamProvider).valueOrNull,
-      activePostId: activePost?.id,
-      includeAllPosts: _includeAllPosts,
-    )?.length;
-    final queueCount = _scopeScheduledPosts(
-      ref.watch(scheduledPostsStreamProvider).valueOrNull,
-      activePostId: activePost?.id,
-      includeAllPosts: _includeAllPosts,
-    )?.length;
+    final bundleCount = ref.watch(bundlesStreamProvider).valueOrNull?.length;
+    final publishLogCount =
+        ref.watch(publishLogsStreamProvider).valueOrNull?.length;
+    final queueCount =
+        ref.watch(scheduledPostsStreamProvider).valueOrNull?.length;
     final integrationCount = integrationsAsync.valueOrNull?.length;
     final connectedIntegrations =
         integrationsAsync.valueOrNull?.where((row) => row.connected).length;
@@ -114,20 +87,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const PostScopeHeader(showGlobalToggle: false),
-          const SizedBox(height: 8),
-          SwitchListTile(
-            value: _includeAllPosts,
-            onChanged: (value) {
-              setState(() {
-                _includeAllPosts = value;
-              });
-            },
-            title: const Text('Include all posts'),
-            subtitle: const Text(
-              'Diagnostics show all posts instead of only active post',
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.folder_open_outlined),
+              title: const Text('Project settings moved to Projects screen'),
+              subtitle: const Text(
+                'This Settings screen is app-wide. Manage project/post metadata in Projects.',
+              ),
+              trailing: FilledButton.tonal(
+                onPressed: () => context.go('/projects'),
+                child: const Text('Open Projects'),
+              ),
             ),
-            contentPadding: EdgeInsets.zero,
           ),
           const SizedBox(height: 8),
           FilledButton.icon(
@@ -243,76 +214,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
-  }
-
-  List<Variant>? _scopeVariants(
-    List<Variant>? variants, {
-    required List<Draft>? drafts,
-    required String? activePostId,
-    required bool includeAllPosts,
-  }) {
-    if (variants == null) {
-      return null;
-    }
-    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
-      return variants;
-    }
-    final draftsById = {
-      for (final draft in drafts ?? const <Draft>[]) draft.id: draft,
-    };
-    return variants.where((variant) {
-      final draftPostId = draftsById[variant.draftId]?.postId;
-      return draftPostId == null || draftPostId == activePostId;
-    }).toList(growable: false);
-  }
-
-  List<Bundle>? _scopeBundles(
-    List<Bundle>? bundles, {
-    required String? activePostId,
-    required bool includeAllPosts,
-  }) {
-    if (bundles == null) {
-      return null;
-    }
-    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
-      return bundles;
-    }
-    return bundles
-        .where(
-            (bundle) => bundle.postId == null || bundle.postId == activePostId)
-        .toList(growable: false);
-  }
-
-  List<PublishLog>? _scopePublishLogs(
-    List<PublishLog>? logs, {
-    required String? activePostId,
-    required bool includeAllPosts,
-  }) {
-    if (logs == null) {
-      return null;
-    }
-    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
-      return logs;
-    }
-    return logs
-        .where((log) => log.postId == null || log.postId == activePostId)
-        .toList(growable: false);
-  }
-
-  List<ScheduledPost>? _scopeScheduledPosts(
-    List<ScheduledPost>? rows, {
-    required String? activePostId,
-    required bool includeAllPosts,
-  }) {
-    if (rows == null) {
-      return null;
-    }
-    if (includeAllPosts || activePostId == null || activePostId.isEmpty) {
-      return rows;
-    }
-    return rows
-        .where((row) => row.postId == null || row.postId == activePostId)
-        .toList(growable: false);
   }
 
   Widget _buildDebugCard({

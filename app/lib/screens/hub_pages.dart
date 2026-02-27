@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 enum HubPage {
+  projects,
   inbox,
   library,
   compose,
@@ -17,6 +18,7 @@ enum HubPage {
 
 extension HubPageX on HubPage {
   String get route => switch (this) {
+        HubPage.projects => '/projects',
         HubPage.inbox => '/inbox',
         HubPage.library => '/library',
         HubPage.compose => '/compose',
@@ -32,6 +34,7 @@ extension HubPageX on HubPage {
       };
 
   String get title => switch (this) {
+        HubPage.projects => 'Projects',
         HubPage.inbox => 'Inbox',
         HubPage.library => 'Library',
         HubPage.compose => 'Compose',
@@ -68,6 +71,12 @@ class HubNavItem {
 }
 
 const hubNavItems = <HubNavItem>[
+  HubNavItem(
+    section: 'Workspace',
+    label: 'Projects',
+    icon: '🗂',
+    page: HubPage.projects,
+  ),
   HubNavItem(
     section: 'Capture',
     label: 'Inbox',

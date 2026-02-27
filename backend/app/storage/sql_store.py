@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.db import Base, SessionLocal, engine
@@ -49,6 +49,7 @@ class SQLDataStore(DataStore):
     def setup(self) -> None:
         Base.metadata.create_all(bind=engine)
         with SessionLocal() as db:
+            self._ensure_source_items_project_id_column(db)
             self._ensure_sync_counter(db)
             db.commit()
 
@@ -249,6 +250,14 @@ class SQLDataStore(DataStore):
             db.commit()
             db.refresh(row)
             return model_to_dict(row, "publish_logs")
+
+    @staticmethod
+    def _ensure_source_items_project_id_column(db: Session) -> None:
+        rows = db.execute(text("PRAGMA table_info('source_items')")).mappings().all()
+        if any(row.get("name") == "project_id" for row in rows):
+            return
+        db.execute(text("ALTER TABLE source_items ADD COLUMN project_id TEXT"))
+        db.flush()
 
     @staticmethod
     def _ensure_sync_counter(db: Session) -> SyncCounter:

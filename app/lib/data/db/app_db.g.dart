@@ -1085,6 +1085,15 @@ class $SourceItemsTable extends SourceItems
   late final GeneratedColumn<String> bundleId = GeneratedColumn<String>(
       'bundle_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _projectIdMeta =
+      const VerificationMeta('projectId');
+  @override
+  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
+      'project_id', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES projects (id)'));
   static const VerificationMeta _postIdMeta = const VerificationMeta('postId');
   @override
   late final GeneratedColumn<String> postId = GeneratedColumn<String>(
@@ -1126,6 +1135,7 @@ class $SourceItemsTable extends SourceItems
         userNote,
         tags,
         bundleId,
+        projectId,
         postId,
         createdAt,
         updatedAt,
@@ -1167,6 +1177,10 @@ class $SourceItemsTable extends SourceItems
     if (data.containsKey('bundle_id')) {
       context.handle(_bundleIdMeta,
           bundleId.isAcceptableOrUnknown(data['bundle_id']!, _bundleIdMeta));
+    }
+    if (data.containsKey('project_id')) {
+      context.handle(_projectIdMeta,
+          projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta));
     }
     if (data.containsKey('post_id')) {
       context.handle(_postIdMeta,
@@ -1210,6 +1224,8 @@ class $SourceItemsTable extends SourceItems
           .read(DriftSqlType.string, data['${effectivePrefix}tags'])!),
       bundleId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}bundle_id']),
+      projectId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}project_id']),
       postId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}post_id']),
       createdAt: attachedDatabase.typeMapping
@@ -1238,6 +1254,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
   final String? userNote;
   final List<String> tags;
   final String? bundleId;
+  final String? projectId;
   final String? postId;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -1250,6 +1267,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       this.userNote,
       required this.tags,
       this.bundleId,
+      this.projectId,
       this.postId,
       required this.createdAt,
       required this.updatedAt,
@@ -1275,6 +1293,9 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
     if (!nullToAbsent || bundleId != null) {
       map['bundle_id'] = Variable<String>(bundleId);
     }
+    if (!nullToAbsent || projectId != null) {
+      map['project_id'] = Variable<String>(projectId);
+    }
     if (!nullToAbsent || postId != null) {
       map['post_id'] = Variable<String>(postId);
     }
@@ -1298,6 +1319,9 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       bundleId: bundleId == null && nullToAbsent
           ? const Value.absent()
           : Value(bundleId),
+      projectId: projectId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(projectId),
       postId:
           postId == null && nullToAbsent ? const Value.absent() : Value(postId),
       createdAt: Value(createdAt),
@@ -1317,6 +1341,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       userNote: serializer.fromJson<String?>(json['userNote']),
       tags: serializer.fromJson<List<String>>(json['tags']),
       bundleId: serializer.fromJson<String?>(json['bundleId']),
+      projectId: serializer.fromJson<String?>(json['projectId']),
       postId: serializer.fromJson<String?>(json['postId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1334,6 +1359,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       'userNote': serializer.toJson<String?>(userNote),
       'tags': serializer.toJson<List<String>>(tags),
       'bundleId': serializer.toJson<String?>(bundleId),
+      'projectId': serializer.toJson<String?>(projectId),
       'postId': serializer.toJson<String?>(postId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1349,6 +1375,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           Value<String?> userNote = const Value.absent(),
           List<String>? tags,
           Value<String?> bundleId = const Value.absent(),
+          Value<String?> projectId = const Value.absent(),
           Value<String?> postId = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt,
@@ -1361,6 +1388,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
         userNote: userNote.present ? userNote.value : this.userNote,
         tags: tags ?? this.tags,
         bundleId: bundleId.present ? bundleId.value : this.bundleId,
+        projectId: projectId.present ? projectId.value : this.projectId,
         postId: postId.present ? postId.value : this.postId,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -1375,6 +1403,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
       userNote: data.userNote.present ? data.userNote.value : this.userNote,
       tags: data.tags.present ? data.tags.value : this.tags,
       bundleId: data.bundleId.present ? data.bundleId.value : this.bundleId,
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
       postId: data.postId.present ? data.postId.value : this.postId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1393,6 +1422,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           ..write('userNote: $userNote, ')
           ..write('tags: $tags, ')
           ..write('bundleId: $bundleId, ')
+          ..write('projectId: $projectId, ')
           ..write('postId: $postId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -1403,7 +1433,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
 
   @override
   int get hashCode => Object.hash(id, type, url, title, userNote, tags,
-      bundleId, postId, createdAt, updatedAt, syncStatus);
+      bundleId, projectId, postId, createdAt, updatedAt, syncStatus);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1415,6 +1445,7 @@ class SourceItem extends DataClass implements Insertable<SourceItem> {
           other.userNote == this.userNote &&
           other.tags == this.tags &&
           other.bundleId == this.bundleId &&
+          other.projectId == this.projectId &&
           other.postId == this.postId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -1429,6 +1460,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
   final Value<String?> userNote;
   final Value<List<String>> tags;
   final Value<String?> bundleId;
+  final Value<String?> projectId;
   final Value<String?> postId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1442,6 +1474,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     this.userNote = const Value.absent(),
     this.tags = const Value.absent(),
     this.bundleId = const Value.absent(),
+    this.projectId = const Value.absent(),
     this.postId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1456,6 +1489,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     this.userNote = const Value.absent(),
     this.tags = const Value.absent(),
     this.bundleId = const Value.absent(),
+    this.projectId = const Value.absent(),
     this.postId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1471,6 +1505,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     Expression<String>? userNote,
     Expression<String>? tags,
     Expression<String>? bundleId,
+    Expression<String>? projectId,
     Expression<String>? postId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1485,6 +1520,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       if (userNote != null) 'user_note': userNote,
       if (tags != null) 'tags': tags,
       if (bundleId != null) 'bundle_id': bundleId,
+      if (projectId != null) 'project_id': projectId,
       if (postId != null) 'post_id': postId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1501,6 +1537,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       Value<String?>? userNote,
       Value<List<String>>? tags,
       Value<String?>? bundleId,
+      Value<String?>? projectId,
       Value<String?>? postId,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
@@ -1514,6 +1551,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
       userNote: userNote ?? this.userNote,
       tags: tags ?? this.tags,
       bundleId: bundleId ?? this.bundleId,
+      projectId: projectId ?? this.projectId,
       postId: postId ?? this.postId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1547,6 +1585,9 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
     if (bundleId.present) {
       map['bundle_id'] = Variable<String>(bundleId.value);
     }
+    if (projectId.present) {
+      map['project_id'] = Variable<String>(projectId.value);
+    }
     if (postId.present) {
       map['post_id'] = Variable<String>(postId.value);
     }
@@ -1575,6 +1616,7 @@ class SourceItemsCompanion extends UpdateCompanion<SourceItem> {
           ..write('userNote: $userNote, ')
           ..write('tags: $tags, ')
           ..write('bundleId: $bundleId, ')
+          ..write('projectId: $projectId, ')
           ..write('postId: $postId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -5678,6 +5720,21 @@ final class $$ProjectsTableReferences
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
+
+  static MultiTypedResultKey<$SourceItemsTable, List<SourceItem>>
+      _sourceItemsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.sourceItems,
+          aliasName:
+              $_aliasNameGenerator(db.projects.id, db.sourceItems.projectId));
+
+  $$SourceItemsTableProcessedTableManager get sourceItemsRefs {
+    final manager = $$SourceItemsTableTableManager($_db, $_db.sourceItems)
+        .filter((f) => f.projectId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_sourceItemsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 }
 
 class $$ProjectsTableFilterComposer
@@ -5723,6 +5780,27 @@ class $$ProjectsTableFilterComposer
             $$PostsTableFilterComposer(
               $db: $db,
               $table: $db.posts,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> sourceItemsRefs(
+      Expression<bool> Function($$SourceItemsTableFilterComposer f) f) {
+    final $$SourceItemsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.sourceItems,
+        getReferencedColumn: (t) => t.projectId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SourceItemsTableFilterComposer(
+              $db: $db,
+              $table: $db.sourceItems,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -5813,6 +5891,27 @@ class $$ProjectsTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> sourceItemsRefs<T extends Object>(
+      Expression<T> Function($$SourceItemsTableAnnotationComposer a) f) {
+    final $$SourceItemsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.sourceItems,
+        getReferencedColumn: (t) => t.projectId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$SourceItemsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.sourceItems,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$ProjectsTableTableManager extends RootTableManager<
@@ -5826,7 +5925,7 @@ class $$ProjectsTableTableManager extends RootTableManager<
     $$ProjectsTableUpdateCompanionBuilder,
     (Project, $$ProjectsTableReferences),
     Project,
-    PrefetchHooks Function({bool postsRefs})> {
+    PrefetchHooks Function({bool postsRefs, bool sourceItemsRefs})> {
   $$ProjectsTableTableManager(_$AppDatabase db, $ProjectsTable table)
       : super(TableManagerState(
           db: db,
@@ -5881,10 +5980,14 @@ class $$ProjectsTableTableManager extends RootTableManager<
               .map((e) =>
                   (e.readTable(table), $$ProjectsTableReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({postsRefs = false}) {
+          prefetchHooksCallback: (
+              {postsRefs = false, sourceItemsRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [if (postsRefs) db.posts],
+              explicitlyWatchedTables: [
+                if (postsRefs) db.posts,
+                if (sourceItemsRefs) db.sourceItems
+              ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
@@ -5895,6 +5998,19 @@ class $$ProjectsTableTableManager extends RootTableManager<
                             $$ProjectsTableReferences._postsRefsTable(db),
                         managerFromTypedResult: (p0) =>
                             $$ProjectsTableReferences(db, table, p0).postsRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.projectId == item.id),
+                        typedResults: items),
+                  if (sourceItemsRefs)
+                    await $_getPrefetchedData<Project, $ProjectsTable,
+                            SourceItem>(
+                        currentTable: table,
+                        referencedTable:
+                            $$ProjectsTableReferences._sourceItemsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ProjectsTableReferences(db, table, p0)
+                                .sourceItemsRefs,
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.projectId == item.id),
@@ -5917,7 +6033,7 @@ typedef $$ProjectsTableProcessedTableManager = ProcessedTableManager<
     $$ProjectsTableUpdateCompanionBuilder,
     (Project, $$ProjectsTableReferences),
     Project,
-    PrefetchHooks Function({bool postsRefs})>;
+    PrefetchHooks Function({bool postsRefs, bool sourceItemsRefs})>;
 typedef $$PostsTableCreateCompanionBuilder = PostsCompanion Function({
   required String id,
   Value<String?> projectId,
@@ -6613,6 +6729,7 @@ typedef $$SourceItemsTableCreateCompanionBuilder = SourceItemsCompanion
   Value<String?> userNote,
   Value<List<String>> tags,
   Value<String?> bundleId,
+  Value<String?> projectId,
   Value<String?> postId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -6628,6 +6745,7 @@ typedef $$SourceItemsTableUpdateCompanionBuilder = SourceItemsCompanion
   Value<String?> userNote,
   Value<List<String>> tags,
   Value<String?> bundleId,
+  Value<String?> projectId,
   Value<String?> postId,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -6638,6 +6756,21 @@ typedef $$SourceItemsTableUpdateCompanionBuilder = SourceItemsCompanion
 final class $$SourceItemsTableReferences
     extends BaseReferences<_$AppDatabase, $SourceItemsTable, SourceItem> {
   $$SourceItemsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ProjectsTable _projectIdTable(_$AppDatabase db) =>
+      db.projects.createAlias(
+          $_aliasNameGenerator(db.sourceItems.projectId, db.projects.id));
+
+  $$ProjectsTableProcessedTableManager? get projectId {
+    final $_column = $_itemColumn<String>('project_id');
+    if ($_column == null) return null;
+    final manager = $$ProjectsTableTableManager($_db, $_db.projects)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_projectIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
 
   static $PostsTable _postIdTable(_$AppDatabase db) => db.posts
       .createAlias($_aliasNameGenerator(db.sourceItems.postId, db.posts.id));
@@ -6694,6 +6827,26 @@ class $$SourceItemsTableFilterComposer
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnFilters(column));
+
+  $$ProjectsTableFilterComposer get projectId {
+    final $$ProjectsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.projectId,
+        referencedTable: $db.projects,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProjectsTableFilterComposer(
+              $db: $db,
+              $table: $db.projects,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 
   $$PostsTableFilterComposer get postId {
     final $$PostsTableFilterComposer composer = $composerBuilder(
@@ -6755,6 +6908,26 @@ class $$SourceItemsTableOrderingComposer
   ColumnOrderings<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => ColumnOrderings(column));
 
+  $$ProjectsTableOrderingComposer get projectId {
+    final $$ProjectsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.projectId,
+        referencedTable: $db.projects,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProjectsTableOrderingComposer(
+              $db: $db,
+              $table: $db.projects,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
   $$PostsTableOrderingComposer get postId {
     final $$PostsTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -6815,6 +6988,26 @@ class $$SourceItemsTableAnnotationComposer
   GeneratedColumn<String> get syncStatus => $composableBuilder(
       column: $table.syncStatus, builder: (column) => column);
 
+  $$ProjectsTableAnnotationComposer get projectId {
+    final $$ProjectsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.projectId,
+        referencedTable: $db.projects,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProjectsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.projects,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
   $$PostsTableAnnotationComposer get postId {
     final $$PostsTableAnnotationComposer composer = $composerBuilder(
         composer: this,
@@ -6847,7 +7040,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
     $$SourceItemsTableUpdateCompanionBuilder,
     (SourceItem, $$SourceItemsTableReferences),
     SourceItem,
-    PrefetchHooks Function({bool postId})> {
+    PrefetchHooks Function({bool projectId, bool postId})> {
   $$SourceItemsTableTableManager(_$AppDatabase db, $SourceItemsTable table)
       : super(TableManagerState(
           db: db,
@@ -6866,6 +7059,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             Value<String?> userNote = const Value.absent(),
             Value<List<String>> tags = const Value.absent(),
             Value<String?> bundleId = const Value.absent(),
+            Value<String?> projectId = const Value.absent(),
             Value<String?> postId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -6880,6 +7074,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             userNote: userNote,
             tags: tags,
             bundleId: bundleId,
+            projectId: projectId,
             postId: postId,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -6894,6 +7089,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             Value<String?> userNote = const Value.absent(),
             Value<List<String>> tags = const Value.absent(),
             Value<String?> bundleId = const Value.absent(),
+            Value<String?> projectId = const Value.absent(),
             Value<String?> postId = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -6908,6 +7104,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
             userNote: userNote,
             tags: tags,
             bundleId: bundleId,
+            projectId: projectId,
             postId: postId,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -6920,7 +7117,7 @@ class $$SourceItemsTableTableManager extends RootTableManager<
                     $$SourceItemsTableReferences(db, table, e)
                   ))
               .toList(),
-          prefetchHooksCallback: ({postId = false}) {
+          prefetchHooksCallback: ({projectId = false, postId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -6937,6 +7134,16 @@ class $$SourceItemsTableTableManager extends RootTableManager<
                       dynamic,
                       dynamic,
                       dynamic>>(state) {
+                if (projectId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.projectId,
+                    referencedTable:
+                        $$SourceItemsTableReferences._projectIdTable(db),
+                    referencedColumn:
+                        $$SourceItemsTableReferences._projectIdTable(db).id,
+                  ) as T;
+                }
                 if (postId) {
                   state = state.withJoin(
                     currentTable: table,
@@ -6969,7 +7176,7 @@ typedef $$SourceItemsTableProcessedTableManager = ProcessedTableManager<
     $$SourceItemsTableUpdateCompanionBuilder,
     (SourceItem, $$SourceItemsTableReferences),
     SourceItem,
-    PrefetchHooks Function({bool postId})>;
+    PrefetchHooks Function({bool projectId, bool postId})>;
 typedef $$DraftsTableCreateCompanionBuilder = DraftsCompanion Function({
   required String id,
   Value<String> canonicalMarkdown,

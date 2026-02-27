@@ -535,6 +535,7 @@ def test_sync_source_items_roundtrip(client: TestClient) -> None:
                     "tags": ["hook", "voice"],
                     "post_id": "post_sync_1",
                     "bundle_id": "bundle_sync_1",
+                    "project_id": "proj_sync_1",
                     "created_at": now.isoformat(),
                     "updated_at": now.isoformat(),
                 }
@@ -569,6 +570,7 @@ def test_sync_source_items_roundtrip(client: TestClient) -> None:
     assert any(
         row["id"] == source_id
         and row["post_id"] == "post_sync_1"
+        and row["project_id"] == "proj_sync_1"
         and row["bundle_id"] == "bundle_sync_1"
         and row["tags"] == ["hook", "voice"]
         for row in source_items

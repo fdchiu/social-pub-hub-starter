@@ -34,6 +34,12 @@ class HubPageViewData {
 
 HubPageViewData buildHubPageViewData(HubPage page) {
   return switch (page) {
+    HubPage.projects => HubPageViewData(
+        actions: const [
+          HubTopAction(label: 'Open Project Workspace', primary: true)
+        ],
+        content: _settings(),
+      ),
     HubPage.inbox => HubPageViewData(
         actions: const [
           HubTopAction(label: 'Filter'),

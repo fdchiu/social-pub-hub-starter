@@ -305,6 +305,7 @@ class SyncService {
                 'user_note': row.userNote,
                 'tags': row.tags,
                 'bundle_id': row.bundleId,
+                'project_id': row.projectId,
                 'post_id': row.postId,
                 'created_at': row.createdAt.toIso8601String(),
                 'updated_at': row.updatedAt.toIso8601String(),
@@ -549,6 +550,7 @@ class SyncService {
                   userNote: Value(payload['user_note'] as String?),
                   tags: Value(_asStringList(payload['tags'])),
                   bundleId: Value(payload['bundle_id'] as String?),
+                  projectId: Value(payload['project_id'] as String?),
                   postId: Value(payload['post_id'] as String?),
                   createdAt: Value(_asDateTime(payload['created_at']) ?? now),
                   updatedAt: Value(now),
@@ -757,6 +759,7 @@ class SyncService {
               userNote: Value(row['user_note'] as String?),
               tags: Value(_asStringList(row['tags'])),
               bundleId: Value(row['bundle_id'] as String?),
+              projectId: Value(row['project_id'] as String?),
               postId: Value(row['post_id'] as String?),
               createdAt: Value(_asDateTime(row['created_at']) ?? now),
               updatedAt: Value(incomingUpdatedAt),
@@ -1155,6 +1158,9 @@ class SyncService {
       await (_db.update(_db.posts)
             ..where((t) => t.projectId.isIn(deletedProjects)))
           .write(const PostsCompanion(projectId: Value(null)));
+      await (_db.update(_db.sourceItems)
+            ..where((t) => t.projectId.isIn(deletedProjects)))
+          .write(const SourceItemsCompanion(projectId: Value(null)));
       await (_db.delete(_db.projects)..where((t) => t.id.isIn(deletedProjects)))
           .go();
     }
@@ -1279,6 +1285,7 @@ class SyncService {
       'user_note': row.userNote,
       'tags': row.tags,
       'bundle_id': row.bundleId,
+      'project_id': row.projectId,
       'post_id': row.postId,
       'created_at': row.createdAt.toIso8601String(),
       'updated_at': row.updatedAt.toIso8601String(),

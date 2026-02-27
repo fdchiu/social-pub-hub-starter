@@ -22,6 +22,7 @@ class SourceItemSyncItem(BaseModel):
     user_note: str | None = None
     tags: list[str] = Field(default_factory=list)
     bundle_id: str | None = None
+    project_id: str | None = None
     post_id: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None

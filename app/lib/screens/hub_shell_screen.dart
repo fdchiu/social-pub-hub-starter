@@ -15,6 +15,7 @@ import 'hub_pages.dart';
 import 'inbox_screen.dart';
 import 'library_screen.dart';
 import 'publish_checklist_screen.dart';
+import 'project_screen.dart';
 import 'publish_console_screen.dart';
 import 'queue_screen.dart';
 import 'settings_screen.dart';
@@ -75,6 +76,7 @@ class HubShellScreen extends StatelessWidget {
 
   Widget _buildPageContent() {
     return switch (currentPage) {
+      HubPage.projects => const ProjectScreen(),
       HubPage.inbox => const InboxScreen(),
       HubPage.library => const LibraryScreen(),
       HubPage.compose => ComposeScreen(initialDraftId: initialDraftId),
@@ -110,6 +112,18 @@ class _Sidebar extends ConsumerWidget {
     for (final item in hubNavItems) {
       sections.putIfAbsent(item.section, () => <HubNavItem>[]).add(item);
     }
+    final projects =
+        ref.watch(projectsStreamProvider).valueOrNull ?? const <Project>[];
+    final scopedPosts =
+        ref.watch(scopedPostsStreamProvider).valueOrNull ?? const <Post>[];
+    final selectedProjectId = ref.watch(activeProjectIdProvider);
+    final activeProject = ref.watch(activeProjectProvider);
+    if (activeProject != null && selectedProjectId != activeProject.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(activeProjectIdProvider.notifier).state = activeProject.id;
+      });
+    }
+
     final activePost = ref.watch(activePostProvider);
     final sourceItems = ref.watch(scopedSourceItemsStreamProvider).valueOrNull;
     final bundles = _scopeBundles(
@@ -137,6 +151,7 @@ class _Sidebar extends ConsumerWidget {
     }
 
     final badgeByPage = <HubPage, _DynamicBadge>{
+      HubPage.projects: countBadge(projects.length),
       HubPage.inbox: countBadge(sourceItems?.length),
       HubPage.library: countBadge(sourceItems?.length),
       HubPage.bundles: countBadge(bundles?.length),
@@ -197,6 +212,13 @@ class _Sidebar extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(10, 14, 10, 6),
               children: [
+                _ProjectExplorer(
+                  projects: projects,
+                  scopedPosts: scopedPosts,
+                  activeProjectId: activeProject?.id,
+                  activePostId: activePost?.id,
+                ),
+                const SizedBox(height: 10),
                 for (final section in sections.entries) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
@@ -300,6 +322,275 @@ class _Sidebar extends ConsumerWidget {
     return queueItems
         .where((row) => row.postId == null || row.postId == activePostId)
         .toList(growable: false);
+  }
+}
+
+class _ProjectExplorer extends ConsumerWidget {
+  const _ProjectExplorer({
+    required this.projects,
+    required this.scopedPosts,
+    required this.activeProjectId,
+    required this.activePostId,
+  });
+
+  final List<Project> projects;
+  final List<Post> scopedPosts;
+  final String? activeProjectId;
+  final String? activePostId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: _border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'PROJECTS',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: .8,
+                  ),
+                ),
+              ),
+              IconButton(
+                iconSize: 16,
+                tooltip: 'New project',
+                onPressed: () => _showQuickCreateProjectDialog(context, ref),
+                icon: const Icon(Icons.add, color: _soft),
+              ),
+              IconButton(
+                iconSize: 16,
+                tooltip: 'Open project screen',
+                onPressed: () => context.go('/projects'),
+                icon: const Icon(Icons.settings_outlined, color: _soft),
+              ),
+            ],
+          ),
+          if (projects.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(2, 4, 2, 4),
+              child: Text(
+                'No projects yet',
+                style: TextStyle(color: _soft, fontSize: 12),
+              ),
+            )
+          else ...[
+            for (final project in projects)
+              _ProjectRow(
+                project: project,
+                active: activeProjectId == project.id,
+                posts: activeProjectId == project.id
+                    ? scopedPosts
+                    : const <Post>[],
+                activePostId: activePostId,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showQuickCreateProjectDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    final shouldCreate = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Create project'),
+            content: SizedBox(
+              width: 480,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration:
+                        const InputDecoration(labelText: 'Project name'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descriptionController,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Create'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldCreate) {
+      nameController.dispose();
+      descriptionController.dispose();
+      return;
+    }
+
+    final name = nameController.text.trim();
+    if (name.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Project name is required')),
+        );
+      }
+      nameController.dispose();
+      descriptionController.dispose();
+      return;
+    }
+
+    final projectId = await ref.read(projectRepoProvider).createProject(
+          name: name,
+          description: descriptionController.text,
+        );
+    ref.read(activeProjectIdProvider.notifier).state = projectId;
+    ref.read(activePostIdProvider.notifier).state = null;
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Project created')),
+      );
+      context.go('/projects');
+    }
+
+    nameController.dispose();
+    descriptionController.dispose();
+  }
+}
+
+class _ProjectRow extends ConsumerWidget {
+  const _ProjectRow({
+    required this.project,
+    required this.active,
+    required this.posts,
+    required this.activePostId,
+  });
+
+  final Project project;
+  final bool active;
+  final List<Post> posts;
+  final String? activePostId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () {
+            ref.read(activeProjectIdProvider.notifier).state = project.id;
+            ref.read(activePostIdProvider.notifier).state = null;
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: active ? const Color.fromRGBO(108, 124, 255, 0.16) : null,
+              border: active
+                  ? Border.all(color: const Color.fromRGBO(108, 124, 255, 0.24))
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  active ? Icons.folder_open_outlined : Icons.folder_outlined,
+                  size: 14,
+                  color: active ? _text : _soft,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    project.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: active ? _text : _soft,
+                      fontSize: 12.5,
+                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (active && posts.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 14, top: 2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: posts
+                  .map(
+                    (post) => InkWell(
+                      onTap: () {
+                        ref.read(activeProjectIdProvider.notifier).state =
+                            project.id;
+                        ref.read(activePostIdProvider.notifier).state = post.id;
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          color: activePostId == post.id
+                              ? const Color.fromRGBO(108, 124, 255, 0.14)
+                              : null,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.article_outlined,
+                                size: 12, color: _soft),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                post.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color:
+                                      activePostId == post.id ? _text : _soft,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ),
+      ],
+    );
   }
 }
 

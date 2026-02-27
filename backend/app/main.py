@@ -119,6 +119,7 @@ def _serialize_source_item(item: SourceItem) -> dict[str, Any]:
         "user_note": item.user_note,
         "tags": item.tags,
         "bundle_id": item.bundle_id,
+        "project_id": item.project_id,
         "post_id": item.post_id,
         "created_at": item.created_at,
         "updated_at": item.updated_at,
@@ -267,6 +268,7 @@ def _apply_source_item_upsert(db: Session, payload: SourceItemSyncItem) -> None:
     item.user_note = payload.user_note
     item.tags = payload.tags
     item.bundle_id = payload.bundle_id
+    item.project_id = payload.project_id
     item.post_id = payload.post_id
     item.updated_at = incoming_updated_at
     item.deleted_at = _to_utc(payload.deleted_at) if payload.deleted_at else None

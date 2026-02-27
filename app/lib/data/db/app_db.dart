@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -212,6 +212,23 @@ class AppDatabase extends _$AppDatabase {
               columnName: 'cover_image_prompt',
               addColumn: () => m.addColumn(posts, posts.coverImagePrompt),
             );
+          }
+          if (from < 16) {
+            await addColumnIfMissing(
+              tableName: 'source_items',
+              columnName: 'project_id',
+              addColumn: () => m.addColumn(sourceItems, sourceItems.projectId),
+            );
+            await customStatement('''
+              UPDATE source_items
+              SET project_id = (
+                SELECT posts.project_id
+                FROM posts
+                WHERE posts.id = source_items.post_id
+              )
+              WHERE post_id IS NOT NULL
+                AND (project_id IS NULL OR project_id = '')
+            ''');
           }
         },
       );

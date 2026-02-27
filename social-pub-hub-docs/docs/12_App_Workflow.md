@@ -6,9 +6,9 @@ Read when:
 - implementing missing actions screen-by-screen
 
 ## 1) Daily happy path (short version)
-1. Select/create Project scope (optional) and Post workspace (required).
-2. Inbox: capture/select source items for active post (optionally save as global).
-3. Library: refine source set and pull reusable global sources.
+1. Open Projects, create/select a project, then select/create a post workspace.
+2. Inbox: capture/select source items with explicit scope (`global`, `project`, or `post`).
+3. Library: refine by scope + tags and rebalance sources across scopes.
 4. Compose: create/edit canonical draft for active post.
 5. Variant Studio (in Compose): generate per-platform variants.
 6. Publish Checklist: run quality gate.
@@ -17,19 +17,19 @@ Read when:
 
 ## 2) Screen-by-screen flow
 
-### Project + Post Scope (top of Inbox/Library/Compose/Queue/History)
-Goal: keep writing operations focused and reusable.
-- Pick project scope (`all` or specific project).
-- Pick active post inside that scope.
-- Create project/post on the fly.
-- Delete project/post when needed (linked rows are unscoped and deletion syncs across devices).
+### Projects (Sidebar) + Project Screen (`/projects`)
+Goal: make project context global and predictable.
+- Left sidebar includes project explorer (VS Code-like): create/select project + quick post selection.
+- Selected project is global context for all subscreens.
+- Project/post rename/edit/delete happens in `/projects` (not scattered across subscreens).
+- Post selection remains global under selected project.
 Exit criteria:
-- active post selected before drafting/publishing/auditing steps.
+- selected project + active post are set before drafting/publishing.
 
 ### Inbox (`/inbox`)
 Goal: collect evidence and start a draft.
 - Add source (`url`, `note`, `snippet`, `image`, `video`, `audio`, `file`).
-- Scope source to active post or global reusable pool.
+- Scope each source to one level: `global`, `project`, or `post`.
 - Source items sync across devices in the sync loop (including deletions).
 - Draft-from-selected applies style traits, tone/punchiness, differentiation points, and banned phrase guardrails.
 - Select one or more sources.
@@ -40,11 +40,11 @@ Exit criteria:
 ### Library (`/library`)
 Goal: improve source quality before drafting.
 - Search/filter by text, tag, type, date.
-- Keep current-post sources + optional global sources in one scoped list.
+- Filter by source scope (`all/global/project/post`) plus tag/text filters.
 - Bundle assignment dialog is scoped to active post bundles (plus legacy unscoped bundles).
 - Open source detail; adjust note/tags.
 - Start draft from one source or all filtered sources (LLM first, template fallback), or assign to bundle.
-- Move a source to active post or promote it to global.
+- Move a source between scopes: active post, project scope, or global.
 Exit criteria:
 - source set is clean and relevant.
 

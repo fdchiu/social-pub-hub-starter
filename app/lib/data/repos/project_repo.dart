@@ -82,6 +82,15 @@ class ProjectRepo {
           syncStatus: const Value('dirty'),
         ),
       );
+      await (_db.update(_db.sourceItems)
+            ..where((t) => t.projectId.equals(projectId)))
+          .write(
+        SourceItemsCompanion(
+          projectId: const Value(null),
+          updatedAt: Value(now),
+          syncStatus: const Value('dirty'),
+        ),
+      );
       await (_db.delete(_db.projects)..where((t) => t.id.equals(projectId)))
           .go();
     });

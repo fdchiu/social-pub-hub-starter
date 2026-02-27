@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../converters/string_list_converter.dart';
+import 'projects.dart';
 import 'posts.dart';
 
 class SourceItems extends Table {
@@ -19,6 +20,8 @@ class SourceItems extends Table {
       .withDefault(const Constant('[]'))();
 
   TextColumn get bundleId => text().nullable()();
+
+  TextColumn get projectId => text().nullable().references(Projects, #id)();
 
   TextColumn get postId => text().nullable().references(Posts, #id)();
 
