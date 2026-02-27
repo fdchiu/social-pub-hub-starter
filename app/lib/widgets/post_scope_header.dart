@@ -92,32 +92,38 @@ class PostScopeHeader extends ConsumerWidget {
                     const Icon(Icons.folder_open_outlined, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: activeProject?.id,
-                        items: projects
-                            .map(
-                              (project) => DropdownMenuItem(
-                                value: project.id,
-                                child: Text(project.name),
+                      child: showManagementActions
+                          ? DropdownButtonFormField<String>(
+                              value: activeProject?.id,
+                              items: projects
+                                  .map(
+                                    (project) => DropdownMenuItem(
+                                      value: project.id,
+                                      child: Text(project.name),
+                                    ),
+                                  )
+                                  .toList(growable: false),
+                              onChanged: projects.isEmpty
+                                  ? null
+                                  : (next) {
+                                      if (next == null) {
+                                        return;
+                                      }
+                                      setActiveProjectSelection(
+                                        ref,
+                                        projectId: next,
+                                      );
+                                    },
+                              decoration: const InputDecoration(
+                                labelText: 'Project scope',
+                                isDense: true,
                               ),
                             )
-                            .toList(growable: false),
-                        onChanged: projects.isEmpty
-                            ? null
-                            : (next) {
-                                if (next == null) {
-                                  return;
-                                }
-                                setActiveProjectSelection(
-                                  ref,
-                                  projectId: next,
-                                );
-                              },
-                        decoration: const InputDecoration(
-                          labelText: 'Project scope',
-                          isDense: true,
-                        ),
-                      ),
+                          : _buildReadOnlyScopeField(
+                              label: 'Project scope',
+                              value:
+                                  activeProject?.name ?? 'No project selected',
+                            ),
                     ),
                   ],
                 );
@@ -250,40 +256,46 @@ class PostScopeHeader extends ConsumerWidget {
                               const Icon(Icons.account_tree_outlined, size: 18),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: currentPost.id,
-                                  items: posts
-                                      .map(
-                                        (post) => DropdownMenuItem(
-                                          value: post.id,
-                                          child: Text(post.title),
+                                child: showManagementActions
+                                    ? DropdownButtonFormField<String>(
+                                        value: currentPost.id,
+                                        items: posts
+                                            .map(
+                                              (post) => DropdownMenuItem(
+                                                value: post.id,
+                                                child: Text(post.title),
+                                              ),
+                                            )
+                                            .toList(growable: false),
+                                        onChanged: (next) {
+                                          if (next == null) {
+                                            return;
+                                          }
+                                          final projectId = activeProject?.id ??
+                                              currentPost.projectId;
+                                          if (projectId == null ||
+                                              projectId.isEmpty) {
+                                            ref
+                                                .read(activePostIdProvider
+                                                    .notifier)
+                                                .state = next;
+                                            return;
+                                          }
+                                          setActivePostSelection(
+                                            ref,
+                                            projectId: projectId,
+                                            postId: next,
+                                          );
+                                        },
+                                        decoration: const InputDecoration(
+                                          labelText: 'Active post',
+                                          isDense: true,
                                         ),
                                       )
-                                      .toList(growable: false),
-                                  onChanged: (next) {
-                                    if (next == null) {
-                                      return;
-                                    }
-                                    final projectId = activeProject?.id ??
-                                        currentPost.projectId;
-                                    if (projectId == null ||
-                                        projectId.isEmpty) {
-                                      ref
-                                          .read(activePostIdProvider.notifier)
-                                          .state = next;
-                                      return;
-                                    }
-                                    setActivePostSelection(
-                                      ref,
-                                      projectId: projectId,
-                                      postId: next,
-                                    );
-                                  },
-                                  decoration: const InputDecoration(
-                                    labelText: 'Active post',
-                                    isDense: true,
-                                  ),
-                                ),
+                                    : _buildReadOnlyScopeField(
+                                        label: 'Active post',
+                                        value: currentPost.title,
+                                      ),
                               ),
                             ],
                           );
@@ -396,6 +408,23 @@ class PostScopeHeader extends ConsumerWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildReadOnlyScopeField({
+    required String label,
+    required String value,
+  }) {
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+      ),
+      child: Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

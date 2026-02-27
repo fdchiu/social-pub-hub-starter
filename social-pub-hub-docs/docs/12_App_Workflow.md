@@ -19,10 +19,11 @@ Read when:
 
 ### Projects (Sidebar) + Project Screen (`/projects`)
 Goal: make project context global and predictable.
-- Left sidebar includes project explorer (VS Code-like): create/select project + quick post selection.
+- Left sidebar includes project explorer (VS Code-like): create/select project + quick post selection with expandable project trees and remembered last post per project.
 - Selected project is global context for all subscreens.
 - Project/post rename/edit/delete happens in `/projects` (not scattered across subscreens).
 - Post selection remains global under selected project.
+- On non-Projects screens, project/post scope in the header is read-only context; selection happens from the sidebar explorer.
 Exit criteria:
 - selected project + active post are set before drafting/publishing.
 
