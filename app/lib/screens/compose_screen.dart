@@ -70,6 +70,27 @@ final _composeCoverVersionsProvider =
       );
 });
 
+final _composePolishSourcesProvider = StreamProvider<List<SourceItem>>((ref) {
+  final activePost = ref.watch(activePostProvider);
+  final activeProject = ref.watch(activeProjectProvider);
+  final includeGlobal = ref.watch(includeGlobalSourcesProvider);
+  final includeProject = ref.watch(includeProjectSourcesProvider);
+
+  return ref
+      .watch(sourceRepoProvider)
+      .watchSourceItems(
+        postId: activePost?.id,
+        projectId: activeProject?.id,
+        includeGlobal: includeGlobal,
+        includeProject: includeProject,
+      )
+      .map((rows) {
+    final sorted = rows.toList(growable: false)
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return sorted.take(12).toList(growable: false);
+  });
+});
+
 class ComposeScreen extends ConsumerStatefulWidget {
   const ComposeScreen({
     super.key,
@@ -110,6 +131,7 @@ Takeaway:
   bool _regeneratingVisibleVariants = false;
   bool _polishingDraft = false;
   bool _generatingCoverImage = false;
+  final Set<String> _excludedPolishSourceIds = <String>{};
   final Set<String> _humanizingVariantIds = <String>{};
   double _humanizeStrictness = 0.7;
   String _variantPlatformFilter = 'all';
@@ -150,6 +172,7 @@ Takeaway:
     final coverVersionsAsync = activePostId == null
         ? null
         : ref.watch(_composeCoverVersionsProvider(activePostId));
+    final polishSourcesAsync = ref.watch(_composePolishSourcesProvider);
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -267,6 +290,8 @@ Takeaway:
                       ),
                     ),
                   ],
+                  const SizedBox(height: 8),
+                  _buildPolishSourceContextCard(polishSourcesAsync),
                   const SizedBox(height: 12),
                   Expanded(
                     child: TextField(
@@ -593,6 +618,7 @@ Takeaway:
       _controller.text = '';
       _hydratingEditor = false;
       setState(() {
+        _excludedPolishSourceIds.clear();
         _loading = false;
         _saveError = null;
       });
@@ -628,9 +654,201 @@ Takeaway:
     _controller.text = draft?.canonicalMarkdown ?? '';
     _hydratingEditor = false;
     setState(() {
+      _excludedPolishSourceIds.clear();
       _loading = false;
       _saveError = null;
     });
+  }
+
+  Widget _buildPolishSourceContextCard(
+      AsyncValue<List<SourceItem>> sourcesAsync) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.white24),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: sourcesAsync.when(
+          data: (sources) {
+            final scopedCount = sources.length;
+            if (scopedCount == 0) {
+              return const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Polish context: no scoped Inbox/Library sources yet.',
+                ),
+              );
+            }
+
+            final selectedSources = _selectedPolishSources(sources);
+            final excludedCount = scopedCount - selectedSources.length;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Polish context',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const Spacer(),
+                    if (excludedCount > 0)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _excludedPolishSourceIds.clear();
+                          });
+                        },
+                        child: const Text('Use all'),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Included on polish: ${selectedSources.length} / $scopedCount. Tap any row to exclude/include. Latest 12 shown; LLM reads first 8.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 148,
+                  child: ListView.separated(
+                    itemCount: scopedCount,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final item = sources[index];
+                      final included =
+                          !_excludedPolishSourceIds.contains(item.id);
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        onTap: () => _togglePolishSource(item.id),
+                        leading: Icon(
+                          _iconForSourceType(item.type),
+                          size: 18,
+                          color: included ? null : Colors.white38,
+                        ),
+                        title: Text(
+                          item.title?.trim().isNotEmpty == true
+                              ? item.title!.trim()
+                              : _sourceTypeLabel(item.type),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: included
+                              ? null
+                              : const TextStyle(color: Colors.white54),
+                        ),
+                        subtitle: Text(
+                          _composeSourcePreview(item),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: included
+                              ? null
+                              : const TextStyle(color: Colors.white38),
+                        ),
+                        trailing: Icon(
+                          included
+                              ? Icons.check_circle_outline
+                              : Icons.remove_circle_outline,
+                          size: 18,
+                          color: included ? null : Colors.orange,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+          loading: () => const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Loading polish context...'),
+          ),
+          error: (error, _) => Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Polish context failed: $error',
+              style: const TextStyle(color: Colors.orange),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<SourceItem> _selectedPolishSources(List<SourceItem> sources) {
+    return sources
+        .where((item) => !_excludedPolishSourceIds.contains(item.id))
+        .toList(growable: false);
+  }
+
+  void _togglePolishSource(String sourceId) {
+    setState(() {
+      if (_excludedPolishSourceIds.contains(sourceId)) {
+        _excludedPolishSourceIds.remove(sourceId);
+      } else {
+        _excludedPolishSourceIds.add(sourceId);
+      }
+    });
+  }
+
+  String _composeSourcePreview(SourceItem item) {
+    final note = item.userNote?.trim();
+    if (note != null && note.isNotEmpty) {
+      return note;
+    }
+    final url = item.url?.trim();
+    if (url != null && url.isNotEmpty) {
+      return url;
+    }
+    if (item.tags.isNotEmpty) {
+      return item.tags.map((tag) => '#$tag').join(' ');
+    }
+    return item.id;
+  }
+
+  String _sourceTypeLabel(String type) {
+    switch (type.trim().toLowerCase()) {
+      case 'url':
+        return 'URL';
+      case 'note':
+        return 'Note';
+      case 'snippet':
+        return 'Snippet';
+      case 'image':
+        return 'Image';
+      case 'video':
+        return 'Video';
+      case 'audio':
+        return 'Audio';
+      case 'file':
+        return 'File';
+      default:
+        final normalized = type.trim().toLowerCase();
+        return normalized.isEmpty ? 'Source' : normalized.replaceAll('_', ' ');
+    }
+  }
+
+  IconData _iconForSourceType(String type) {
+    switch (type.trim().toLowerCase()) {
+      case 'url':
+        return Icons.link_outlined;
+      case 'note':
+        return Icons.sticky_note_2_outlined;
+      case 'snippet':
+        return Icons.code_outlined;
+      case 'image':
+        return Icons.image_outlined;
+      case 'video':
+        return Icons.videocam_outlined;
+      case 'audio':
+        return Icons.audiotrack_outlined;
+      case 'file':
+        return Icons.attach_file_outlined;
+      default:
+        return Icons.description_outlined;
+    }
   }
 
   void _onEditorChanged() {
@@ -781,7 +999,7 @@ Takeaway:
             canonicalMarkdown: _controller.text,
           );
       final activeProject = ref.read(activeProjectProvider);
-      final sourceItems =
+      final availableSourceItems =
           await ref.read(sourceRepoProvider).getRecentSourceItemsForPost(
                 limit: 12,
                 postId: ref.read(activePostProvider)?.id,
@@ -789,6 +1007,20 @@ Takeaway:
                 includeGlobal: ref.read(includeGlobalSourcesProvider),
                 includeProject: ref.read(includeProjectSourcesProvider),
               );
+      final sourceItems = _selectedPolishSources(availableSourceItems);
+      if (sourceItems.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Select at least one source in Polish context.'),
+            ),
+          );
+        }
+        setState(() {
+          _polishingDraft = false;
+        });
+        return;
+      }
       final styleProfile =
           await ref.read(styleProfileRepoProvider).getOrCreateDefault();
       final baseUrl = ref.read(apiBaseUrlProvider);
