@@ -195,6 +195,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                           final item = filtered[index];
                           final checked = _selectedIds.contains(item.id);
                           final secondary = _sourceSummary(item);
+                          final canEditInline = _typeRequiresText(item.type);
 
                           return CheckboxListTile(
                             value: checked,
@@ -209,30 +210,44 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                             },
                             title: Text(item.title ?? item.type.toUpperCase()),
                             subtitle: Text(secondary),
-                            secondary: PopupMenuButton<_InboxAction>(
-                              onSelected: (action) async {
-                                if (action == _InboxAction.copyUrl) {
-                                  await _copySourceUrl(item);
-                                  return;
-                                }
-                                if (action == _InboxAction.edit) {
-                                  await _editSource(item);
-                                  return;
-                                }
-                                await _deleteSource(item);
-                              },
-                              itemBuilder: (context) => const [
-                                PopupMenuItem(
-                                  value: _InboxAction.copyUrl,
-                                  child: Text('Copy URL'),
-                                ),
-                                PopupMenuItem(
-                                  value: _InboxAction.edit,
-                                  child: Text('Edit source'),
-                                ),
-                                PopupMenuItem(
-                                  value: _InboxAction.delete,
-                                  child: Text('Delete source'),
+                            secondary: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (canEditInline)
+                                  IconButton(
+                                    tooltip:
+                                        'Edit ${_sourceTypeLabel(item.type).toLowerCase()}',
+                                    onPressed: () async {
+                                      await _editSource(item);
+                                    },
+                                    icon: const Icon(Icons.edit_note_outlined),
+                                  ),
+                                PopupMenuButton<_InboxAction>(
+                                  onSelected: (action) async {
+                                    if (action == _InboxAction.copyUrl) {
+                                      await _copySourceUrl(item);
+                                      return;
+                                    }
+                                    if (action == _InboxAction.edit) {
+                                      await _editSource(item);
+                                      return;
+                                    }
+                                    await _deleteSource(item);
+                                  },
+                                  itemBuilder: (context) => const [
+                                    PopupMenuItem(
+                                      value: _InboxAction.copyUrl,
+                                      child: Text('Copy URL'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: _InboxAction.edit,
+                                      child: Text('Edit source'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: _InboxAction.delete,
+                                      child: Text('Delete source'),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
