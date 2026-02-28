@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import logging
 import os
 import re
+import time
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -49,15 +51,71 @@ from .schemas import (
 from .storage import DataStore, create_data_store
 
 _store: DataStore = create_data_store()
+_logger = logging.getLogger("social_pub_hub.api")
 
 
 @asynccontextmanager
-async def _lifespan(_: FastAPI):
+async def _lifespan(app_instance: FastAPI):
     _store.setup()
+    route_descriptions: list[str] = []
+    for route in app_instance.routes:
+        path = getattr(route, "path", None)
+        methods = getattr(route, "methods", None)
+        if not path or not methods:
+            continue
+        visible_methods = sorted(
+            method for method in methods if method not in {"HEAD", "OPTIONS"}
+        )
+        route_descriptions.append(f"{','.join(visible_methods)} {path}")
+    _logger.info(
+        "startup.routes count=%s routes=%s",
+        len(route_descriptions),
+        " | ".join(route_descriptions),
+    )
     yield
 
 
 app = FastAPI(title="Social Pub Hub API", lifespan=_lifespan)
+
+
+@app.middleware("http")
+async def _log_request_outcome(request: Request, call_next):
+    started = time.perf_counter()
+    begin_level = logging.INFO if request.url.path.endswith("/polish") else logging.DEBUG
+    _logger.log(
+        begin_level,
+        "request.start method=%s path=%s query=%s",
+        request.method,
+        request.url.path,
+        request.url.query,
+    )
+    try:
+        response = await call_next(request)
+    except Exception:
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        _logger.exception(
+            "request.unhandled method=%s path=%s query=%s elapsed_ms=%.1f",
+            request.method,
+            request.url.path,
+            request.url.query,
+            elapsed_ms,
+        )
+        raise
+
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    if response.status_code >= 400 or request.url.path.endswith("/polish"):
+        level = logging.WARNING if response.status_code >= 400 else logging.INFO
+        _logger.log(
+            level,
+            "request.complete method=%s path=%s query=%s status=%s elapsed_ms=%.1f",
+            request.method,
+            request.url.path,
+            request.url.query,
+            response.status_code,
+            elapsed_ms,
+        )
+    return response
+
 
 def _to_utc(value: datetime | None) -> datetime:
     if value is None:
