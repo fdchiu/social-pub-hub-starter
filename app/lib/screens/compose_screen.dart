@@ -817,17 +817,37 @@ Takeaway:
               'strictness': _humanizeStrictness,
             }),
           );
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Polish failed: ${response.statusCode}');
-      }
 
-      final parsed = jsonDecode(response.body) as Map<String, dynamic>;
-      final nextText = (parsed['canonical_markdown'] as String?)?.trim();
-      if (nextText == null || nextText.isEmpty) {
-        throw Exception('Polish returned empty text');
+      late final String nextText;
+      late final bool llmUsed;
+      String? fallbackReason;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+        final parsedText = (parsed['canonical_markdown'] as String?)?.trim();
+        if (parsedText == null || parsedText.isEmpty) {
+          throw Exception('Polish returned empty text');
+        }
+        nextText = parsedText;
+        llmUsed = parsed['llm_used'] as bool? ?? false;
+        fallbackReason = (parsed['fallback_reason'] as String?)?.trim();
+      } else if (response.statusCode == 404 &&
+          !_isDraftMissingResponse(response.body)) {
+        nextText = _fallbackPolishText(
+          canonicalMarkdown: _controller.text,
+          strictness: _humanizeStrictness,
+          bannedPhrases: styleProfile.bannedPhrases,
+        );
+        llmUsed = false;
+        fallbackReason = 'backend route unavailable (HTTP 404)';
+      } else {
+        final detail = _extractErrorDetail(response.body);
+        throw Exception(
+          detail == null
+              ? 'Polish failed: ${response.statusCode}'
+              : 'Polish failed: ${response.statusCode} ($detail)',
+        );
       }
-      final llmUsed = parsed['llm_used'] as bool? ?? false;
-      final fallbackReason = (parsed['fallback_reason'] as String?)?.trim();
 
       await ref.read(draftRepoProvider).updateCanonicalMarkdown(
             draftId: draftId,
@@ -861,6 +881,60 @@ Takeaway:
         _saveError = 'Draft polish failed: $e';
       });
     }
+  }
+
+  bool _isDraftMissingResponse(String responseBody) {
+    final detail = _extractErrorDetail(responseBody);
+    return detail?.toLowerCase() == 'draft not found';
+  }
+
+  String? _extractErrorDetail(String responseBody) {
+    final body = responseBody.trim();
+    if (body.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final detail = decoded['detail'];
+        if (detail is String && detail.trim().isNotEmpty) {
+          return detail.trim();
+        }
+      }
+    } catch (_) {
+      // Ignore non-JSON error bodies.
+    }
+    return body.length > 120 ? '${body.substring(0, 120)}…' : body;
+  }
+
+  String _fallbackPolishText({
+    required String canonicalMarkdown,
+    required double strictness,
+    required List<String> bannedPhrases,
+  }) {
+    var result = canonicalMarkdown;
+    for (final phrase in bannedPhrases) {
+      final trimmed = phrase.trim();
+      if (trimmed.isEmpty) {
+        continue;
+      }
+      result = result.replaceAll(
+        RegExp(RegExp.escape(trimmed), caseSensitive: false),
+        '',
+      );
+    }
+    if (strictness >= 0.6) {
+      result = result.replaceAll(
+        RegExp(r'\b(?:very|really)\s+', caseSensitive: false),
+        '',
+      );
+    }
+
+    final cleanedLines = LineSplitter.split(result)
+        .map((line) => line.replaceFirst(RegExp(r'\s+$'), ''))
+        .where((line) => line.trim().isNotEmpty)
+        .toList(growable: false);
+    return cleanedLines.join('\n').trim();
   }
 
   Future<void> _generateCoverImage() async {
