@@ -831,15 +831,17 @@ Takeaway:
         nextText = parsedText;
         llmUsed = parsed['llm_used'] as bool? ?? false;
         fallbackReason = (parsed['fallback_reason'] as String?)?.trim();
-      } else if (response.statusCode == 404 &&
-          !_isDraftMissingResponse(response.body)) {
+      } else if (response.statusCode == 404) {
+        final detail = _extractErrorDetail(response.body);
         nextText = _fallbackPolishText(
           canonicalMarkdown: _controller.text,
           strictness: _humanizeStrictness,
           bannedPhrases: styleProfile.bannedPhrases,
         );
         llmUsed = false;
-        fallbackReason = 'backend route unavailable (HTTP 404)';
+        fallbackReason = detail == null
+            ? 'backend unavailable (HTTP 404)'
+            : 'backend unavailable (HTTP 404: $detail)';
       } else {
         final detail = _extractErrorDetail(response.body);
         throw Exception(
@@ -881,11 +883,6 @@ Takeaway:
         _saveError = 'Draft polish failed: $e';
       });
     }
-  }
-
-  bool _isDraftMissingResponse(String responseBody) {
-    final detail = _extractErrorDetail(responseBody);
-    return detail?.toLowerCase() == 'draft not found';
   }
 
   String? _extractErrorDetail(String responseBody) {
