@@ -120,7 +120,10 @@ Takeaway:
   static const String _coverGeneratedTag = 'cover_generated';
 
   final TextEditingController _controller = TextEditingController();
+  final TextEditingController _polishInstructionController =
+      TextEditingController();
   Timer? _saveDebounce;
+  Timer? _polishInstructionSaveDebounce;
   String? _draftId;
   String? _loadedForPostId;
   bool _loading = true;
@@ -140,14 +143,18 @@ Takeaway:
   void initState() {
     super.initState();
     _controller.addListener(_onEditorChanged);
+    _polishInstructionController.addListener(_onPolishInstructionChanged);
     unawaited(_loadOrCreateDraft());
   }
 
   @override
   void dispose() {
     _saveDebounce?.cancel();
+    _polishInstructionSaveDebounce?.cancel();
     _controller.removeListener(_onEditorChanged);
+    _polishInstructionController.removeListener(_onPolishInstructionChanged);
     _controller.dispose();
+    _polishInstructionController.dispose();
     super.dispose();
   }
 
@@ -292,6 +299,18 @@ Takeaway:
                   ],
                   const SizedBox(height: 8),
                   _buildPolishSourceContextCard(polishSourcesAsync),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _polishInstructionController,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Polish instruction (optional)',
+                      hintText:
+                          'Example: Summarize the notes first, then get to the point on how to choose AI apps that match the notes.',
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Expanded(
                     child: TextField(
@@ -616,6 +635,7 @@ Takeaway:
       _draftId = null;
       _loadedForPostId = null;
       _controller.text = '';
+      _polishInstructionController.text = '';
       _hydratingEditor = false;
       setState(() {
         _excludedPolishSourceIds.clear();
@@ -652,6 +672,7 @@ Takeaway:
     _draftId = draft?.id;
     _loadedForPostId = activePost.id;
     _controller.text = draft?.canonicalMarkdown ?? '';
+    _polishInstructionController.text = draft?.polishInstruction ?? '';
     _hydratingEditor = false;
     setState(() {
       _excludedPolishSourceIds
@@ -884,6 +905,38 @@ Takeaway:
     }
   }
 
+  void _onPolishInstructionChanged() {
+    if (_hydratingEditor || _draftId == null) {
+      return;
+    }
+
+    _polishInstructionSaveDebounce?.cancel();
+    _polishInstructionSaveDebounce =
+        Timer(const Duration(milliseconds: 500), () async {
+      try {
+        await ref.read(draftRepoProvider).updatePolishInstruction(
+              draftId: _draftId!,
+              instruction: _polishInstructionController.text,
+            );
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          if (_saveError == 'Failed saving polish instruction') {
+            _saveError = null;
+          }
+        });
+      } catch (_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _saveError = 'Failed saving polish instruction';
+        });
+      }
+    });
+  }
+
   void _onEditorChanged() {
     if (_hydratingEditor || _draftId == null) {
       return;
@@ -1076,6 +1129,9 @@ Takeaway:
         'style_traits': styleProfile.personalTraits,
         'differentiation_points': styleProfile.differentiationPoints,
         'personal_prompt': styleProfile.customPrompt,
+        'polish_instruction': _polishInstructionController.text.trim().isEmpty
+            ? null
+            : _polishInstructionController.text.trim(),
         'strictness': _humanizeStrictness,
       });
       final client = ref.read(httpClientProvider);

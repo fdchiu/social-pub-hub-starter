@@ -118,6 +118,7 @@ Request:
   "source_materials":[{"id":"src_1","note":"..."}],
   "style_profile_id":"...",
   "banned_phrases":["leverage"],
+  "polish_instruction":"Summarize the notes first, then get to the point.",
   "strictness":0.7
 }
 ```

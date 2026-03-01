@@ -862,6 +862,10 @@ def _polish_with_llm(
     source_materials: list[SourceMaterial],
     strictness: float,
     banned: list[str],
+    style_traits: list[str],
+    differentiation_points: list[str],
+    personal_prompt: str | None,
+    polish_instruction: str | None,
 ) -> tuple[str | None, str | None, str | None]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -881,22 +885,36 @@ def _polish_with_llm(
         else "[S1] No explicit source material provided."
     )
     banned_block = ", ".join(phrase for phrase in banned if phrase) or "none"
+    style_block = ", ".join(trait for trait in style_traits if trait.strip()) or "none"
+    differentiation_block = (
+        ", ".join(point for point in differentiation_points if point.strip())
+        or "none"
+    )
+    personal_prompt_block = (personal_prompt or "").strip() or "none"
+    instruction_block = (polish_instruction or "").strip() or "none"
 
     system_prompt = (
         "You edit social content drafts for clarity and human voice. "
         "Use only the provided evidence. "
         "If evidence is thin, keep statements cautious. "
+        "Follow the user polish instruction when provided. "
         "Return markdown only."
     )
     user_prompt = (
         "Polish this draft for publish readiness.\n\n"
         f"Strictness: {strictness:.1f}\n"
-        f"Banned phrases: {banned_block}\n\n"
+        f"Banned phrases: {banned_block}\n"
+        f"Style traits: {style_block}\n"
+        f"Differentiation points: {differentiation_block}\n"
+        f"Personal prompt: {personal_prompt_block}\n"
+        f"Polish instruction: {instruction_block}\n\n"
         f"Evidence pack:\n{evidence_block}\n\n"
         f"Draft:\n{canonical_markdown}\n\n"
         "Output requirements:\n"
         "- keep core meaning\n"
         "- remove banned phrasing\n"
+        "- use the notes as primary evidence\n"
+        "- follow the polish instruction exactly when it does not conflict with evidence\n"
         "- concise, concrete, personal tone\n"
         "- no extra preface, markdown only"
     )
@@ -1031,6 +1049,10 @@ def drafts_from_sources(
         source_materials=payload.source_materials,
         strictness=max(payload.punchiness, 0.7),
         banned=banned,
+        style_traits=payload.style_traits,
+        differentiation_points=payload.differentiation_points,
+        personal_prompt=payload.personal_prompt,
+        polish_instruction=None,
     )
     canonical = polished or canonical_template
     if banned:
@@ -1126,6 +1148,10 @@ def polish_draft_preview(payload: DraftPolishRequest) -> dict[str, Any]:
         source_materials=payload.source_materials,
         strictness=payload.strictness,
         banned=banned,
+        style_traits=payload.style_traits,
+        differentiation_points=payload.differentiation_points,
+        personal_prompt=payload.personal_prompt,
+        polish_instruction=payload.polish_instruction,
     )
     canonical = polished or _fallback_polish(
         canonical_markdown=base_text,
@@ -1163,6 +1189,10 @@ def polish_draft(
         source_materials=payload.source_materials,
         strictness=payload.strictness,
         banned=banned,
+        style_traits=payload.style_traits,
+        differentiation_points=payload.differentiation_points,
+        personal_prompt=payload.personal_prompt,
+        polish_instruction=payload.polish_instruction,
     )
     canonical = polished or _fallback_polish(
         canonical_markdown=base_text,

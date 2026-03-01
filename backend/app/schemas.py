@@ -186,6 +186,10 @@ class DraftPolishRequest(BaseModel):
     source_materials: list[SourceMaterial] = Field(default_factory=list)
     style_profile_id: str | None = None
     banned_phrases: list[str] = Field(default_factory=list)
+    style_traits: list[str] = Field(default_factory=list)
+    differentiation_points: list[str] = Field(default_factory=list)
+    personal_prompt: str | None = None
+    polish_instruction: str | None = None
     strictness: float = 0.7
 
 

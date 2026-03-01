@@ -100,6 +100,20 @@ class DraftRepo {
     );
   }
 
+  Future<void> updatePolishInstruction({
+    required String draftId,
+    String? instruction,
+  }) async {
+    final normalized = instruction?.trim();
+    await (_db.update(_db.drafts)..where((t) => t.id.equals(draftId))).write(
+      DraftsCompanion(
+        polishInstruction: Value(
+          normalized == null || normalized.isEmpty ? null : normalized,
+        ),
+      ),
+    );
+  }
+
   Future<void> updatePolishExcludedSourceIds({
     required String draftId,
     required List<String> sourceIds,

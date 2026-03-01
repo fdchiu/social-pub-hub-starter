@@ -22,6 +22,8 @@ class Drafts extends Table {
 
   TextColumn get contentType => text().nullable()();
 
+  TextColumn get polishInstruction => text().nullable()();
+
   TextColumn get polishExcludedSourceIds => text()
       .map(const StringListConverter())
       .withDefault(const Constant('[]'))();
