@@ -1687,6 +1687,15 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
   late final GeneratedColumn<String> contentType = GeneratedColumn<String>(
       'content_type', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String>
+      polishExcludedSourceIds = GeneratedColumn<String>(
+              'polish_excluded_source_ids', aliasedName, false,
+              type: DriftSqlType.string,
+              requiredDuringInsert: false,
+              defaultValue: const Constant('[]'))
+          .withConverter<List<String>>(
+              $DraftsTable.$converterpolishExcludedSourceIds);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -1722,6 +1731,7 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
         audience,
         postId,
         contentType,
+        polishExcludedSourceIds,
         createdAt,
         updatedAt,
         syncStatus
@@ -1822,6 +1832,9 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
           .read(DriftSqlType.string, data['${effectivePrefix}post_id']),
       contentType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}content_type']),
+      polishExcludedSourceIds: $DraftsTable.$converterpolishExcludedSourceIds
+          .fromSql(attachedDatabase.typeMapping.read(DriftSqlType.string,
+              data['${effectivePrefix}polish_excluded_source_ids'])!),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -1835,6 +1848,9 @@ class $DraftsTable extends Drafts with TableInfo<$DraftsTable, Draft> {
   $DraftsTable createAlias(String alias) {
     return $DraftsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<List<String>, String> $converterpolishExcludedSourceIds =
+      const StringListConverter();
 }
 
 class Draft extends DataClass implements Insertable<Draft> {
@@ -1847,6 +1863,7 @@ class Draft extends DataClass implements Insertable<Draft> {
   final String? audience;
   final String? postId;
   final String? contentType;
+  final List<String> polishExcludedSourceIds;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String syncStatus;
@@ -1860,6 +1877,7 @@ class Draft extends DataClass implements Insertable<Draft> {
       this.audience,
       this.postId,
       this.contentType,
+      required this.polishExcludedSourceIds,
       required this.createdAt,
       required this.updatedAt,
       required this.syncStatus});
@@ -1889,6 +1907,11 @@ class Draft extends DataClass implements Insertable<Draft> {
     if (!nullToAbsent || contentType != null) {
       map['content_type'] = Variable<String>(contentType);
     }
+    {
+      map['polish_excluded_source_ids'] = Variable<String>($DraftsTable
+          .$converterpolishExcludedSourceIds
+          .toSql(polishExcludedSourceIds));
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['sync_status'] = Variable<String>(syncStatus);
@@ -1916,6 +1939,7 @@ class Draft extends DataClass implements Insertable<Draft> {
       contentType: contentType == null && nullToAbsent
           ? const Value.absent()
           : Value(contentType),
+      polishExcludedSourceIds: Value(polishExcludedSourceIds),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       syncStatus: Value(syncStatus),
@@ -1935,6 +1959,8 @@ class Draft extends DataClass implements Insertable<Draft> {
       audience: serializer.fromJson<String?>(json['audience']),
       postId: serializer.fromJson<String?>(json['postId']),
       contentType: serializer.fromJson<String?>(json['contentType']),
+      polishExcludedSourceIds:
+          serializer.fromJson<List<String>>(json['polishExcludedSourceIds']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
@@ -1953,6 +1979,8 @@ class Draft extends DataClass implements Insertable<Draft> {
       'audience': serializer.toJson<String?>(audience),
       'postId': serializer.toJson<String?>(postId),
       'contentType': serializer.toJson<String?>(contentType),
+      'polishExcludedSourceIds':
+          serializer.toJson<List<String>>(polishExcludedSourceIds),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'syncStatus': serializer.toJson<String>(syncStatus),
@@ -1969,6 +1997,7 @@ class Draft extends DataClass implements Insertable<Draft> {
           Value<String?> audience = const Value.absent(),
           Value<String?> postId = const Value.absent(),
           Value<String?> contentType = const Value.absent(),
+          List<String>? polishExcludedSourceIds,
           DateTime? createdAt,
           DateTime? updatedAt,
           String? syncStatus}) =>
@@ -1982,6 +2011,8 @@ class Draft extends DataClass implements Insertable<Draft> {
         audience: audience.present ? audience.value : this.audience,
         postId: postId.present ? postId.value : this.postId,
         contentType: contentType.present ? contentType.value : this.contentType,
+        polishExcludedSourceIds:
+            polishExcludedSourceIds ?? this.polishExcludedSourceIds,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
         syncStatus: syncStatus ?? this.syncStatus,
@@ -2002,6 +2033,9 @@ class Draft extends DataClass implements Insertable<Draft> {
       postId: data.postId.present ? data.postId.value : this.postId,
       contentType:
           data.contentType.present ? data.contentType.value : this.contentType,
+      polishExcludedSourceIds: data.polishExcludedSourceIds.present
+          ? data.polishExcludedSourceIds.value
+          : this.polishExcludedSourceIds,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       syncStatus:
@@ -2021,6 +2055,7 @@ class Draft extends DataClass implements Insertable<Draft> {
           ..write('audience: $audience, ')
           ..write('postId: $postId, ')
           ..write('contentType: $contentType, ')
+          ..write('polishExcludedSourceIds: $polishExcludedSourceIds, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus')
@@ -2039,6 +2074,7 @@ class Draft extends DataClass implements Insertable<Draft> {
       audience,
       postId,
       contentType,
+      polishExcludedSourceIds,
       createdAt,
       updatedAt,
       syncStatus);
@@ -2055,6 +2091,7 @@ class Draft extends DataClass implements Insertable<Draft> {
           other.audience == this.audience &&
           other.postId == this.postId &&
           other.contentType == this.contentType &&
+          other.polishExcludedSourceIds == this.polishExcludedSourceIds &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.syncStatus == this.syncStatus);
@@ -2070,6 +2107,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
   final Value<String?> audience;
   final Value<String?> postId;
   final Value<String?> contentType;
+  final Value<List<String>> polishExcludedSourceIds;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<String> syncStatus;
@@ -2084,6 +2122,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     this.audience = const Value.absent(),
     this.postId = const Value.absent(),
     this.contentType = const Value.absent(),
+    this.polishExcludedSourceIds = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -2099,6 +2138,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     this.audience = const Value.absent(),
     this.postId = const Value.absent(),
     this.contentType = const Value.absent(),
+    this.polishExcludedSourceIds = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
@@ -2114,6 +2154,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     Expression<String>? audience,
     Expression<String>? postId,
     Expression<String>? contentType,
+    Expression<String>? polishExcludedSourceIds,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<String>? syncStatus,
@@ -2129,6 +2170,8 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
       if (audience != null) 'audience': audience,
       if (postId != null) 'post_id': postId,
       if (contentType != null) 'content_type': contentType,
+      if (polishExcludedSourceIds != null)
+        'polish_excluded_source_ids': polishExcludedSourceIds,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
@@ -2146,6 +2189,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
       Value<String?>? audience,
       Value<String?>? postId,
       Value<String?>? contentType,
+      Value<List<String>>? polishExcludedSourceIds,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<String>? syncStatus,
@@ -2160,6 +2204,8 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
       audience: audience ?? this.audience,
       postId: postId ?? this.postId,
       contentType: contentType ?? this.contentType,
+      polishExcludedSourceIds:
+          polishExcludedSourceIds ?? this.polishExcludedSourceIds,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -2197,6 +2243,11 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
     if (contentType.present) {
       map['content_type'] = Variable<String>(contentType.value);
     }
+    if (polishExcludedSourceIds.present) {
+      map['polish_excluded_source_ids'] = Variable<String>($DraftsTable
+          .$converterpolishExcludedSourceIds
+          .toSql(polishExcludedSourceIds.value));
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -2224,6 +2275,7 @@ class DraftsCompanion extends UpdateCompanion<Draft> {
           ..write('audience: $audience, ')
           ..write('postId: $postId, ')
           ..write('contentType: $contentType, ')
+          ..write('polishExcludedSourceIds: $polishExcludedSourceIds, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus, ')
@@ -7187,6 +7239,7 @@ typedef $$DraftsTableCreateCompanionBuilder = DraftsCompanion Function({
   Value<String?> audience,
   Value<String?> postId,
   Value<String?> contentType,
+  Value<List<String>> polishExcludedSourceIds,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<String> syncStatus,
@@ -7202,6 +7255,7 @@ typedef $$DraftsTableUpdateCompanionBuilder = DraftsCompanion Function({
   Value<String?> audience,
   Value<String?> postId,
   Value<String?> contentType,
+  Value<List<String>> polishExcludedSourceIds,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<String> syncStatus,
@@ -7274,6 +7328,11 @@ class $$DraftsTableFilterComposer
 
   ColumnFilters<String> get contentType => $composableBuilder(
       column: $table.contentType, builder: (column) => ColumnFilters(column));
+
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+      get polishExcludedSourceIds => $composableBuilder(
+          column: $table.polishExcludedSourceIds,
+          builder: (column) => ColumnWithTypeConverterFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -7360,6 +7419,10 @@ class $$DraftsTableOrderingComposer
   ColumnOrderings<String> get contentType => $composableBuilder(
       column: $table.contentType, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get polishExcludedSourceIds => $composableBuilder(
+      column: $table.polishExcludedSourceIds,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -7422,6 +7485,10 @@ class $$DraftsTableAnnotationComposer
 
   GeneratedColumn<String> get contentType => $composableBuilder(
       column: $table.contentType, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<String>, String>
+      get polishExcludedSourceIds => $composableBuilder(
+          column: $table.polishExcludedSourceIds, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -7506,6 +7573,7 @@ class $$DraftsTableTableManager extends RootTableManager<
             Value<String?> audience = const Value.absent(),
             Value<String?> postId = const Value.absent(),
             Value<String?> contentType = const Value.absent(),
+            Value<List<String>> polishExcludedSourceIds = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -7521,6 +7589,7 @@ class $$DraftsTableTableManager extends RootTableManager<
             audience: audience,
             postId: postId,
             contentType: contentType,
+            polishExcludedSourceIds: polishExcludedSourceIds,
             createdAt: createdAt,
             updatedAt: updatedAt,
             syncStatus: syncStatus,
@@ -7536,6 +7605,7 @@ class $$DraftsTableTableManager extends RootTableManager<
             Value<String?> audience = const Value.absent(),
             Value<String?> postId = const Value.absent(),
             Value<String?> contentType = const Value.absent(),
+            Value<List<String>> polishExcludedSourceIds = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<String> syncStatus = const Value.absent(),
@@ -7551,6 +7621,7 @@ class $$DraftsTableTableManager extends RootTableManager<
             audience: audience,
             postId: postId,
             contentType: contentType,
+            polishExcludedSourceIds: polishExcludedSourceIds,
             createdAt: createdAt,
             updatedAt: updatedAt,
             syncStatus: syncStatus,

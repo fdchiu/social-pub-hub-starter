@@ -1109,6 +1109,39 @@ def draft_variants(
     return {"variants": variants}
 
 
+@app.post("/drafts/polish_preview")
+def polish_draft_preview(payload: DraftPolishRequest) -> dict[str, Any]:
+    base_text = payload.canonical_markdown.strip()
+    if not base_text:
+        raise HTTPException(status_code=400, detail="canonical_markdown is required")
+
+    banned = [phrase for phrase in payload.banned_phrases if phrase.strip()]
+    if payload.style_profile_id:
+        style = _store.get_style_profile(payload.style_profile_id)
+        if style is not None:
+            banned = list({*banned, *(style.get("banned_phrases") or [])})
+
+    polished, model, fallback_reason = _polish_with_llm(
+        canonical_markdown=base_text,
+        source_materials=payload.source_materials,
+        strictness=payload.strictness,
+        banned=banned,
+    )
+    canonical = polished or _fallback_polish(
+        canonical_markdown=base_text,
+        strictness=payload.strictness,
+        banned=banned,
+    )
+
+    return {
+        "draft_id": None,
+        "canonical_markdown": canonical,
+        "llm_used": polished is not None,
+        "model": model,
+        "fallback_reason": fallback_reason,
+    }
+
+
 @app.post("/drafts/{draft_id}/polish")
 def polish_draft(
     draft_id: str,

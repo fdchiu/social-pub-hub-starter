@@ -108,6 +108,31 @@ Response:
 }
 ```
 
+### POST /drafts/polish_preview
+Polish canonical draft without requiring a server-stored draft. Used by local-only app drafts.
+
+Request:
+```json
+{
+  "canonical_markdown":"...",
+  "source_materials":[{"id":"src_1","note":"..."}],
+  "style_profile_id":"...",
+  "banned_phrases":["leverage"],
+  "strictness":0.7
+}
+```
+
+Response:
+```json
+{
+  "draft_id":null,
+  "canonical_markdown":"...",
+  "llm_used":true,
+  "model":"gpt-5.3-codex",
+  "fallback_reason":null
+}
+```
+
 ### POST /drafts/{id}/polish
 Polish canonical draft for publish-readiness. Uses LLM when configured; falls back to local rewrite rules.
 

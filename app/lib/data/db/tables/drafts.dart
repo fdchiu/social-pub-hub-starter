@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../converters/string_list_converter.dart';
 import 'posts.dart';
 
 class Drafts extends Table {
@@ -20,6 +21,10 @@ class Drafts extends Table {
   TextColumn get postId => text().nullable().references(Posts, #id)();
 
   TextColumn get contentType => text().nullable()();
+
+  TextColumn get polishExcludedSourceIds => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 

@@ -654,7 +654,9 @@ Takeaway:
     _controller.text = draft?.canonicalMarkdown ?? '';
     _hydratingEditor = false;
     setState(() {
-      _excludedPolishSourceIds.clear();
+      _excludedPolishSourceIds
+        ..clear()
+        ..addAll(draft?.polishExcludedSourceIds ?? const <String>[]);
       _loading = false;
       _saveError = null;
     });
@@ -700,6 +702,7 @@ Takeaway:
                           setState(() {
                             _excludedPolishSourceIds.clear();
                           });
+                          unawaited(_persistPolishSourceSelection());
                         },
                         child: const Text('Use all'),
                       ),
@@ -791,6 +794,36 @@ Takeaway:
         _excludedPolishSourceIds.add(sourceId);
       }
     });
+    unawaited(_persistPolishSourceSelection());
+  }
+
+  Future<void> _persistPolishSourceSelection() async {
+    final draftId = _draftId;
+    if (draftId == null) {
+      return;
+    }
+
+    try {
+      await ref.read(draftRepoProvider).updatePolishExcludedSourceIds(
+            draftId: draftId,
+            sourceIds: _excludedPolishSourceIds.toList(growable: false),
+          );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        if (_saveError == 'Failed saving polish source selection') {
+          _saveError = null;
+        }
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _saveError = 'Failed saving polish source selection';
+      });
+    }
   }
 
   String _composeSourcePreview(SourceItem item) {
@@ -1024,31 +1057,46 @@ Takeaway:
       final styleProfile =
           await ref.read(styleProfileRepoProvider).getOrCreateDefault();
       final baseUrl = ref.read(apiBaseUrlProvider);
-      final response = await ref.read(httpClientProvider).post(
-            Uri.parse('$baseUrl/drafts/$draftId/polish'),
-            headers: const {'content-type': 'application/json'},
-            body: jsonEncode({
-              'canonical_markdown': _controller.text,
-              'source_materials': sourceItems
-                  .map(
-                    (item) => {
-                      'id': item.id,
-                      'type': item.type,
-                      'title': item.title,
-                      'url': item.url,
-                      'note': item.userNote,
-                      'tags': item.tags,
-                    },
-                  )
-                  .toList(growable: false),
-              'style_profile_id': styleProfile.id,
-              'banned_phrases': styleProfile.bannedPhrases,
-              'style_traits': styleProfile.personalTraits,
-              'differentiation_points': styleProfile.differentiationPoints,
-              'personal_prompt': styleProfile.customPrompt,
-              'strictness': _humanizeStrictness,
-            }),
-          );
+      final requestBody = jsonEncode({
+        'canonical_markdown': _controller.text,
+        'source_materials': sourceItems
+            .map(
+              (item) => {
+                'id': item.id,
+                'type': item.type,
+                'title': item.title,
+                'url': item.url,
+                'note': item.userNote,
+                'tags': item.tags,
+              },
+            )
+            .toList(growable: false),
+        'style_profile_id': styleProfile.id,
+        'banned_phrases': styleProfile.bannedPhrases,
+        'style_traits': styleProfile.personalTraits,
+        'differentiation_points': styleProfile.differentiationPoints,
+        'personal_prompt': styleProfile.customPrompt,
+        'strictness': _humanizeStrictness,
+      });
+      final client = ref.read(httpClientProvider);
+      final previewUri = Uri.parse('$baseUrl/drafts/polish_preview');
+      final primaryUri = _isServerBackedDraftId(draftId)
+          ? Uri.parse('$baseUrl/drafts/$draftId/polish')
+          : previewUri;
+      var response = await client.post(
+        primaryUri,
+        headers: const {'content-type': 'application/json'},
+        body: requestBody,
+      );
+      if (response.statusCode == 404 &&
+          primaryUri != previewUri &&
+          _extractErrorDetail(response.body) == 'Draft not found') {
+        response = await client.post(
+          previewUri,
+          headers: const {'content-type': 'application/json'},
+          body: requestBody,
+        );
+      }
 
       late final String nextText;
       late final bool llmUsed;
@@ -1115,6 +1163,10 @@ Takeaway:
         _saveError = 'Draft polish failed: $e';
       });
     }
+  }
+
+  bool _isServerBackedDraftId(String draftId) {
+    return draftId.trim().startsWith('draft_');
   }
 
   String? _extractErrorDetail(String responseBody) {

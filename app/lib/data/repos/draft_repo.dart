@@ -100,6 +100,22 @@ class DraftRepo {
     );
   }
 
+  Future<void> updatePolishExcludedSourceIds({
+    required String draftId,
+    required List<String> sourceIds,
+  }) async {
+    final normalizedIds = sourceIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    await (_db.update(_db.drafts)..where((t) => t.id.equals(draftId))).write(
+      DraftsCompanion(
+        polishExcludedSourceIds: Value(normalizedIds),
+      ),
+    );
+  }
+
   Future<void> deleteDraftById(String draftId) async {
     await _db.transaction(() async {
       final now = DateTime.now().toUtc();

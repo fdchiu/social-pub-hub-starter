@@ -56,7 +56,7 @@ Exit criteria:
 Goal: produce canonical draft.
 - Edit markdown.
 - Optional polish pass.
-- Compose shows a live "Polish context" panel with the latest scoped Inbox/Library sources (up to 12); user can exclude/include items before polish; LLM reads the first 8 selected items.
+- Compose shows a live "Polish context" panel with the latest scoped Inbox/Library sources (up to 12); user can exclude/include items before polish; that selection persists per draft; LLM reads the first 8 selected items.
 - Generate cover image from the current draft (OpenAI image model); each generation is saved as a post-scoped cover version for compare/select; apply chosen version to active post cover.
 - Content type drives structure (`general_post`, `coding_guide`, `ai_tool_guide`, or custom guide types like `release_notes_guide`).
 - Style profile traits + differentiation + custom prompt feed LLM.
