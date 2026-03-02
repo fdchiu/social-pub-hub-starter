@@ -124,6 +124,7 @@ Takeaway:
       TextEditingController();
   Timer? _saveDebounce;
   Timer? _polishInstructionSaveDebounce;
+  Timer? _humanizeStrictnessSaveDebounce;
   String? _draftId;
   String? _loadedForPostId;
   bool _loading = true;
@@ -149,8 +150,10 @@ Takeaway:
 
   @override
   void dispose() {
+    _flushPendingEditorChanges();
     _saveDebounce?.cancel();
     _polishInstructionSaveDebounce?.cancel();
+    _humanizeStrictnessSaveDebounce?.cancel();
     _controller.removeListener(_onEditorChanged);
     _polishInstructionController.removeListener(_onPolishInstructionChanged);
     _controller.dispose();
@@ -348,11 +351,7 @@ Takeaway:
                           divisions: 10,
                           value: _humanizeStrictness,
                           label: _humanizeStrictness.toStringAsFixed(1),
-                          onChanged: (value) {
-                            setState(() {
-                              _humanizeStrictness = value;
-                            });
-                          },
+                          onChanged: _onHumanizeStrictnessChanged,
                         ),
                       ),
                       Text(_humanizeStrictness.toStringAsFixed(1)),
@@ -671,6 +670,7 @@ Takeaway:
     _hydratingEditor = true;
     _draftId = draft?.id;
     _loadedForPostId = activePost.id;
+    _humanizeStrictness = activePost.humanizeStrictness;
     _controller.text = draft?.canonicalMarkdown ?? '';
     _polishInstructionController.text = draft?.polishInstruction ?? '';
     _hydratingEditor = false;
@@ -912,29 +912,7 @@ Takeaway:
 
     _polishInstructionSaveDebounce?.cancel();
     _polishInstructionSaveDebounce =
-        Timer(const Duration(milliseconds: 500), () async {
-      try {
-        await ref.read(draftRepoProvider).updatePolishInstruction(
-              draftId: _draftId!,
-              instruction: _polishInstructionController.text,
-            );
-        if (!mounted) {
-          return;
-        }
-        setState(() {
-          if (_saveError == 'Failed saving polish instruction') {
-            _saveError = null;
-          }
-        });
-      } catch (_) {
-        if (!mounted) {
-          return;
-        }
-        setState(() {
-          _saveError = 'Failed saving polish instruction';
-        });
-      }
-    });
+        Timer(const Duration(milliseconds: 500), _persistPolishInstruction);
   }
 
   void _onEditorChanged() {
@@ -943,28 +921,115 @@ Takeaway:
     }
 
     _saveDebounce?.cancel();
-    _saveDebounce = Timer(const Duration(milliseconds: 500), () async {
-      final repo = ref.read(draftRepoProvider);
-      try {
-        await repo.updateCanonicalMarkdown(
-          draftId: _draftId!,
-          canonicalMarkdown: _controller.text,
-        );
-        if (!mounted) {
-          return;
-        }
-        setState(() {
-          _saveError = null;
-        });
-      } catch (e) {
-        if (!mounted) {
-          return;
-        }
-        setState(() {
-          _saveError = 'Failed saving draft: $e';
-        });
-      }
+    _saveDebounce = Timer(const Duration(milliseconds: 500), _persistDraft);
+  }
+
+  void _onHumanizeStrictnessChanged(double value) {
+    final clamped = value.clamp(0.0, 1.0).toDouble();
+    setState(() {
+      _humanizeStrictness = clamped;
     });
+
+    _humanizeStrictnessSaveDebounce?.cancel();
+    _humanizeStrictnessSaveDebounce =
+        Timer(const Duration(milliseconds: 300), _persistHumanizeStrictness);
+  }
+
+  void _flushPendingEditorChanges() {
+    if (_hydratingEditor) {
+      return;
+    }
+    if (_draftId != null) {
+      unawaited(_persistDraft(updateUi: false));
+      unawaited(_persistPolishInstruction(updateUi: false));
+    }
+    unawaited(_persistHumanizeStrictness(updateUi: false));
+  }
+
+  Future<void> _persistDraft({bool updateUi = true}) async {
+    final draftId = _draftId;
+    if (draftId == null) {
+      return;
+    }
+
+    try {
+      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
+            draftId: draftId,
+            canonicalMarkdown: _controller.text,
+          );
+      if (!mounted || !updateUi) {
+        return;
+      }
+      setState(() {
+        _saveError = null;
+      });
+    } catch (e) {
+      if (!mounted || !updateUi) {
+        return;
+      }
+      setState(() {
+        _saveError = 'Failed saving draft: $e';
+      });
+    }
+  }
+
+  Future<void> _persistPolishInstruction({bool updateUi = true}) async {
+    final draftId = _draftId;
+    if (draftId == null) {
+      return;
+    }
+
+    try {
+      await ref.read(draftRepoProvider).updatePolishInstruction(
+            draftId: draftId,
+            instruction: _polishInstructionController.text,
+          );
+      if (!mounted || !updateUi) {
+        return;
+      }
+      setState(() {
+        if (_saveError == 'Failed saving polish instruction') {
+          _saveError = null;
+        }
+      });
+    } catch (_) {
+      if (!mounted || !updateUi) {
+        return;
+      }
+      setState(() {
+        _saveError = 'Failed saving polish instruction';
+      });
+    }
+  }
+
+  Future<void> _persistHumanizeStrictness({bool updateUi = true}) async {
+    final activePost = ref.read(activePostProvider);
+    final postId = activePost?.id;
+    if (postId == null || postId.isEmpty) {
+      return;
+    }
+
+    try {
+      await ref.read(postRepoProvider).updateHumanizeStrictness(
+            postId: postId,
+            humanizeStrictness: _humanizeStrictness,
+          );
+      if (!mounted || !updateUi) {
+        return;
+      }
+      setState(() {
+        if (_saveError == 'Failed saving humanize strictness') {
+          _saveError = null;
+        }
+      });
+    } catch (_) {
+      if (!mounted || !updateUi) {
+        return;
+      }
+      setState(() {
+        _saveError = 'Failed saving humanize strictness';
+      });
+    }
   }
 
   Future<void> _generateVariants() async {
@@ -1290,18 +1355,41 @@ Takeaway:
             canonicalMarkdown: _controller.text,
           );
       final baseUrl = ref.read(apiBaseUrlProvider);
-      final response = await ref.read(httpClientProvider).post(
-            Uri.parse('$baseUrl/drafts/$draftId/cover-image'),
-            headers: const {'content-type': 'application/json'},
-            body: jsonEncode({
-              'canonical_markdown': _controller.text,
-              'size': '1024x1024',
-              'style_hint': ref.read(activePostProvider)?.contentType,
-            }),
-          );
+      final client = ref.read(httpClientProvider);
+      final requestUri = Uri.parse('$baseUrl/drafts/$draftId/cover-image');
+      final requestBody = jsonEncode({
+        'canonical_markdown': _controller.text,
+        'size': '1024x1024',
+        'style_hint': ref.read(activePostProvider)?.contentType,
+      });
+      var syncedDraft = false;
+      if (!_isServerBackedDraftId(draftId)) {
+        await ref.read(syncServiceProvider).syncNow();
+        syncedDraft = true;
+      }
+      var response = await client.post(
+        requestUri,
+        headers: const {'content-type': 'application/json'},
+        body: requestBody,
+      );
+      if (response.statusCode == 404 &&
+          _extractErrorDetail(response.body) == 'Draft not found' &&
+          !syncedDraft) {
+        await ref.read(syncServiceProvider).syncNow();
+        response = await client.post(
+          requestUri,
+          headers: const {'content-type': 'application/json'},
+          body: requestBody,
+        );
+      }
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Cover image failed: ${response.statusCode}');
+        final detail = _extractErrorDetail(response.body);
+        throw Exception(
+          detail == null || detail.isEmpty
+              ? 'Cover image failed: ${response.statusCode}'
+              : 'Cover image failed: ${response.statusCode} ($detail)',
+        );
       }
 
       final parsed = jsonDecode(response.body) as Map<String, dynamic>;

@@ -96,6 +96,20 @@ class PostRepo {
     });
   }
 
+  Future<void> updateHumanizeStrictness({
+    required String postId,
+    required double humanizeStrictness,
+  }) async {
+    await (_db.update(_db.posts)..where((t) => t.id.equals(postId))).write(
+      PostsCompanion(
+        humanizeStrictness:
+            Value(humanizeStrictness.clamp(0.0, 1.0).toDouble()),
+        updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
+      ),
+    );
+  }
+
   Future<void> updatePostCover({
     required String postId,
     String? coverImageUrl,

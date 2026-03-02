@@ -448,6 +448,14 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
   late final GeneratedColumn<String> coverImagePrompt = GeneratedColumn<String>(
       'cover_image_prompt', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _humanizeStrictnessMeta =
+      const VerificationMeta('humanizeStrictness');
+  @override
+  late final GeneratedColumn<double> humanizeStrictness =
+      GeneratedColumn<double>('humanize_strictness', aliasedName, false,
+          type: DriftSqlType.double,
+          requiredDuringInsert: false,
+          defaultValue: const Constant(0.7));
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -490,6 +498,7 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
         coverImageUrl,
         coverImageDataUri,
         coverImagePrompt,
+        humanizeStrictness,
         status,
         createdAt,
         updatedAt,
@@ -552,6 +561,12 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
           coverImagePrompt.isAcceptableOrUnknown(
               data['cover_image_prompt']!, _coverImagePromptMeta));
     }
+    if (data.containsKey('humanize_strictness')) {
+      context.handle(
+          _humanizeStrictnessMeta,
+          humanizeStrictness.isAcceptableOrUnknown(
+              data['humanize_strictness']!, _humanizeStrictnessMeta));
+    }
     if (data.containsKey('status')) {
       context.handle(_statusMeta,
           status.isAcceptableOrUnknown(data['status']!, _statusMeta));
@@ -597,6 +612,8 @@ class $PostsTable extends Posts with TableInfo<$PostsTable, Post> {
           DriftSqlType.string, data['${effectivePrefix}cover_image_data_uri']),
       coverImagePrompt: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}cover_image_prompt']),
+      humanizeStrictness: attachedDatabase.typeMapping.read(
+          DriftSqlType.double, data['${effectivePrefix}humanize_strictness'])!,
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       createdAt: attachedDatabase.typeMapping
@@ -624,6 +641,7 @@ class Post extends DataClass implements Insertable<Post> {
   final String? coverImageUrl;
   final String? coverImageDataUri;
   final String? coverImagePrompt;
+  final double humanizeStrictness;
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -638,6 +656,7 @@ class Post extends DataClass implements Insertable<Post> {
       this.coverImageUrl,
       this.coverImageDataUri,
       this.coverImagePrompt,
+      required this.humanizeStrictness,
       required this.status,
       required this.createdAt,
       required this.updatedAt,
@@ -666,6 +685,7 @@ class Post extends DataClass implements Insertable<Post> {
     if (!nullToAbsent || coverImagePrompt != null) {
       map['cover_image_prompt'] = Variable<String>(coverImagePrompt);
     }
+    map['humanize_strictness'] = Variable<double>(humanizeStrictness);
     map['status'] = Variable<String>(status);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -694,6 +714,7 @@ class Post extends DataClass implements Insertable<Post> {
       coverImagePrompt: coverImagePrompt == null && nullToAbsent
           ? const Value.absent()
           : Value(coverImagePrompt),
+      humanizeStrictness: Value(humanizeStrictness),
       status: Value(status),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -715,6 +736,8 @@ class Post extends DataClass implements Insertable<Post> {
       coverImageDataUri:
           serializer.fromJson<String?>(json['coverImageDataUri']),
       coverImagePrompt: serializer.fromJson<String?>(json['coverImagePrompt']),
+      humanizeStrictness:
+          serializer.fromJson<double>(json['humanizeStrictness']),
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -734,6 +757,7 @@ class Post extends DataClass implements Insertable<Post> {
       'coverImageUrl': serializer.toJson<String?>(coverImageUrl),
       'coverImageDataUri': serializer.toJson<String?>(coverImageDataUri),
       'coverImagePrompt': serializer.toJson<String?>(coverImagePrompt),
+      'humanizeStrictness': serializer.toJson<double>(humanizeStrictness),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -751,6 +775,7 @@ class Post extends DataClass implements Insertable<Post> {
           Value<String?> coverImageUrl = const Value.absent(),
           Value<String?> coverImageDataUri = const Value.absent(),
           Value<String?> coverImagePrompt = const Value.absent(),
+          double? humanizeStrictness,
           String? status,
           DateTime? createdAt,
           DateTime? updatedAt,
@@ -770,6 +795,7 @@ class Post extends DataClass implements Insertable<Post> {
         coverImagePrompt: coverImagePrompt.present
             ? coverImagePrompt.value
             : this.coverImagePrompt,
+        humanizeStrictness: humanizeStrictness ?? this.humanizeStrictness,
         status: status ?? this.status,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -793,6 +819,9 @@ class Post extends DataClass implements Insertable<Post> {
       coverImagePrompt: data.coverImagePrompt.present
           ? data.coverImagePrompt.value
           : this.coverImagePrompt,
+      humanizeStrictness: data.humanizeStrictness.present
+          ? data.humanizeStrictness.value
+          : this.humanizeStrictness,
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -813,6 +842,7 @@ class Post extends DataClass implements Insertable<Post> {
           ..write('coverImageUrl: $coverImageUrl, ')
           ..write('coverImageDataUri: $coverImageDataUri, ')
           ..write('coverImagePrompt: $coverImagePrompt, ')
+          ..write('humanizeStrictness: $humanizeStrictness, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -832,6 +862,7 @@ class Post extends DataClass implements Insertable<Post> {
       coverImageUrl,
       coverImageDataUri,
       coverImagePrompt,
+      humanizeStrictness,
       status,
       createdAt,
       updatedAt,
@@ -849,6 +880,7 @@ class Post extends DataClass implements Insertable<Post> {
           other.coverImageUrl == this.coverImageUrl &&
           other.coverImageDataUri == this.coverImageDataUri &&
           other.coverImagePrompt == this.coverImagePrompt &&
+          other.humanizeStrictness == this.humanizeStrictness &&
           other.status == this.status &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -865,6 +897,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
   final Value<String?> coverImageUrl;
   final Value<String?> coverImageDataUri;
   final Value<String?> coverImagePrompt;
+  final Value<double> humanizeStrictness;
   final Value<String> status;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -880,6 +913,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
     this.coverImageUrl = const Value.absent(),
     this.coverImageDataUri = const Value.absent(),
     this.coverImagePrompt = const Value.absent(),
+    this.humanizeStrictness = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -896,6 +930,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
     this.coverImageUrl = const Value.absent(),
     this.coverImageDataUri = const Value.absent(),
     this.coverImagePrompt = const Value.absent(),
+    this.humanizeStrictness = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -913,6 +948,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
     Expression<String>? coverImageUrl,
     Expression<String>? coverImageDataUri,
     Expression<String>? coverImagePrompt,
+    Expression<double>? humanizeStrictness,
     Expression<String>? status,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -929,6 +965,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
       if (coverImageUrl != null) 'cover_image_url': coverImageUrl,
       if (coverImageDataUri != null) 'cover_image_data_uri': coverImageDataUri,
       if (coverImagePrompt != null) 'cover_image_prompt': coverImagePrompt,
+      if (humanizeStrictness != null) 'humanize_strictness': humanizeStrictness,
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -947,6 +984,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
       Value<String?>? coverImageUrl,
       Value<String?>? coverImageDataUri,
       Value<String?>? coverImagePrompt,
+      Value<double>? humanizeStrictness,
       Value<String>? status,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
@@ -962,6 +1000,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       coverImageDataUri: coverImageDataUri ?? this.coverImageDataUri,
       coverImagePrompt: coverImagePrompt ?? this.coverImagePrompt,
+      humanizeStrictness: humanizeStrictness ?? this.humanizeStrictness,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1000,6 +1039,9 @@ class PostsCompanion extends UpdateCompanion<Post> {
     if (coverImagePrompt.present) {
       map['cover_image_prompt'] = Variable<String>(coverImagePrompt.value);
     }
+    if (humanizeStrictness.present) {
+      map['humanize_strictness'] = Variable<double>(humanizeStrictness.value);
+    }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
@@ -1030,6 +1072,7 @@ class PostsCompanion extends UpdateCompanion<Post> {
           ..write('coverImageUrl: $coverImageUrl, ')
           ..write('coverImageDataUri: $coverImageDataUri, ')
           ..write('coverImagePrompt: $coverImagePrompt, ')
+          ..write('humanizeStrictness: $humanizeStrictness, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -6143,6 +6186,7 @@ typedef $$PostsTableCreateCompanionBuilder = PostsCompanion Function({
   Value<String?> coverImageUrl,
   Value<String?> coverImageDataUri,
   Value<String?> coverImagePrompt,
+  Value<double> humanizeStrictness,
   Value<String> status,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -6159,6 +6203,7 @@ typedef $$PostsTableUpdateCompanionBuilder = PostsCompanion Function({
   Value<String?> coverImageUrl,
   Value<String?> coverImageDataUri,
   Value<String?> coverImagePrompt,
+  Value<double> humanizeStrictness,
   Value<String> status,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -6274,6 +6319,10 @@ class $$PostsTableFilterComposer extends Composer<_$AppDatabase, $PostsTable> {
 
   ColumnFilters<String> get coverImagePrompt => $composableBuilder(
       column: $table.coverImagePrompt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get humanizeStrictness => $composableBuilder(
+      column: $table.humanizeStrictness,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get status => $composableBuilder(
@@ -6429,6 +6478,10 @@ class $$PostsTableOrderingComposer
       column: $table.coverImagePrompt,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get humanizeStrictness => $composableBuilder(
+      column: $table.humanizeStrictness,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnOrderings(column));
 
@@ -6494,6 +6547,9 @@ class $$PostsTableAnnotationComposer
 
   GeneratedColumn<String> get coverImagePrompt => $composableBuilder(
       column: $table.coverImagePrompt, builder: (column) => column);
+
+  GeneratedColumn<double> get humanizeStrictness => $composableBuilder(
+      column: $table.humanizeStrictness, builder: (column) => column);
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
@@ -6649,6 +6705,7 @@ class $$PostsTableTableManager extends RootTableManager<
             Value<String?> coverImageUrl = const Value.absent(),
             Value<String?> coverImageDataUri = const Value.absent(),
             Value<String?> coverImagePrompt = const Value.absent(),
+            Value<double> humanizeStrictness = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -6665,6 +6722,7 @@ class $$PostsTableTableManager extends RootTableManager<
             coverImageUrl: coverImageUrl,
             coverImageDataUri: coverImageDataUri,
             coverImagePrompt: coverImagePrompt,
+            humanizeStrictness: humanizeStrictness,
             status: status,
             createdAt: createdAt,
             updatedAt: updatedAt,
@@ -6681,6 +6739,7 @@ class $$PostsTableTableManager extends RootTableManager<
             Value<String?> coverImageUrl = const Value.absent(),
             Value<String?> coverImageDataUri = const Value.absent(),
             Value<String?> coverImagePrompt = const Value.absent(),
+            Value<double> humanizeStrictness = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
@@ -6697,6 +6756,7 @@ class $$PostsTableTableManager extends RootTableManager<
             coverImageUrl: coverImageUrl,
             coverImageDataUri: coverImageDataUri,
             coverImagePrompt: coverImagePrompt,
+            humanizeStrictness: humanizeStrictness,
             status: status,
             createdAt: createdAt,
             updatedAt: updatedAt,

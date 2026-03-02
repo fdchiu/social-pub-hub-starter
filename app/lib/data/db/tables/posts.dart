@@ -22,6 +22,9 @@ class Posts extends Table {
 
   TextColumn get coverImagePrompt => text().nullable()();
 
+  RealColumn get humanizeStrictness =>
+      real().withDefault(const Constant(0.7))();
+
   TextColumn get status => text().withDefault(const Constant('active'))();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

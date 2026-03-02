@@ -97,6 +97,7 @@ Post _post(String id, {required String projectId}) {
     projectId: projectId,
     title: 'Post $id',
     contentType: 'general_post',
+    humanizeStrictness: 0.7,
     status: 'active',
     createdAt: now,
     updatedAt: now,

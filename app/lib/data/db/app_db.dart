@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -243,6 +243,13 @@ class AppDatabase extends _$AppDatabase {
               tableName: 'drafts',
               columnName: 'polish_instruction',
               addColumn: () => m.addColumn(drafts, drafts.polishInstruction),
+            );
+          }
+          if (from < 19) {
+            await addColumnIfMissing(
+              tableName: 'posts',
+              columnName: 'humanize_strictness',
+              addColumn: () => m.addColumn(posts, posts.humanizeStrictness),
             );
           }
         },
