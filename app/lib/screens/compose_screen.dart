@@ -52,6 +52,38 @@ class _ResolvedImagePayload {
   final String extension;
 }
 
+class _CoverImageResult {
+  const _CoverImageResult({
+    required this.imageUrl,
+    required this.dataUri,
+    required this.prompt,
+    required this.revisedPrompt,
+    required this.model,
+    required this.llmUsed,
+    required this.fallbackReason,
+  });
+
+  final String? imageUrl;
+  final String? dataUri;
+  final String prompt;
+  final String? revisedPrompt;
+  final String? model;
+  final bool llmUsed;
+  final String? fallbackReason;
+}
+
+class _CoverImageRevisionRequest {
+  const _CoverImageRevisionRequest({
+    required this.basePrompt,
+    required this.revisionInstruction,
+    required this.negativePrompt,
+  });
+
+  final String? basePrompt;
+  final String? revisionInstruction;
+  final String? negativePrompt;
+}
+
 final _composeCoverVersionsProvider =
     StreamProvider.family<List<SourceItem>, String>((ref, postId) {
   return ref
@@ -1339,69 +1371,32 @@ Takeaway:
     return cleanedLines.join('\n').trim();
   }
 
-  Future<void> _generateCoverImage() async {
+  Future<void> _generateCoverImage({
+    String? basePrompt,
+    String? revisionInstruction,
+    String? negativePrompt,
+  }) async {
     final draftId = _draftId;
     if (draftId == null) {
       return;
     }
+
+    _CoverImageRevisionRequest? nextRevision;
 
     setState(() {
       _generatingCoverImage = true;
     });
 
     try {
-      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
-            draftId: draftId,
-            canonicalMarkdown: _controller.text,
-          );
-      final baseUrl = ref.read(apiBaseUrlProvider);
-      final client = ref.read(httpClientProvider);
-      final requestUri = Uri.parse('$baseUrl/drafts/$draftId/cover-image');
-      final requestBody = jsonEncode({
-        'canonical_markdown': _controller.text,
-        'size': '1024x1024',
-        'style_hint': ref.read(activePostProvider)?.contentType,
-      });
-      var syncedDraft = false;
-      if (!_isServerBackedDraftId(draftId)) {
-        await ref.read(syncServiceProvider).syncNow();
-        syncedDraft = true;
-      }
-      var response = await client.post(
-        requestUri,
-        headers: const {'content-type': 'application/json'},
-        body: requestBody,
+      final result = await _requestCoverImage(
+        draftId: draftId,
+        basePrompt: basePrompt,
+        revisionInstruction: revisionInstruction,
+        negativePrompt: negativePrompt,
       );
-      if (response.statusCode == 404 &&
-          _extractErrorDetail(response.body) == 'Draft not found' &&
-          !syncedDraft) {
-        await ref.read(syncServiceProvider).syncNow();
-        response = await client.post(
-          requestUri,
-          headers: const {'content-type': 'application/json'},
-          body: requestBody,
-        );
-      }
-
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        final detail = _extractErrorDetail(response.body);
-        throw Exception(
-          detail == null || detail.isEmpty
-              ? 'Cover image failed: ${response.statusCode}'
-              : 'Cover image failed: ${response.statusCode} ($detail)',
-        );
-      }
-
-      final parsed = jsonDecode(response.body) as Map<String, dynamic>;
-      final imageUrl = (parsed['image_url'] as String?)?.trim();
-      final dataUri = (parsed['image_data_uri'] as String?)?.trim();
-      final prompt = (parsed['prompt'] as String?)?.trim() ?? '';
-      final revisedPrompt = (parsed['revised_prompt'] as String?)?.trim();
-      final model = (parsed['model'] as String?)?.trim();
-      final llmUsed = parsed['llm_used'] as bool? ?? false;
-      final fallbackReason = (parsed['fallback_reason'] as String?)?.trim();
 
       Uint8List? imageBytes;
+      final dataUri = result.dataUri;
       if (dataUri != null && dataUri.isNotEmpty) {
         final commaIndex = dataUri.indexOf(',');
         if (commaIndex > 0 && commaIndex + 1 < dataUri.length) {
@@ -1413,14 +1408,15 @@ Takeaway:
         }
       }
 
-      if ((imageUrl == null || imageUrl.isEmpty) && imageBytes == null) {
+      if ((result.imageUrl == null || result.imageUrl!.isEmpty) &&
+          imageBytes == null) {
         if (!mounted) {
           return;
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Cover image fallback (${fallbackReason ?? 'no image payload'}).',
+              'Cover image fallback (${result.fallbackReason ?? 'no image payload'}).',
             ),
           ),
         );
@@ -1431,118 +1427,19 @@ Takeaway:
       if (activePost != null) {
         await _saveGeneratedCoverVersion(
           post: activePost,
-          imageUrl: imageUrl,
-          dataUri: dataUri,
-          prompt: revisedPrompt ?? prompt,
-          model: model,
+          imageUrl: result.imageUrl,
+          dataUri: result.dataUri,
+          prompt: result.revisedPrompt ?? result.prompt,
+          model: result.model,
         );
       }
       if (!mounted) {
         return;
       }
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) {
-          return AlertDialog(
-            title: const Text('Cover image preview'),
-            content: SizedBox(
-              width: 680,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (imageBytes != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(imageBytes),
-                      )
-                    else if (imageUrl != null && imageUrl.isNotEmpty)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(imageUrl),
-                      ),
-                    const SizedBox(height: 12),
-                    Text(
-                      llmUsed
-                          ? 'Generated with ${model ?? 'OpenAI image model'}'
-                          : 'Fallback response (${fallbackReason ?? 'no LLM'})',
-                    ),
-                    if (prompt.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      const Text('Prompt used'),
-                      const SizedBox(height: 4),
-                      SelectableText(prompt),
-                    ],
-                    if (revisedPrompt != null && revisedPrompt.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      const Text('Revised prompt'),
-                      const SizedBox(height: 4),
-                      SelectableText(revisedPrompt),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              if (imageUrl != null && imageUrl.isNotEmpty)
-                TextButton(
-                  onPressed: () async {
-                    await Clipboard.setData(ClipboardData(text: imageUrl));
-                    if (dialogContext.mounted) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(content: Text('Image URL copied')),
-                      );
-                    }
-                  },
-                  child: const Text('Copy URL'),
-                ),
-              if (imageUrl != null && imageUrl.isNotEmpty)
-                TextButton(
-                  onPressed: () async {
-                    final uri = Uri.tryParse(imageUrl);
-                    if (uri == null) {
-                      return;
-                    }
-                    await launchUrl(
-                      uri,
-                      mode: LaunchMode.externalApplication,
-                    );
-                  },
-                  child: const Text('Open image'),
-                ),
-              TextButton(
-                onPressed: () => _saveAndRevealCoverImage(
-                  dataUri: dataUri,
-                  imageUrl: imageUrl,
-                  suggestedName:
-                      activePost == null ? 'cover_image' : activePost.title,
-                ),
-                child: const Text('Save + reveal'),
-              ),
-              TextButton(
-                onPressed: activePost == null
-                    ? null
-                    : () async {
-                        await _applyCoverImageToPost(
-                          post: activePost,
-                          imageUrl: imageUrl,
-                          dataUri: dataUri,
-                          prompt: revisedPrompt ?? prompt,
-                        );
-                        if (dialogContext.mounted) {
-                          Navigator.of(dialogContext).pop();
-                        }
-                      },
-                child: const Text('Apply to post'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Close'),
-              ),
-            ],
-          );
-        },
+      nextRevision = await _showCoverImagePreviewDialog(
+        result: result,
+        imageBytes: imageBytes,
+        activePost: activePost,
       );
     } catch (e) {
       if (!mounted) {
@@ -1558,6 +1455,302 @@ Takeaway:
         });
       }
     }
+
+    if (nextRevision != null) {
+      await _generateCoverImage(
+        basePrompt: nextRevision.basePrompt,
+        revisionInstruction: nextRevision.revisionInstruction,
+        negativePrompt: nextRevision.negativePrompt,
+      );
+    }
+  }
+
+  Future<_CoverImageResult> _requestCoverImage({
+    required String draftId,
+    String? basePrompt,
+    String? revisionInstruction,
+    String? negativePrompt,
+  }) async {
+    await ref.read(draftRepoProvider).updateCanonicalMarkdown(
+          draftId: draftId,
+          canonicalMarkdown: _controller.text,
+        );
+    final baseUrl = ref.read(apiBaseUrlProvider);
+    final client = ref.read(httpClientProvider);
+    final requestUri = Uri.parse('$baseUrl/drafts/$draftId/cover-image');
+    final requestBody = <String, dynamic>{
+      'canonical_markdown': _controller.text,
+      'size': '1024x1024',
+      'style_hint': ref.read(activePostProvider)?.contentType,
+    };
+    final trimmedBasePrompt = basePrompt?.trim();
+    if (trimmedBasePrompt != null && trimmedBasePrompt.isNotEmpty) {
+      requestBody['base_prompt'] = trimmedBasePrompt;
+    }
+    final trimmedRevision = revisionInstruction?.trim();
+    if (trimmedRevision != null && trimmedRevision.isNotEmpty) {
+      requestBody['revision_instruction'] = trimmedRevision;
+    }
+    final trimmedNegative = negativePrompt?.trim();
+    if (trimmedNegative != null && trimmedNegative.isNotEmpty) {
+      requestBody['negative_prompt'] = trimmedNegative;
+    }
+
+    var syncedDraft = false;
+    if (!_isServerBackedDraftId(draftId)) {
+      await ref.read(syncServiceProvider).syncNow();
+      syncedDraft = true;
+    }
+    var response = await client.post(
+      requestUri,
+      headers: const {'content-type': 'application/json'},
+      body: jsonEncode(requestBody),
+    );
+    if (response.statusCode == 404 &&
+        _extractErrorDetail(response.body) == 'Draft not found' &&
+        !syncedDraft) {
+      await ref.read(syncServiceProvider).syncNow();
+      response = await client.post(
+        requestUri,
+        headers: const {'content-type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final detail = _extractErrorDetail(response.body);
+      throw Exception(
+        detail == null || detail.isEmpty
+            ? 'Cover image failed: ${response.statusCode}'
+            : 'Cover image failed: ${response.statusCode} ($detail)',
+      );
+    }
+
+    final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+    return _CoverImageResult(
+      imageUrl: (parsed['image_url'] as String?)?.trim(),
+      dataUri: (parsed['image_data_uri'] as String?)?.trim(),
+      prompt: (parsed['prompt'] as String?)?.trim() ?? '',
+      revisedPrompt: (parsed['revised_prompt'] as String?)?.trim(),
+      model: (parsed['model'] as String?)?.trim(),
+      llmUsed: parsed['llm_used'] as bool? ?? false,
+      fallbackReason: (parsed['fallback_reason'] as String?)?.trim(),
+    );
+  }
+
+  Future<_CoverImageRevisionRequest?> _showCoverImagePreviewDialog({
+    required _CoverImageResult result,
+    required Uint8List? imageBytes,
+    required Post? activePost,
+  }) {
+    return showDialog<_CoverImageRevisionRequest>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Cover image preview'),
+          content: SizedBox(
+            width: 680,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (imageBytes != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(imageBytes),
+                    )
+                  else if (result.imageUrl != null &&
+                      result.imageUrl!.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(result.imageUrl!),
+                    ),
+                  const SizedBox(height: 12),
+                  Text(
+                    result.llmUsed
+                        ? 'Generated with ${result.model ?? 'OpenAI image model'}'
+                        : 'Fallback response (${result.fallbackReason ?? 'no LLM'})',
+                  ),
+                  if (result.prompt.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text('Prompt used'),
+                    const SizedBox(height: 4),
+                    SelectableText(result.prompt),
+                  ],
+                  if (result.revisedPrompt != null &&
+                      result.revisedPrompt!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text('Revised prompt'),
+                    const SizedBox(height: 4),
+                    SelectableText(result.revisedPrompt!),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                final revision = await _showCoverImageRevisionDialog(
+                  basePrompt: result.revisedPrompt ?? result.prompt,
+                );
+                if (revision != null && dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop(revision);
+                }
+              },
+              child: const Text('Revise'),
+            ),
+            if (result.imageUrl != null && result.imageUrl!.isNotEmpty)
+              TextButton(
+                onPressed: () async {
+                  await Clipboard.setData(
+                    ClipboardData(text: result.imageUrl!),
+                  );
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('Image URL copied')),
+                    );
+                  }
+                },
+                child: const Text('Copy URL'),
+              ),
+            if (result.imageUrl != null && result.imageUrl!.isNotEmpty)
+              TextButton(
+                onPressed: () async {
+                  final uri = Uri.tryParse(result.imageUrl!);
+                  if (uri == null) {
+                    return;
+                  }
+                  await launchUrl(
+                    uri,
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+                child: const Text('Open image'),
+              ),
+            TextButton(
+              onPressed: () => _saveAndRevealCoverImage(
+                dataUri: result.dataUri,
+                imageUrl: result.imageUrl,
+                suggestedName:
+                    activePost == null ? 'cover_image' : activePost.title,
+              ),
+              child: const Text('Save + reveal'),
+            ),
+            TextButton(
+              onPressed: activePost == null
+                  ? null
+                  : () async {
+                      await _applyCoverImageToPost(
+                        post: activePost,
+                        imageUrl: result.imageUrl,
+                        dataUri: result.dataUri,
+                        prompt: result.revisedPrompt ?? result.prompt,
+                      );
+                      if (dialogContext.mounted) {
+                        Navigator.of(dialogContext).pop();
+                      }
+                    },
+              child: const Text('Apply to post'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<_CoverImageRevisionRequest?> _showCoverImageRevisionDialog({
+    required String? basePrompt,
+  }) async {
+    if (!mounted) {
+      return null;
+    }
+
+    final instructionController = TextEditingController();
+    final negativeController = TextEditingController();
+    final normalizedBasePrompt = basePrompt?.trim();
+
+    final result = await showDialog<_CoverImageRevisionRequest>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Revise cover image'),
+          content: SizedBox(
+            width: 560,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (normalizedBasePrompt != null &&
+                    normalizedBasePrompt.isNotEmpty) ...[
+                  const Text('Current prompt base'),
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    normalizedBasePrompt,
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                TextField(
+                  controller: instructionController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Additional instruction',
+                    hintText:
+                        'Warmer palette, tighter crop, stronger focal subject',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: negativeController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Negative prompt',
+                    hintText: 'No text, no UI, no laptops, no clutter',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final instruction = instructionController.text.trim();
+                final negative = negativeController.text.trim();
+                if (instruction.isEmpty && negative.isEmpty) {
+                  Navigator.of(dialogContext).pop();
+                  return;
+                }
+                Navigator.of(dialogContext).pop(
+                  _CoverImageRevisionRequest(
+                    basePrompt: normalizedBasePrompt?.isEmpty ?? true
+                        ? null
+                        : normalizedBasePrompt,
+                    revisionInstruction:
+                        instruction.isEmpty ? null : instruction,
+                    negativePrompt: negative.isEmpty ? null : negative,
+                  ),
+                );
+              },
+              child: const Text('Regenerate'),
+            ),
+          ],
+        );
+      },
+    );
+
+    instructionController.dispose();
+    negativeController.dispose();
+    return result;
   }
 
   Future<void> _copyVariantText(String text) async {
@@ -2231,6 +2424,23 @@ Takeaway:
                   ],
                 ],
               ),
+            ),
+            IconButton(
+              tooltip: 'Revise cover',
+              onPressed: () async {
+                final revision = await _showCoverImageRevisionDialog(
+                  basePrompt: prompt,
+                );
+                if (revision == null) {
+                  return;
+                }
+                await _generateCoverImage(
+                  basePrompt: revision.basePrompt,
+                  revisionInstruction: revision.revisionInstruction,
+                  negativePrompt: revision.negativePrompt,
+                );
+              },
+              icon: const Icon(Icons.auto_awesome_outlined),
             ),
             IconButton(
               tooltip: 'Save + reveal',
