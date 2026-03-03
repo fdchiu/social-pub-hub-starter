@@ -304,239 +304,261 @@ Takeaway:
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  const PostScopeHeader(showGlobalToggle: false),
-                  if (activePost != null && coverVersionsAsync != null) ...[
-                    const SizedBox(height: 8),
-                    coverVersionsAsync.when(
-                      data: (coverVersions) => _buildPostCoverSection(
-                        post: activePost,
-                        coverVersions: coverVersions,
-                      ),
-                      loading: () => _buildPostCoverSection(
-                        post: activePost,
-                        coverVersions: const <SourceItem>[],
-                      ),
-                      error: (error, _) => Column(
-                        children: [
-                          _buildPostCoverSection(
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final editorHeight = (constraints.maxHeight * 0.24)
+                    .clamp(180.0, 320.0)
+                    .toDouble();
+                final variantsHeight = (constraints.maxHeight * 0.32)
+                    .clamp(220.0, 420.0)
+                    .toDouble();
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      const PostScopeHeader(showGlobalToggle: false),
+                      if (activePost != null && coverVersionsAsync != null) ...[
+                        const SizedBox(height: 8),
+                        coverVersionsAsync.when(
+                          data: (coverVersions) => _buildPostCoverSection(
+                            post: activePost,
+                            coverVersions: coverVersions,
+                          ),
+                          loading: () => _buildPostCoverSection(
                             post: activePost,
                             coverVersions: const <SourceItem>[],
                           ),
-                          const SizedBox(height: 6),
-                          Align(
+                          error: (error, _) => Column(
+                            children: [
+                              _buildPostCoverSection(
+                                post: activePost,
+                                coverVersions: const <SourceItem>[],
+                              ),
+                              const SizedBox(height: 6),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Cover versions failed: $error',
+                                  style: const TextStyle(color: Colors.orange),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      _buildPolishSourceContextCard(polishSourcesAsync),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _polishInstructionController,
+                        minLines: 2,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          labelText: 'Polish instruction (optional)',
+                          hintText:
+                              'Example: Summarize the notes first, then get to the point on how to choose AI apps that match the notes.',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: editorHeight,
+                        child: TextField(
+                          controller: _controller,
+                          minLines: null,
+                          maxLines: null,
+                          expands: true,
+                          textAlignVertical: TextAlignVertical.top,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            hintText: 'Write canonical markdown draft...',
+                          ),
+                        ),
+                      ),
+                      if (_variantError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'Cover versions failed: $error',
+                              _variantError!,
                               style: const TextStyle(color: Colors.orange),
                             ),
                           ),
+                        ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Text('Humanize strictness'),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Slider(
+                              min: 0,
+                              max: 1,
+                              divisions: 10,
+                              value: _humanizeStrictness,
+                              label: _humanizeStrictness.toStringAsFixed(1),
+                              onChanged: _onHumanizeStrictnessChanged,
+                            ),
+                          ),
+                          Text(_humanizeStrictness.toStringAsFixed(1)),
                         ],
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  _buildPolishSourceContextCard(polishSourcesAsync),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _polishInstructionController,
-                    minLines: 2,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      labelText: 'Polish instruction (optional)',
-                      hintText:
-                          'Example: Summarize the notes first, then get to the point on how to choose AI apps that match the notes.',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      minLines: null,
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: 'Write canonical markdown draft...',
-                      ),
-                    ),
-                  ),
-                  if (_variantError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          _variantError!,
-                          style: const TextStyle(color: Colors.orange),
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        height: variantsHeight,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white24),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: variantsAsync == null
+                              ? const SizedBox.shrink()
+                              : variantsAsync.when(
+                                  data: (variants) {
+                                    if (variants.isEmpty) {
+                                      return const Center(
+                                        child: Text(
+                                          'No variants yet. Tap sparkle to generate.',
+                                        ),
+                                      );
+                                    }
+                                    final platforms = variants
+                                        .map((v) => v.platform)
+                                        .toSet()
+                                        .toList(growable: false)
+                                      ..sort();
+                                    final filterOptions = <String>[
+                                      'all',
+                                      ...platforms,
+                                    ];
+                                    final selectedFilter = filterOptions
+                                            .contains(_variantPlatformFilter)
+                                        ? _variantPlatformFilter
+                                        : 'all';
+                                    final filtered = selectedFilter == 'all'
+                                        ? variants
+                                        : variants
+                                            .where(
+                                              (variant) =>
+                                                  variant.platform ==
+                                                  selectedFilter,
+                                            )
+                                            .toList(growable: false);
+
+                                    return Column(
+                                      children: [
+                                        SizedBox(
+                                          height: 42,
+                                          child: ListView.separated(
+                                            scrollDirection: Axis.horizontal,
+                                            itemCount: filterOptions.length,
+                                            separatorBuilder: (_, __) =>
+                                                const SizedBox(width: 8),
+                                            itemBuilder: (context, index) {
+                                              final filter =
+                                                  filterOptions[index];
+                                              return ChoiceChip(
+                                                label: Text(
+                                                  filter == 'all'
+                                                      ? 'ALL'
+                                                      : filter.toUpperCase(),
+                                                ),
+                                                selected:
+                                                    filter == selectedFilter,
+                                                onSelected: (selected) {
+                                                  if (!selected) {
+                                                    return;
+                                                  }
+                                                  setState(() {
+                                                    _variantPlatformFilter =
+                                                        filter;
+                                                  });
+                                                },
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Text(
+                                                'Visible variants: ${filtered.length}',
+                                              ),
+                                              const Spacer(),
+                                              FilledButton.tonal(
+                                                onPressed: filtered.isEmpty ||
+                                                        _regeneratingVisibleVariants
+                                                    ? null
+                                                    : () =>
+                                                        _humanizeVisibleVariants(
+                                                          filtered,
+                                                        ),
+                                                child: const Text(
+                                                  'Humanize visible',
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              FilledButton.tonal(
+                                                onPressed: filtered.isEmpty ||
+                                                        _regeneratingVisibleVariants
+                                                    ? null
+                                                    : () =>
+                                                        _regenerateVisibleVariants(
+                                                          filtered,
+                                                        ),
+                                                child:
+                                                    _regeneratingVisibleVariants
+                                                        ? const SizedBox(
+                                                            width: 14,
+                                                            height: 14,
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                            ),
+                                                          )
+                                                        : const Text(
+                                                            'Regenerate visible',
+                                                          ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Expanded(
+                                          child: ListView.separated(
+                                            itemCount: filtered.length,
+                                            separatorBuilder: (_, __) =>
+                                                const Divider(height: 1),
+                                            itemBuilder: (context, index) {
+                                              final variant = filtered[index];
+                                              return _buildVariantListItem(
+                                                variant,
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                  loading: () => const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                  error: (error, _) => Center(
+                                    child: Text('Variant error: $error'),
+                                  ),
+                                ),
                         ),
                       ),
-                    ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Text('Humanize strictness'),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Slider(
-                          min: 0,
-                          max: 1,
-                          divisions: 10,
-                          value: _humanizeStrictness,
-                          label: _humanizeStrictness.toStringAsFixed(1),
-                          onChanged: _onHumanizeStrictnessChanged,
-                        ),
-                      ),
-                      Text(_humanizeStrictness.toStringAsFixed(1)),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Expanded(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white24),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: variantsAsync == null
-                          ? const SizedBox.shrink()
-                          : variantsAsync.when(
-                              data: (variants) {
-                                if (variants.isEmpty) {
-                                  return const Center(
-                                    child: Text(
-                                      'No variants yet. Tap sparkle to generate.',
-                                    ),
-                                  );
-                                }
-                                final platforms = variants
-                                    .map((v) => v.platform)
-                                    .toSet()
-                                    .toList(growable: false)
-                                  ..sort();
-                                final filterOptions = <String>[
-                                  'all',
-                                  ...platforms,
-                                ];
-                                final selectedFilter = filterOptions
-                                        .contains(_variantPlatformFilter)
-                                    ? _variantPlatformFilter
-                                    : 'all';
-                                final filtered = selectedFilter == 'all'
-                                    ? variants
-                                    : variants
-                                        .where(
-                                          (variant) =>
-                                              variant.platform ==
-                                              selectedFilter,
-                                        )
-                                        .toList(growable: false);
-
-                                return Column(
-                                  children: [
-                                    SizedBox(
-                                      height: 42,
-                                      child: ListView.separated(
-                                        scrollDirection: Axis.horizontal,
-                                        itemCount: filterOptions.length,
-                                        separatorBuilder: (_, __) =>
-                                            const SizedBox(width: 8),
-                                        itemBuilder: (context, index) {
-                                          final filter = filterOptions[index];
-                                          return ChoiceChip(
-                                            label: Text(
-                                              filter == 'all'
-                                                  ? 'ALL'
-                                                  : filter.toUpperCase(),
-                                            ),
-                                            selected: filter == selectedFilter,
-                                            onSelected: (selected) {
-                                              if (!selected) {
-                                                return;
-                                              }
-                                              setState(() {
-                                                _variantPlatformFilter = filter;
-                                              });
-                                            },
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                              'Visible variants: ${filtered.length}'),
-                                          const Spacer(),
-                                          FilledButton.tonal(
-                                            onPressed: filtered.isEmpty ||
-                                                    _regeneratingVisibleVariants
-                                                ? null
-                                                : () =>
-                                                    _humanizeVisibleVariants(
-                                                      filtered,
-                                                    ),
-                                            child:
-                                                const Text('Humanize visible'),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          FilledButton.tonal(
-                                            onPressed: filtered.isEmpty ||
-                                                    _regeneratingVisibleVariants
-                                                ? null
-                                                : () =>
-                                                    _regenerateVisibleVariants(
-                                                      filtered,
-                                                    ),
-                                            child: _regeneratingVisibleVariants
-                                                ? const SizedBox(
-                                                    width: 14,
-                                                    height: 14,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                                  )
-                                                : const Text(
-                                                    'Regenerate visible',
-                                                  ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Expanded(
-                                      child: ListView.separated(
-                                        itemCount: filtered.length,
-                                        separatorBuilder: (_, __) =>
-                                            const Divider(height: 1),
-                                        itemBuilder: (context, index) {
-                                          final variant = filtered[index];
-                                          return _buildVariantListItem(variant);
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                              loading: () => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                              error: (error, _) =>
-                                  Center(child: Text('Variant error: $error')),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
     );
   }
