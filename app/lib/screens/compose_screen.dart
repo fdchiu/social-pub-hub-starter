@@ -520,128 +520,7 @@ Takeaway:
                                             const Divider(height: 1),
                                         itemBuilder: (context, index) {
                                           final variant = filtered[index];
-                                          final humanizing =
-                                              _humanizingVariantIds
-                                                  .contains(variant.id);
-                                          final charLimit = _platformCharLimit(
-                                            variant.platform,
-                                          );
-                                          final charCount =
-                                              variant.body.trim().length;
-                                          final overLimit = charLimit != null &&
-                                              charCount > charLimit;
-                                          return ListTile(
-                                            title: Row(
-                                              children: [
-                                                Text(
-                                                  variant.platform
-                                                      .toUpperCase(),
-                                                ),
-                                                if (charLimit != null) ...[
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    '$charCount/$charLimit',
-                                                    style: TextStyle(
-                                                      color: overLimit
-                                                          ? Colors.redAccent
-                                                          : Colors.white70,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                            subtitle: Text(
-                                              variant.body,
-                                              maxLines: 3,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            trailing: Wrap(
-                                              spacing: 4,
-                                              children: [
-                                                IconButton(
-                                                  tooltip: 'Copy',
-                                                  onPressed: () =>
-                                                      _copyVariantText(
-                                                    variant.body,
-                                                  ),
-                                                  icon: const Icon(Icons.copy),
-                                                ),
-                                                IconButton(
-                                                  tooltip: 'Open composer',
-                                                  onPressed: () =>
-                                                      _openComposerForVariant(
-                                                    platform: variant.platform,
-                                                    text: variant.body,
-                                                  ),
-                                                  icon: const Icon(
-                                                    Icons.open_in_new,
-                                                  ),
-                                                ),
-                                                IconButton(
-                                                  tooltip: 'Confirm posted',
-                                                  onPressed: () =>
-                                                      _confirmPosted(
-                                                    variant.id,
-                                                    variant.platform,
-                                                    variant.body,
-                                                  ),
-                                                  icon: const Icon(
-                                                    Icons.check_circle_outline,
-                                                  ),
-                                                ),
-                                                IconButton(
-                                                  tooltip: 'Queue',
-                                                  onPressed: () =>
-                                                      queueVariantFromCompose(
-                                                    context: context,
-                                                    ref: ref,
-                                                    variantId: variant.id,
-                                                    platform: variant.platform,
-                                                    body: variant.body,
-                                                  ),
-                                                  icon: const Icon(
-                                                    Icons.schedule_outlined,
-                                                  ),
-                                                ),
-                                                IconButton(
-                                                  tooltip: 'Edit',
-                                                  onPressed: () =>
-                                                      _editVariant(variant),
-                                                  icon: const Icon(
-                                                    Icons.edit_outlined,
-                                                  ),
-                                                ),
-                                                IconButton(
-                                                  tooltip: 'Delete',
-                                                  onPressed: () =>
-                                                      _deleteVariant(variant),
-                                                  icon: const Icon(
-                                                    Icons.delete_outline,
-                                                  ),
-                                                ),
-                                                IconButton(
-                                                  tooltip: 'Humanize',
-                                                  onPressed: humanizing
-                                                      ? null
-                                                      : () => _humanizeVariant(
-                                                            variant,
-                                                          ),
-                                                  icon: humanizing
-                                                      ? const SizedBox(
-                                                          width: 16,
-                                                          height: 16,
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                          ),
-                                                        )
-                                                      : const Icon(
-                                                          Icons.auto_fix_high,
-                                                        ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
+                                          return _buildVariantListItem(variant);
                                         },
                                       ),
                                     ),
@@ -659,6 +538,113 @@ Takeaway:
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildVariantListItem(Variant variant) {
+    final humanizing = _humanizingVariantIds.contains(variant.id);
+    final charLimit = _platformCharLimit(variant.platform);
+    final charCount = variant.body.trim().length;
+    final overLimit = charLimit != null && charCount > charLimit;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              Text(variant.platform.toUpperCase()),
+              if (charLimit != null)
+                Text(
+                  '$charCount/$charLimit',
+                  style: TextStyle(
+                    color: overLimit ? Colors.redAccent : Colors.white70,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            variant.body,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Copy',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _copyVariantText(variant.body),
+                  icon: const Icon(Icons.copy),
+                ),
+                IconButton(
+                  tooltip: 'Open composer',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _openComposerForVariant(
+                    platform: variant.platform,
+                    text: variant.body,
+                  ),
+                  icon: const Icon(Icons.open_in_new),
+                ),
+                IconButton(
+                  tooltip: 'Confirm posted',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _confirmPosted(
+                    variant.id,
+                    variant.platform,
+                    variant.body,
+                  ),
+                  icon: const Icon(Icons.check_circle_outline),
+                ),
+                IconButton(
+                  tooltip: 'Queue',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => queueVariantFromCompose(
+                    context: context,
+                    ref: ref,
+                    variantId: variant.id,
+                    platform: variant.platform,
+                    body: variant.body,
+                  ),
+                  icon: const Icon(Icons.schedule_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Edit',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _editVariant(variant),
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Delete',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _deleteVariant(variant),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+                IconButton(
+                  tooltip: 'Humanize',
+                  visualDensity: VisualDensity.compact,
+                  onPressed:
+                      humanizing ? null : () => _humanizeVariant(variant),
+                  icon: humanizing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_fix_high),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
