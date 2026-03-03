@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
+import '../data/repos/draft_repo.dart';
+import '../data/repos/post_repo.dart';
 import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
@@ -157,6 +159,8 @@ Takeaway:
   Timer? _saveDebounce;
   Timer? _polishInstructionSaveDebounce;
   Timer? _humanizeStrictnessSaveDebounce;
+  late final DraftRepo _draftRepo;
+  late final PostRepo _postRepo;
   String? _draftId;
   String? _loadedForPostId;
   bool _loading = true;
@@ -175,6 +179,8 @@ Takeaway:
   @override
   void initState() {
     super.initState();
+    _draftRepo = ref.read(draftRepoProvider);
+    _postRepo = ref.read(postRepoProvider);
     _controller.addListener(_onEditorChanged);
     _polishInstructionController.addListener(_onPolishInstructionChanged);
     unawaited(_loadOrCreateDraft());
@@ -985,10 +991,10 @@ Takeaway:
     }
 
     try {
-      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
-            draftId: draftId,
-            canonicalMarkdown: _controller.text,
-          );
+      await _draftRepo.updateCanonicalMarkdown(
+        draftId: draftId,
+        canonicalMarkdown: _controller.text,
+      );
       if (!mounted || !updateUi) {
         return;
       }
@@ -1012,10 +1018,10 @@ Takeaway:
     }
 
     try {
-      await ref.read(draftRepoProvider).updatePolishInstruction(
-            draftId: draftId,
-            instruction: _polishInstructionController.text,
-          );
+      await _draftRepo.updatePolishInstruction(
+        draftId: draftId,
+        instruction: _polishInstructionController.text,
+      );
       if (!mounted || !updateUi) {
         return;
       }
@@ -1035,17 +1041,16 @@ Takeaway:
   }
 
   Future<void> _persistHumanizeStrictness({bool updateUi = true}) async {
-    final activePost = ref.read(activePostProvider);
-    final postId = activePost?.id;
+    final postId = _loadedForPostId;
     if (postId == null || postId.isEmpty) {
       return;
     }
 
     try {
-      await ref.read(postRepoProvider).updateHumanizeStrictness(
-            postId: postId,
-            humanizeStrictness: _humanizeStrictness,
-          );
+      await _postRepo.updateHumanizeStrictness(
+        postId: postId,
+        humanizeStrictness: _humanizeStrictness,
+      );
       if (!mounted || !updateUi) {
         return;
       }
@@ -1076,10 +1081,10 @@ Takeaway:
     });
 
     try {
-      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
-            draftId: draftId,
-            canonicalMarkdown: _controller.text,
-          );
+      await _draftRepo.updateCanonicalMarkdown(
+        draftId: draftId,
+        canonicalMarkdown: _controller.text,
+      );
 
       final activePost = ref.read(activePostProvider);
       final styleProfile =
@@ -1177,10 +1182,10 @@ Takeaway:
     });
 
     try {
-      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
-            draftId: draftId,
-            canonicalMarkdown: _controller.text,
-          );
+      await _draftRepo.updateCanonicalMarkdown(
+        draftId: draftId,
+        canonicalMarkdown: _controller.text,
+      );
       final activeProject = ref.read(activeProjectProvider);
       final availableSourceItems =
           await ref.read(sourceRepoProvider).getRecentSourceItemsForPost(
@@ -1284,10 +1289,10 @@ Takeaway:
         );
       }
 
-      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
-            draftId: draftId,
-            canonicalMarkdown: nextText,
-          );
+      await _draftRepo.updateCanonicalMarkdown(
+        draftId: draftId,
+        canonicalMarkdown: nextText,
+      );
       if (!mounted) {
         return;
       }
@@ -1471,10 +1476,10 @@ Takeaway:
     String? revisionInstruction,
     String? negativePrompt,
   }) async {
-    await ref.read(draftRepoProvider).updateCanonicalMarkdown(
-          draftId: draftId,
-          canonicalMarkdown: _controller.text,
-        );
+    await _draftRepo.updateCanonicalMarkdown(
+      draftId: draftId,
+      canonicalMarkdown: _controller.text,
+    );
     final baseUrl = ref.read(apiBaseUrlProvider);
     final client = ref.read(httpClientProvider);
     final requestUri = Uri.parse('$baseUrl/drafts/$draftId/cover-image');
@@ -1894,10 +1899,10 @@ Takeaway:
     });
 
     try {
-      await ref.read(draftRepoProvider).updateCanonicalMarkdown(
-            draftId: draftId,
-            canonicalMarkdown: _controller.text,
-          );
+      await _draftRepo.updateCanonicalMarkdown(
+        draftId: draftId,
+        canonicalMarkdown: _controller.text,
+      );
       final styleProfile =
           await ref.read(styleProfileRepoProvider).getOrCreateDefault();
       final baseUrl = ref.read(apiBaseUrlProvider);
