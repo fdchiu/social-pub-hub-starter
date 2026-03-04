@@ -87,6 +87,35 @@ class ScheduledPostRepo {
     );
   }
 
+  Future<void> markPostedByVariantId({
+    required String variantId,
+    String? externalUrl,
+  }) async {
+    final normalizedVariantId = variantId.trim();
+    if (normalizedVariantId.isEmpty) {
+      return;
+    }
+    final normalizedExternalUrl = externalUrl?.trim();
+
+    await (_db.update(_db.scheduledPosts)
+          ..where(
+            (t) =>
+                t.variantId.equals(normalizedVariantId) &
+                t.status.equals('queued'),
+          ))
+        .write(
+      ScheduledPostsCompanion(
+        status: const Value('posted'),
+        externalUrl:
+            normalizedExternalUrl == null || normalizedExternalUrl.isEmpty
+                ? const Value.absent()
+                : Value(normalizedExternalUrl),
+        updatedAt: Value(DateTime.now().toUtc()),
+        syncStatus: const Value('dirty'),
+      ),
+    );
+  }
+
   Future<void> markCanceled(String scheduledPostId) async {
     await (_db.update(_db.scheduledPosts)
           ..where((t) => t.id.equals(scheduledPostId)))

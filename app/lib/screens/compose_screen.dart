@@ -3390,6 +3390,10 @@ Takeaway:
             externalUrl: loggedUrl,
             postedAt: DateTime.now().toUtc(),
           );
+      await ref.read(scheduledPostRepoProvider).markPostedByVariantId(
+            variantId: variantId,
+            externalUrl: loggedUrl,
+          );
 
       if (!mounted) {
         return;
