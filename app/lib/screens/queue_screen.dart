@@ -550,7 +550,7 @@ class _ScheduledPostCard extends ConsumerWidget {
               runSpacing: 8,
               children: [
                 FilledButton.tonal(
-                  onPressed: () => _copy(context),
+                  onPressed: () => _copy(context, ref),
                   child: const Text('Copy'),
                 ),
                 FilledButton.tonal(
@@ -593,11 +593,37 @@ class _ScheduledPostCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _copy(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: item.content));
+  Future<void> _copy(BuildContext context, WidgetRef ref) async {
+    var textToCopy = item.content;
+    var copiedLatestVariant = false;
+
+    final variantId = item.variantId?.trim();
+    if (variantId != null && variantId.isNotEmpty) {
+      try {
+        final variant = await ref.read(variantRepoProvider).getVariantById(
+              variantId,
+            );
+        final variantBody = variant?.body;
+        if (variantBody != null && variantBody.trim().isNotEmpty) {
+          textToCopy = variantBody;
+          copiedLatestVariant = true;
+        }
+      } catch (error) {
+        debugPrint(
+            'queue.copy.variant_lookup_failed id=$variantId error=$error');
+      }
+    }
+
+    await Clipboard.setData(ClipboardData(text: textToCopy));
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Copied queued text')),
+        SnackBar(
+          content: Text(
+            copiedLatestVariant
+                ? 'Copied latest variant text'
+                : 'Copied queued text',
+          ),
+        ),
       );
     }
   }

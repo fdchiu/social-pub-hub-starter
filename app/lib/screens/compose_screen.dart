@@ -1078,6 +1078,16 @@ Takeaway:
     }
   }
 
+  Future<void> _syncDraftForVariantGeneration(String draftId) async {
+    try {
+      await ref.read(syncServiceProvider).syncNow();
+    } catch (error, stackTrace) {
+      debugPrint(
+        'compose.variants.sync_before_generate_failed draftId=$draftId error=$error stack=$stackTrace',
+      );
+    }
+  }
+
   Future<void> _generateVariants() async {
     final draftId = _draftId;
     if (draftId == null) {
@@ -1094,6 +1104,7 @@ Takeaway:
         draftId: draftId,
         canonicalMarkdown: _controller.text,
       );
+      await _syncDraftForVariantGeneration(draftId);
 
       final activePost = ref.read(activePostProvider);
       final styleProfile =
@@ -1115,6 +1126,7 @@ Takeaway:
               ],
               'style_profile_id': styleProfile.id,
               'content_type': activePost?.contentType,
+              'canonical_markdown': _controller.text,
             }),
           );
 
@@ -1912,6 +1924,7 @@ Takeaway:
         draftId: draftId,
         canonicalMarkdown: _controller.text,
       );
+      await _syncDraftForVariantGeneration(draftId);
       final styleProfile =
           await ref.read(styleProfileRepoProvider).getOrCreateDefault();
       final baseUrl = ref.read(apiBaseUrlProvider);
@@ -1922,6 +1935,7 @@ Takeaway:
               'platforms': platforms,
               'style_profile_id': styleProfile.id,
               'content_type': ref.read(activePostProvider)?.contentType,
+              'canonical_markdown': _controller.text,
             }),
           );
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -2567,13 +2581,13 @@ Takeaway:
         .toIso8601String()
         .replaceAll(':', '-')
         .replaceAll('.', '-');
-    final safeName = _sanitizeFilename(suggestedName ?? 'cover_image');
+    final canonicalPostName = _sanitizeFilename(suggestedName ?? 'cover_image');
 
     for (final directory in directories) {
       try {
         await directory.create(recursive: true);
         final filePath =
-            '${directory.path}/social_pub_hub_${safeName}_$timestamp.${payload.extension}';
+            '${directory.path}/$canonicalPostName-social-pub-hub-cover-$timestamp.${payload.extension}';
         final file = File(filePath);
         await file.writeAsBytes(payload.bytes, flush: true);
         return file.path;
@@ -2704,10 +2718,10 @@ Takeaway:
   String _sanitizeFilename(String value) {
     final normalized = value.trim().toLowerCase();
     final cleaned = normalized
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
-    return cleaned.isEmpty ? 'cover_image' : cleaned;
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+    return cleaned.isEmpty ? 'cover-image' : cleaned;
   }
 
   Future<bool> _openIosSaveSheet(String filePath) async {
