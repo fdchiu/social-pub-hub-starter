@@ -8,6 +8,7 @@ import '../providers/post_scope_providers.dart';
 import '../providers/repo_providers.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
+import 'bundle_queue_action.dart';
 
 class BundleBuilderScreen extends ConsumerStatefulWidget {
   const BundleBuilderScreen({super.key});
@@ -297,6 +298,10 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
                                       child: Text('Open publish console'),
                                     ),
                                     PopupMenuItem(
+                                      value: _BundleAction.queueBundle,
+                                      child: Text('Queue bundle'),
+                                    ),
+                                    PopupMenuItem(
                                       value: _BundleAction.edit,
                                       child: Text('Edit bundle'),
                                     ),
@@ -423,6 +428,15 @@ class _BundleBuilderScreenState extends ConsumerState<BundleBuilderScreen> {
       }
       final encoded = Uri.encodeQueryComponent(bundle.id);
       context.go('/publish?bundleId=$encoded');
+      return;
+    }
+    if (action == _BundleAction.queueBundle) {
+      await queueBundleFromVariants(
+        context: context,
+        ref: ref,
+        bundle: bundle,
+        variantsById: variantsById,
+      );
       return;
     }
     if (action == _BundleAction.edit) {
@@ -784,6 +798,7 @@ enum _BundleAction {
   youtubeMeta,
   openChecklist,
   openPublish,
+  queueBundle,
   edit,
   delete,
 }

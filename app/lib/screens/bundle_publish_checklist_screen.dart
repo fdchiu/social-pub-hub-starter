@@ -11,6 +11,7 @@ import '../providers/repo_providers.dart';
 import '../providers/sync_providers.dart';
 import '../widgets/hub_app_bar.dart';
 import '../widgets/post_scope_header.dart';
+import 'bundle_queue_action.dart';
 import '../utils/content_type_utils.dart';
 
 class BundlePublishChecklistScreen extends ConsumerStatefulWidget {
@@ -179,6 +180,12 @@ class _BundlePublishChecklistScreenState
                                     context: context,
                                     ref: ref,
                                     report: report,
+                                  ),
+                                  onQueueBundle: () => queueBundleFromVariants(
+                                    context: context,
+                                    ref: ref,
+                                    bundle: report.bundle,
+                                    variantsById: variantById,
                                   ),
                                   onCleanMissingVariants: () =>
                                       _cleanMissingVariantRefs(
@@ -884,6 +891,7 @@ class _BundleChecklistCard extends StatelessWidget {
     required this.onGenerateCanonicalDraft,
     required this.onAttachSource,
     required this.onBackfillVariants,
+    required this.onQueueBundle,
     required this.onCleanMissingVariants,
   });
 
@@ -891,6 +899,7 @@ class _BundleChecklistCard extends StatelessWidget {
   final Future<void> Function() onGenerateCanonicalDraft;
   final Future<void> Function() onAttachSource;
   final Future<void> Function() onBackfillVariants;
+  final Future<void> Function() onQueueBundle;
   final Future<void> Function() onCleanMissingVariants;
 
   @override
@@ -959,6 +968,11 @@ class _BundleChecklistCard extends StatelessWidget {
                   },
                   child: const Text('Open publish console'),
                 ),
+                if (report.variantCount > 0)
+                  FilledButton.tonal(
+                    onPressed: onQueueBundle,
+                    child: const Text('Queue bundle'),
+                  ),
                 if (report.missingPlatforms.isNotEmpty)
                   FilledButton.tonal(
                     onPressed: onBackfillVariants,
