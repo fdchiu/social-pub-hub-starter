@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db/app_db.dart';
@@ -2509,6 +2510,23 @@ Takeaway:
         return;
       }
 
+      if (Platform.isIOS) {
+        final opened = await _openIosSaveSheet(filePath);
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              opened
+                  ? 'Save sheet opened. Choose Files to save to your preferred folder.'
+                  : 'Saved cover image in app storage: $filePath',
+            ),
+          ),
+        );
+        return;
+      }
+
       await Clipboard.setData(ClipboardData(text: filePath));
       await _revealExportedFile(filePath);
       if (!mounted) {
@@ -2542,10 +2560,7 @@ Takeaway:
       return null;
     }
 
-    final downloads = await getDownloadsDirectory();
-    final docs = await getApplicationDocumentsDirectory();
-    final temp = await getTemporaryDirectory();
-    final directories = <Directory?>[downloads, docs, temp];
+    final directories = await _exportTargetDirectories();
 
     final timestamp = DateTime.now()
         .toUtc()
@@ -2554,7 +2569,7 @@ Takeaway:
         .replaceAll('.', '-');
     final safeName = _sanitizeFilename(suggestedName ?? 'cover_image');
 
-    for (final directory in directories.whereType<Directory>()) {
+    for (final directory in directories) {
       try {
         await directory.create(recursive: true);
         final filePath =
@@ -2569,6 +2584,30 @@ Takeaway:
       }
     }
     return null;
+  }
+
+  Future<List<Directory>> _exportTargetDirectories() async {
+    final candidates = <Directory>[];
+
+    if (Platform.isMacOS) {
+      final home = Platform.environment['HOME'];
+      if (home != null && home.trim().isNotEmpty) {
+        candidates.add(Directory('$home/Downloads'));
+        candidates.add(Directory('$home/Documents'));
+      }
+    }
+
+    final downloads = await getDownloadsDirectory();
+    final docs = await getApplicationDocumentsDirectory();
+    final temp = await getTemporaryDirectory();
+    candidates
+        .addAll(<Directory?>[downloads, docs, temp].whereType<Directory>());
+
+    final uniqueByPath = <String, Directory>{};
+    for (final directory in candidates) {
+      uniqueByPath.putIfAbsent(directory.path, () => directory);
+    }
+    return uniqueByPath.values.toList(growable: false);
   }
 
   Future<_ResolvedImagePayload?> _resolveCoverImagePayload({
@@ -2669,6 +2708,19 @@ Takeaway:
         .replaceAll(RegExp(r'_+'), '_')
         .replaceAll(RegExp(r'^_|_$'), '');
     return cleaned.isEmpty ? 'cover_image' : cleaned;
+  }
+
+  Future<bool> _openIosSaveSheet(String filePath) async {
+    try {
+      final result = await Share.shareXFiles(
+        <XFile>[XFile(filePath)],
+        subject: 'Save cover image',
+      );
+      return result.status != ShareResultStatus.unavailable;
+    } catch (error) {
+      debugPrint('compose.cover.ios_share_failed error=$error');
+      return false;
+    }
   }
 
   Future<void> _revealExportedFile(String filePath) async {
