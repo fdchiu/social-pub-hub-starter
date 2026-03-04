@@ -30,9 +30,28 @@ Desktop app + backend for collecting source material, organizing it by scope, dr
 5. Create draft from sources.
 6. Edit in `Compose`, optionally `Polish`.
 7. Generate variants per platform.
-8. Use checklists.
-9. Publish now or queue.
-10. Review `History` and `Analytics`.
+8. Group related variants into a `Bundle` when coordinating a social wave.
+9. Use checklists.
+10. Publish now or queue (single variant or bundle queue).
+11. Review `History` and `Analytics`.
+
+## Concept Model
+
+Primary operator flow:
+
+`project -> inbox -> library -> post -> compose -> variants -> bundle -> queue -> publish`
+
+Meaning of each step:
+
+- `project`: top-level working context.
+- `inbox`: capture raw evidence and ideas.
+- `library`: refine, filter, retag, and rebalance reusable sources.
+- `post`: the main publishing unit inside a project.
+- `compose`: canonical draft workspace for editing, polish, cover images, and variant generation.
+- `variants`: platform-specific outputs derived from the canonical draft.
+- `bundle`: a grouped set of variants/sources used for coordinated distribution.
+- `queue`: scheduled publishing reminders/tracking entries.
+- `publish`: integration status, assisted publish confirmation, and publish logs.
 
 Important:
 - Posts are project-owned.
@@ -46,10 +65,16 @@ Important:
 - Compose:
   - edit canonical draft
   - polish draft
+  - revise generated cover images with follow-up prompt + negative prompt
   - generate variants
   - humanize visible variants
   - generate and persist cover image versions
-- Bundles: group content around an anchor post.
+  - confirm posted or queue individual variants
+- Bundles:
+  - group content around an anchor post
+  - review coordinated publish sets
+  - queue all bundle variants at once
+  - auto-stagger bundle queue timing with a saved default minute interval (`0` = same time)
 - Publish: assisted publish + publish logs.
 - Queue: schedule/manual queue tracking.
 - Settings: app-wide settings, sync diagnostics, style profile.
@@ -145,6 +170,7 @@ Primary workflow doc:
 Other useful docs:
 - `social-pub-hub-docs/docs/02_Data_Model.md`
 - `social-pub-hub-docs/docs/03_API_Spec.md`
+- `social-pub-hub-docs/docs/10_Navigation_Menu.md`
 
 ## Current Direction
 

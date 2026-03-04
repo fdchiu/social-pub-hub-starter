@@ -5,15 +5,34 @@ Read when:
 - validating end-to-end UX across screens
 - implementing missing actions screen-by-screen
 
+## 0) Product model (mental map)
+
+Primary operating sequence:
+
+`project -> inbox -> library -> post -> compose -> variants -> bundle -> queue -> publish`
+
+How to interpret that sequence:
+
+- `project`: top-level planning and ownership boundary.
+- `inbox`: fast capture of raw source material.
+- `library`: search, filter, clean up, and reuse that source material.
+- `post`: the active publishing target within the project.
+- `compose`: the main workspace for drafting, polish, cover-image work, and variant generation.
+- `variants`: platform-specific candidate posts derived from the canonical draft.
+- `bundle`: a grouped release/distribution set that packages related variants.
+- `queue`: scheduled reminders/tracking entries for manual-assisted posting.
+- `publish`: integration visibility plus final confirmation/logging of publish outcomes.
+
 ## 1) Daily happy path (short version)
 1. Open Projects, create/select a project, then select/create a post workspace.
 2. Inbox: capture/select source items with explicit scope (`global`, `project`, or `post`).
 3. Library: refine by scope + tags and rebalance sources across scopes.
 4. Compose: create/edit canonical draft for active post.
 5. Variant Studio (in Compose): generate per-platform variants.
-6. Publish Checklist: run quality gate.
-7. Publish/Queue: assisted publish now or queue.
-8. History/Analytics: verify outcome and reuse winners.
+6. Optional: package related variants into a Bundle for coordinated distribution.
+7. Publish Checklist: run quality gate.
+8. Publish/Queue: assisted publish now, queue one variant, or queue a bundle batch.
+9. History/Analytics: verify outcome and reuse winners.
 
 ## 2) Screen-by-screen flow
 
@@ -59,9 +78,11 @@ Goal: produce canonical draft.
 - Compose includes a per-draft "Polish instruction" field for explicit AI guidance (for example: summarize notes first, then focus on the decision or recommendation).
 - Compose shows a live "Polish context" panel with the latest scoped Inbox/Library sources (up to 12); user can exclude/include items before polish; that selection persists per draft; LLM reads the first 8 selected items.
 - Generate cover image from the current draft (OpenAI image model); each generation is saved as a post-scoped cover version for compare/select; apply chosen version to active post cover.
+- Revise a generated/current cover image by adding follow-up instruction and negative prompt, then regenerate from the current prompt base.
 - Content type drives structure (`general_post`, `coding_guide`, `ai_tool_guide`, or custom guide types like `release_notes_guide`).
 - Style profile traits + differentiation + custom prompt feed LLM.
 - Generate variants.
+- For each variant: copy/open composer, confirm posted, or queue.
 - Delete draft when needed (linked variants are removed and deletion syncs).
 Exit criteria:
 - canonical draft approved by user.
@@ -85,6 +106,9 @@ Goal: coordinated distribution around an anchor post.
 - Link variants/sources.
 - Canonical draft generation from bundle sources is LLM-first (template fallback) and inherits post content type + audience.
 - Run checklist and backfill missing platforms (LLM first, template fallback).
+- Queue a whole bundle at once.
+- Bundle queue action asks for a start time plus a saved default minute interval between items.
+- Interval `0` means queue all bundle variants at the same timestamp.
 Exit criteria:
 - bundle is complete and ready to distribute.
 
@@ -115,6 +139,9 @@ Goal: manage scheduled execution.
 - Scope queue to active post by default; toggle “Include all posts” when needed.
 - Filter queued/overdue.
 - Copy/open composer for manual assisted posting.
+- Queue entries can come from:
+  - a single variant in Compose
+  - a bundle batch with automatic stagger spacing
 - Mark posted or cancel.
 - Remove posted/canceled rows to keep queue clean (syncs deletion).
 - Queue rows carry `post_id` for linked variants and post-scoped manual queue entries, enabling per-post audits.
@@ -160,6 +187,7 @@ Exit criteria:
 ## 3) Recommended operating cadence
 - Start: Inbox/Library triage.
 - Midday: Compose + variants.
+- Coordination pass: Bundle related variants when pushing a multi-platform wave.
 - Before publish: Publish Checklist.
 - End of day: Queue cleanup + History/Analytics review.
 

@@ -2,6 +2,19 @@
 
 This document explains the function of each home navigation item (sometimes called the side menu in product discussions).
 
+## Mental model
+
+Primary operating sequence:
+
+`project -> inbox -> library -> post -> compose -> variants -> bundle -> queue -> publish`
+
+Notes:
+- `project` and `post` are context selectors, not just screens.
+- `compose` is the main single-post production workspace.
+- `bundle` is the coordinated multi-variant packaging step.
+- `queue` is a scheduling/tracking layer.
+- `publish` is the operational confirmation/log layer.
+
 ## Menu map
 
 ### 1) Inbox (`/inbox`)
@@ -26,6 +39,7 @@ This document explains the function of each home navigation item (sometimes call
 - Primary actions:
   - Edit canonical markdown draft
   - Polish draft (LLM pass when configured, fallback rules otherwise)
+  - Generate and revise cover images
   - Generate variants by platform
   - Filter variants by platform
   - Humanize variant text
@@ -38,6 +52,8 @@ This document explains the function of each home navigation item (sometimes call
   - Create bundle with anchor type/ref
   - Link variants to bundle
   - Review wave preview and YouTube metadata preview
+  - Queue all bundle variants in one action
+  - Apply saved stagger spacing between queued items (`0` means same-time queue)
 - Typical output: bundle plan for coordinated publishing.
 
 ### 5) Bundle Checklist (`/bundle-checklist`)
@@ -47,6 +63,7 @@ This document explains the function of each home navigation item (sometimes call
   - Generate canonical draft from linked sources
   - Attach latest source
   - Backfill missing variants/platforms
+  - Queue bundle directly once ready
   - Clean missing variant references
 - Typical output: complete bundle with fewer publish blockers.
 
@@ -73,6 +90,7 @@ This document explains the function of each home navigation item (sometimes call
   - Copy/open composer
   - Mark posted/cancel
   - Open related history
+  - Review bundle-generated queued items, including staggered batches
 - Typical output: cleaner scheduled publishing workflow.
 
 ### 9) Sync Conflicts (`/sync-conflicts`)
