@@ -236,6 +236,14 @@ Takeaway:
         ? null
         : ref.watch(_composeCoverVersionsProvider(activePostId));
     final polishSourcesAsync = ref.watch(_composePolishSourcesProvider);
+    final publishLogs = ref.watch(publishLogsStreamProvider).valueOrNull ??
+        const <PublishLog>[];
+    final postedVariantIds = <String>{
+      for (final log in publishLogs)
+        if ((log.variantId?.trim().isNotEmpty ?? false) &&
+            log.status.trim().toLowerCase() == 'posted')
+          log.variantId!.trim(),
+    };
 
     return Scaffold(
       appBar: buildHubAppBar(
@@ -554,6 +562,8 @@ Takeaway:
                                               final variant = filtered[index];
                                               return _buildVariantListItem(
                                                 variant,
+                                                isPosted: postedVariantIds
+                                                    .contains(variant.id),
                                               );
                                             },
                                           ),
@@ -578,7 +588,10 @@ Takeaway:
     );
   }
 
-  Widget _buildVariantListItem(Variant variant) {
+  Widget _buildVariantListItem(
+    Variant variant, {
+    required bool isPosted,
+  }) {
     final humanizing = _humanizingVariantIds.contains(variant.id);
     final charLimit = _platformCharLimit(variant.platform);
     final charCount = variant.body.trim().length;
@@ -603,6 +616,15 @@ Takeaway:
                     '$charCount/$charLimit',
                     style: TextStyle(
                       color: overLimit ? Colors.redAccent : Colors.white70,
+                    ),
+                  ),
+                if (isPosted)
+                  const Tooltip(
+                    message: 'Marked posted',
+                    child: Icon(
+                      Icons.check_circle,
+                      size: 16,
+                      color: Colors.lightGreenAccent,
                     ),
                   ),
               ],
