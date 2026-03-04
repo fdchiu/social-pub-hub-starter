@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -87,6 +88,18 @@ class _CoverImageRevisionRequest {
   final String? negativePrompt;
 }
 
+class _CoverImageReferenceRequest {
+  const _CoverImageReferenceRequest({
+    required this.imageUrl,
+    required this.revisionInstruction,
+    required this.negativePrompt,
+  });
+
+  final String imageUrl;
+  final String? revisionInstruction;
+  final String? negativePrompt;
+}
+
 final _composeCoverVersionsProvider =
     StreamProvider.family<List<SourceItem>, String>((ref, postId) {
   return ref
@@ -153,6 +166,7 @@ Takeaway:
   static const int _xVariantCharLimit = 280;
   static const String _coverVersionTag = 'cover_version';
   static const String _coverGeneratedTag = 'cover_generated';
+  static const String _coverImportedTag = 'cover_imported';
 
   final TextEditingController _controller = TextEditingController();
   final TextEditingController _polishInstructionController =
@@ -1405,6 +1419,8 @@ Takeaway:
     String? basePrompt,
     String? revisionInstruction,
     String? negativePrompt,
+    String? referenceImageUrl,
+    String? referenceImageDataUri,
   }) async {
     final draftId = _draftId;
     if (draftId == null) {
@@ -1423,6 +1439,8 @@ Takeaway:
         basePrompt: basePrompt,
         revisionInstruction: revisionInstruction,
         negativePrompt: negativePrompt,
+        referenceImageUrl: referenceImageUrl,
+        referenceImageDataUri: referenceImageDataUri,
       );
 
       Uint8List? imageBytes;
@@ -1491,6 +1509,8 @@ Takeaway:
         basePrompt: nextRevision.basePrompt,
         revisionInstruction: nextRevision.revisionInstruction,
         negativePrompt: nextRevision.negativePrompt,
+        referenceImageUrl: referenceImageUrl,
+        referenceImageDataUri: referenceImageDataUri,
       );
     }
   }
@@ -1500,6 +1520,8 @@ Takeaway:
     String? basePrompt,
     String? revisionInstruction,
     String? negativePrompt,
+    String? referenceImageUrl,
+    String? referenceImageDataUri,
   }) async {
     await _draftRepo.updateCanonicalMarkdown(
       draftId: draftId,
@@ -1524,6 +1546,14 @@ Takeaway:
     final trimmedNegative = negativePrompt?.trim();
     if (trimmedNegative != null && trimmedNegative.isNotEmpty) {
       requestBody['negative_prompt'] = trimmedNegative;
+    }
+    final trimmedReferenceUrl = referenceImageUrl?.trim();
+    if (trimmedReferenceUrl != null && trimmedReferenceUrl.isNotEmpty) {
+      requestBody['reference_image_url'] = trimmedReferenceUrl;
+    }
+    final trimmedReferenceDataUri = referenceImageDataUri?.trim();
+    if (trimmedReferenceDataUri != null && trimmedReferenceDataUri.isNotEmpty) {
+      requestBody['reference_image_data_uri'] = trimmedReferenceDataUri;
     }
 
     var syncedDraft = false;
@@ -1781,6 +1811,270 @@ Takeaway:
     instructionController.dispose();
     negativeController.dispose();
     return result;
+  }
+
+  Future<void> _importCoverImageFromLocalFile(Post post) async {
+    try {
+      const imageTypes = XTypeGroup(
+        label: 'images',
+        extensions: <String>['png', 'jpg', 'jpeg', 'webp', 'gif'],
+      );
+      final file = await openFile(acceptedTypeGroups: <XTypeGroup>[imageTypes]);
+      if (file == null) {
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selected image file is empty')),
+        );
+        return;
+      }
+
+      final mimeType = _mimeTypeFromFilename(file.name);
+      final dataUri = 'data:$mimeType;base64,${base64Encode(bytes)}';
+      await _applyCoverImageToPost(
+        post: post,
+        imageUrl: null,
+        dataUri: dataUri,
+        prompt: 'Imported local image: ${file.name}',
+      );
+      await _saveImportedCoverVersion(
+        post: post,
+        storage: dataUri,
+        note: 'Imported local image: ${file.name}',
+      );
+
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cover image imported from ${file.name}')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Image import failed: $error')),
+      );
+    }
+  }
+
+  Future<void> _importCoverImageFromUrl(Post post) async {
+    final urlController = TextEditingController();
+    final selectedUrl = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Use image URL as cover'),
+        content: SizedBox(
+          width: 560,
+          child: TextField(
+            controller: urlController,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Image URL',
+              hintText: 'https://example.com/cover.png',
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(
+              urlController.text.trim(),
+            ),
+            child: const Text('Use image'),
+          ),
+        ],
+      ),
+    );
+    urlController.dispose();
+
+    final normalizedUrl = selectedUrl?.trim();
+    if (normalizedUrl == null || normalizedUrl.isEmpty) {
+      return;
+    }
+    final uri = Uri.tryParse(normalizedUrl);
+    final hasHttpScheme =
+        uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+    if (!hasHttpScheme) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid http/https image URL')),
+      );
+      return;
+    }
+
+    final dataUri = await _downloadImageAsDataUri(normalizedUrl);
+    await _applyCoverImageToPost(
+      post: post,
+      imageUrl: normalizedUrl,
+      dataUri: dataUri,
+      prompt: 'Imported image URL: $normalizedUrl',
+    );
+    await _saveImportedCoverVersion(
+      post: post,
+      storage: dataUri?.trim().isNotEmpty == true ? dataUri! : normalizedUrl,
+      note: 'Imported image URL: $normalizedUrl',
+    );
+
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cover image set from URL')),
+    );
+  }
+
+  Future<void> _generateCoverImageFromReferenceUrl() async {
+    final request = await _showCoverImageReferenceDialog();
+    if (request == null) {
+      return;
+    }
+
+    final referenceDataUri = await _downloadImageAsDataUri(request.imageUrl);
+    await _generateCoverImage(
+      revisionInstruction: request.revisionInstruction,
+      negativePrompt: request.negativePrompt,
+      referenceImageUrl: request.imageUrl,
+      referenceImageDataUri: referenceDataUri,
+    );
+
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Generated cover using reference image URL context'),
+      ),
+    );
+  }
+
+  Future<_CoverImageReferenceRequest?> _showCoverImageReferenceDialog() async {
+    final urlController = TextEditingController();
+    final instructionController = TextEditingController();
+    final negativeController = TextEditingController();
+
+    final result = await showDialog<_CoverImageReferenceRequest>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Generate from image URL'),
+        content: SizedBox(
+          width: 580,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: urlController,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Reference image URL',
+                  hintText: 'https://example.com/reference.jpg',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: instructionController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Additional instruction (optional)',
+                  hintText: 'Match composition but shift to warmer palette',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: negativeController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  labelText: 'Negative prompt (optional)',
+                  hintText: 'No text, no logos, no watermark',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final normalizedUrl = urlController.text.trim();
+              final uri = Uri.tryParse(normalizedUrl);
+              final hasHttpScheme = uri != null &&
+                  (uri.scheme == 'http' || uri.scheme == 'https');
+              if (!hasHttpScheme) {
+                return;
+              }
+              final instruction = instructionController.text.trim();
+              final negative = negativeController.text.trim();
+              Navigator.of(dialogContext).pop(
+                _CoverImageReferenceRequest(
+                  imageUrl: normalizedUrl,
+                  revisionInstruction: instruction.isEmpty ? null : instruction,
+                  negativePrompt: negative.isEmpty ? null : negative,
+                ),
+              );
+            },
+            child: const Text('Generate'),
+          ),
+        ],
+      ),
+    );
+
+    urlController.dispose();
+    instructionController.dispose();
+    negativeController.dispose();
+    return result;
+  }
+
+  String _mimeTypeFromFilename(String filename) {
+    final normalized = filename.trim().toLowerCase();
+    if (normalized.endsWith('.png')) {
+      return 'image/png';
+    }
+    if (normalized.endsWith('.jpg') || normalized.endsWith('.jpeg')) {
+      return 'image/jpeg';
+    }
+    if (normalized.endsWith('.webp')) {
+      return 'image/webp';
+    }
+    if (normalized.endsWith('.gif')) {
+      return 'image/gif';
+    }
+    return 'image/png';
+  }
+
+  Future<void> _saveImportedCoverVersion({
+    required Post post,
+    required String storage,
+    required String note,
+  }) async {
+    final normalizedStorage = storage.trim();
+    if (normalizedStorage.isEmpty) {
+      return;
+    }
+    await ref.read(sourceRepoProvider).createSourceItem(
+          type: 'image',
+          url: normalizedStorage,
+          title: 'Cover import ${DateTime.now().toUtc().toIso8601String()}',
+          userNote: note,
+          tags: const <String>[_coverVersionTag, _coverImportedTag],
+          postId: post.id,
+          projectId: post.projectId,
+        );
   }
 
   Future<void> _copyVariantText(String text) async {
@@ -2406,11 +2700,8 @@ Takeaway:
     final dataUri = post.coverImageDataUri?.trim();
     final imageUrl = post.coverImageUrl?.trim();
     final prompt = post.coverImagePrompt?.trim();
-
-    if ((dataUri == null || dataUri.isEmpty) &&
-        (imageUrl == null || imageUrl.isEmpty)) {
-      return const SizedBox.shrink();
-    }
+    final hasCover = (dataUri != null && dataUri.isNotEmpty) ||
+        (imageUrl != null && imageUrl.isNotEmpty);
 
     final bytes = dataUri == null || dataUri.isEmpty
         ? null
@@ -2433,7 +2724,9 @@ Takeaway:
                 height: 90,
                 child: bytes != null
                     ? Image.memory(bytes, fit: BoxFit.cover)
-                    : Image.network(imageUrl!, fit: BoxFit.cover),
+                    : imageUrl != null && imageUrl.isNotEmpty
+                        ? Image.network(imageUrl, fit: BoxFit.cover)
+                        : const Center(child: Text('No cover image')),
               ),
             ),
             const SizedBox(width: 12),
@@ -2445,17 +2738,52 @@ Takeaway:
                     'Current post cover image',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
-                  if (prompt != null && prompt.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                  const SizedBox(height: 4),
+                  if (prompt != null && prompt.isNotEmpty)
                     Text(
                       prompt,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,
+                    )
+                  else
+                    Text(
+                      hasCover
+                          ? 'Cover image set. You can revise, replace, or clear it.'
+                          : 'No cover image selected yet. Upload local, use URL, or generate from URL.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
-                  ],
                 ],
               ),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Add/replace cover',
+              onSelected: (value) async {
+                if (value == 'local') {
+                  await _importCoverImageFromLocalFile(post);
+                } else if (value == 'url') {
+                  await _importCoverImageFromUrl(post);
+                } else if (value == 'generate_url') {
+                  await _generateCoverImageFromReferenceUrl();
+                }
+              },
+              itemBuilder: (_) => const <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'local',
+                  child: Text('Use local image file'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'url',
+                  child: Text('Use image URL'),
+                ),
+                PopupMenuItem<String>(
+                  value: 'generate_url',
+                  child: Text('Generate from image URL'),
+                ),
+              ],
+              icon: const Icon(Icons.add_photo_alternate_outlined),
             ),
             IconButton(
               tooltip: 'Revise cover',
@@ -2476,29 +2804,33 @@ Takeaway:
             ),
             IconButton(
               tooltip: 'Save + reveal',
-              onPressed: () => _saveAndRevealCoverImage(
-                dataUri: dataUri,
-                imageUrl: imageUrl,
-                suggestedName: post.title,
-              ),
+              onPressed: hasCover
+                  ? () => _saveAndRevealCoverImage(
+                        dataUri: dataUri,
+                        imageUrl: imageUrl,
+                        suggestedName: post.title,
+                      )
+                  : null,
               icon: const Icon(Icons.save_alt_outlined),
             ),
             IconButton(
               tooltip: 'Clear post cover',
-              onPressed: () async {
-                await ref.read(postRepoProvider).updatePostCover(
-                      postId: post.id,
-                      coverImageUrl: null,
-                      coverImageDataUri: null,
-                      coverImagePrompt: null,
-                    );
-                if (!mounted) {
-                  return;
-                }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Post cover cleared')),
-                );
-              },
+              onPressed: !hasCover
+                  ? null
+                  : () async {
+                      await ref.read(postRepoProvider).updatePostCover(
+                            postId: post.id,
+                            coverImageUrl: null,
+                            coverImageDataUri: null,
+                            coverImagePrompt: null,
+                          );
+                      if (!mounted) {
+                        return;
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Post cover cleared')),
+                      );
+                    },
               icon: const Icon(Icons.delete_outline),
             ),
           ],

@@ -167,7 +167,12 @@ Request:
 {
   "canonical_markdown":"...",
   "size":"1024x1024",
-  "style_hint":"coding_guide"
+  "style_hint":"coding_guide",
+  "base_prompt":"optional base prompt",
+  "revision_instruction":"optional refinement",
+  "negative_prompt":"optional exclusions",
+  "reference_image_url":"optional https://...",
+  "reference_image_data_uri":"optional data:image/..."
 }
 ```
 

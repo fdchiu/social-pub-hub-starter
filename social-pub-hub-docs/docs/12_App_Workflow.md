@@ -78,6 +78,8 @@ Goal: produce canonical draft.
 - Compose includes a per-draft "Polish instruction" field for explicit AI guidance (for example: summarize notes first, then focus on the decision or recommendation).
 - Compose shows a live "Polish context" panel with the latest scoped Inbox/Library sources (up to 12); user can exclude/include items before polish; that selection persists per draft; LLM reads the first 8 selected items.
 - Generate cover image from the current draft (OpenAI image model); each generation is saved as a post-scoped cover version for compare/select; apply chosen version to active post cover.
+- Upload local image files as cover or import an external image URL directly into active post cover.
+- Generate from a reference image URL (plus optional instruction/negative prompt) to steer new cover variants.
 - Revise a generated/current cover image by adding follow-up instruction and negative prompt, then regenerate from the current prompt base.
 - Content type drives structure (`general_post`, `coding_guide`, `ai_tool_guide`, or custom guide types like `release_notes_guide`).
 - Style profile traits + differentiation + custom prompt feed LLM.

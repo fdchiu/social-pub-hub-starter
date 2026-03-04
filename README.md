@@ -65,7 +65,10 @@ Important:
 - Compose:
   - edit canonical draft
   - polish draft
-  - revise generated cover images with follow-up prompt + negative prompt
+  - upload/select local cover image file
+  - import cover image from external URL
+  - generate/revise cover images with follow-up prompt + negative prompt
+  - generate cover images using a reference image URL
   - generate variants
   - humanize visible variants
   - generate and persist cover image versions
